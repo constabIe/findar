@@ -1,0 +1,47 @@
+# Quick Start:
+#
+# uv pip install pre-commit
+# pre-commit install && pre-commit install -t pre-push
+# pre-commit run --all-files
+#
+# To Skip Checks:
+#
+# git commit --no-verify
+
+fail_fast: false
+
+default_language_version:
+  python: python3.11.11
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.1
+    hooks:
+      - id: ruff
+        args: [--fix]
+        stages: [pre-push]
+      - id: ruff-format
+        stages: [pre-push]
+
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.38.1
+    hooks:
+      - id: typos
+        exclude: ^(data/dispatch-sample-data.dump|src/dispatch/static/dispatch/src/|src/dispatch/database/revisions/)
+        stages: [pre-push]
+
+  # - repo: local
+  #   hooks:
+  #     - id: tests
+  #       name: run tests
+  #       entry: pytest -v tests/
+  #       language: system
+  #       types: [python]
+  #       stages: [pre-push]
+
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.35.1  # можно проверить последнюю версию на GitHub
+    hooks:
+      - id: yamllint
+        args: ["-c=.yamllint.yaml", "."]
+        stages: [pre-push]
