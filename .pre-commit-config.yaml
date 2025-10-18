@@ -1,5 +1,6 @@
 # Quick Start:
 #
+# uv pip install pre-commit
 # pre-commit install && pre-commit install -t pre-push
 # pre-commit run --all-files
 #
@@ -10,30 +11,40 @@
 fail_fast: false
 
 repos:
+  # 🐍 Ruff — Python линтер и форматтер
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.1
     hooks:
       - id: ruff
-        args: [--fix]
+        name: ruff (lint)
+        args: [--fix, "--config=ruff.toml"]
         stages: [pre-push]
       - id: ruff-format
+        name: ruff (format)
+        args: ["--config=ruff.toml"]
         stages: [pre-push]
 
+  # 🔤 Typos — проверка орфографии
   - repo: https://github.com/crate-ci/typos
     rev: v1.38.1
     hooks:
       - id: typos
+        name: typos (spell check)
+        args: ["--config=typos.toml"]
         exclude: ^(data/dispatch-sample-data.dump|src/dispatch/static/dispatch/src/|src/dispatch/database/revisions/)
         stages: [pre-push]
 
+  # 🎨 Prettier — форматирование YAML / JSON / Markdown / TOML
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v4.0.0-alpha.8
     hooks:
       - id: prettier
-        args: ["--write"]
+        name: prettier (format)
+        args: ["--write", "--config=.prettierrc.yml"]
         files: "\\.(yml|yaml|json|md|toml)$"
         stages: [pre-push]
 
+  # 🧪 (опционально) Тесты, если нужно
   # - repo: local
   #   hooks:
   #     - id: tests
