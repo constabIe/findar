@@ -1,0 +1,34 @@
+extends: default
+
+rules:
+  # Общие настройки
+  line-length:
+    max: 120
+    level: warning
+
+  # Отступы — 2 пробела, как в большинстве YAML
+  indentation:
+    spaces: 2
+    indent-sequences: true
+
+  # Не требуем документ "---" в начале файла
+  document-start: disable
+
+  # Не требуем "..." в конце документа
+  document-end: disable
+
+  # Проверка на лишние пробелы
+  trailing-spaces: enable
+
+  # Проверка на пустые строки в конце файла
+  empty-lines:
+    max: 1
+    level: warning
+
+  # Игнорируем определённые пути (например, дампы или статические артефакты)
+ignore: |
+  node_modules/
+  .venv/
+  build/
+  dist/
+  data/
