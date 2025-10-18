@@ -39,5 +39,5 @@ repos:
     rev: v1.35.1  # можно проверить последнюю версию на GitHub
     hooks:
       - id: yamllint
-        args: ["-c=.yamllint.yaml", "."]
+        args: ["-c=.yamllint.yml", "."]
         stages: [pre-push]
