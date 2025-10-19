@@ -1,11 +1,27 @@
 """
-Redis storage implementation.
+Redis storage module.
 
-Contains Redis connection pool, caching utilities, and queue management.
+Contains Redis client management for caching and queue operations.
 """
 
-# TODO: Import and expose Redis storage components when implemented
-# from src.storage.redis.connection import get_redis, close_redis
-# from src.storage.redis.cache import cache_get, cache_set, cache_delete
+from .client import (
+    get_async_redis,
+    get_sync_redis,
+    get_async_redis_dependency,
+    get_sync_redis_dependency,
+    close_redis_connections,
+    AsyncRedisClient,
+    SyncRedisClient
+)
+
+__all__ = [
+    "get_async_redis",
+    "get_sync_redis", 
+    "get_async_redis_dependency",
+    "get_sync_redis_dependency",
+    "close_redis_connections",
+    "AsyncRedisClient",
+    "SyncRedisClient"
+]
 
 __all__ = []

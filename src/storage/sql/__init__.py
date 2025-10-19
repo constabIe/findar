@@ -1,11 +1,23 @@
 """
-SQL storage implementation using SQLModel and PostgreSQL.
+SQL storage module.
 
-Contains database models, session management, and repositories.
+Contains async PostgreSQL database engine, session management, and models.
 """
 
-# TODO: Import and expose SQL storage components when implemented
-# from src.storage.sql.database import get_session, init_db
-# from src.storage.sql.models import Transaction, TransactionAnalysis, Rule, Alert
+from .engine import (
+    get_async_engine, 
+    get_async_session_maker,
+    get_async_session, 
+    close_async_engine,
+    AsyncDbSession
+)
+
+__all__ = [
+    "get_async_engine",
+    "get_async_session_maker",
+    "get_async_session", 
+    "close_async_engine",
+    "AsyncDbSession"
+]
 
 __all__ = []

@@ -1,11 +1,32 @@
 """
 Storage layer module.
 
-Contains SQL and Redis storage implementations.
+Contains async SQL and Redis storage implementations and dependency injection.
 """
 
-# TODO: Import and expose storage components when implemented
-# from src.storage.sql import get_session, Transaction, Rule, Alert
-# from src.storage.redis import get_redis, cache
+from .sql import (
+    get_async_engine, 
+    get_async_session_maker,
+    get_async_session,
+    close_async_engine,
+    AsyncDbSession
+)
+from .redis import get_async_redis, get_sync_redis, close_redis_connections
+from .dependencies import AsyncDbSessionDep, AsyncRedisDep, SyncRedisDep
 
-__all__ = []
+__all__ = [
+    # SQL
+    "get_async_engine",
+    "get_async_session_maker",
+    "get_async_session", 
+    "close_async_engine",
+    "AsyncDbSession",
+    # Redis
+    "get_async_redis",
+    "get_sync_redis",
+    "close_redis_connections", 
+    # Dependencies
+    "AsyncDbSessionDep",
+    "AsyncRedisDep",
+    "SyncRedisDep"
+]
