@@ -28,6 +28,7 @@ from src.storage.redis.client import get_async_redis_dependency
 from .enums import RuleType
 from .repository import RuleRepository
 from .schemas import (
+    CacheStatisticsResponse,
     CacheStatusResponse,
     RuleCreateRequest,
     RuleListResponse,
@@ -778,7 +779,7 @@ async def deactivate_rule(
 
 @router.get(
     "/cache/status",
-    response_model=CacheStatusResponse,
+    response_model=CacheStatisticsResponse,
     summary="Get cache status information",
     responses={
         HTTPStatus.OK: {"description": "Cache status retrieved"},
@@ -787,7 +788,7 @@ async def deactivate_rule(
 )
 async def get_cache_status(
     repository: RuleRepository = Depends(get_rule_repository)
-) -> CacheStatusResponse:
+) -> CacheStatisticsResponse:
     """
     Get current status of the rule cache.
     
@@ -814,8 +815,10 @@ async def get_cache_status(
             "Cache status retrieved successfully",
             event="cache_status_retrieved"
         )
+        
+        print("SSS: ", status)
 
-        return CacheStatusResponse.model_validate(status)
+        return CacheStatisticsResponse.model_validate(status)
 
     except DatabaseError as e:
         logger.error(
@@ -839,62 +842,62 @@ async def get_cache_status(
         )
 
 
-@router.post(
-    "/cache/clear",
-    status_code=HTTPStatus.NO_CONTENT,
-    summary="Clear all cached rules",
-    responses={
-        HTTPStatus.NO_CONTENT: {"description": "Cache cleared successfully"},
-        HTTPStatus.INTERNAL_SERVER_ERROR: {"description": "Cache error"}
-    }
-)
-async def clear_cache(
-    repository: RuleRepository = Depends(get_rule_repository)
-) -> None:
-    """
-    Clear all rules from the Redis cache.
+# @router.post(
+#     "/cache/clear",
+#     status_code=HTTPStatus.NO_CONTENT,
+#     summary="Clear all cached rules",
+#     responses={
+#         HTTPStatus.NO_CONTENT: {"description": "Cache cleared successfully"},
+#         HTTPStatus.INTERNAL_SERVER_ERROR: {"description": "Cache error"}
+#     }
+# )
+# async def clear_cache(
+#     repository: RuleRepository = Depends(get_rule_repository)
+# ) -> None:
+#     """
+#     Clear all rules from the Redis cache.
     
-    This operation does not affect the database, only removes cached entries.
+#     This operation does not affect the database, only removes cached entries.
     
-    Args:
-        repository: Injected rule repository
+#     Args:
+#         repository: Injected rule repository
         
-    Raises:
-        HTTPException: If cache operation fails
-    """
-    try:
-        logger.warning(
-            "Clearing entire rule cache",
-            event="cache_clear_request"
-        )
+#     Raises:
+#         HTTPException: If cache operation fails
+#     """
+#     try:
+#         logger.warning(
+#             "Clearing entire rule cache",
+#             event="cache_clear_request"
+#         )
 
-        await repository.clear_cache()
+#         await repository.clear_cache()
 
-        logger.warning(
-            "Cache cleared successfully",
-            event="cache_cleared"
-        )
+#         logger.warning(
+#             "Cache cleared successfully",
+#             event="cache_cleared"
+#         )
 
-    except DatabaseError as e:
-        logger.error(
-            "Cache clear error",
-            error=str(e),
-            event="cache_clear_error"
-        )
-        raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail="Failed to clear cache"
-        )
-    except Exception as e:
-        logger.error(
-            "Unexpected error clearing cache",
-            error=str(e),
-            event="cache_clear_unexpected_error"
-        )
-        raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail="Unexpected error occurred"
-        )
+#     except DatabaseError as e:
+#         logger.error(
+#             "Cache clear error",
+#             error=str(e),
+#             event="cache_clear_error"
+#         )
+#         raise HTTPException(
+#             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+#             detail="Failed to clear cache"
+#         )
+#     except Exception as e:
+#         logger.error(
+#             "Unexpected error clearing cache",
+#             error=str(e),
+#             event="cache_clear_unexpected_error"
+#         )
+#         raise HTTPException(
+#             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+#             detail="Unexpected error occurred"
+#         )
 
 
 @router.post(

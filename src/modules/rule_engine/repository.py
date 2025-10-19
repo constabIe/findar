@@ -354,7 +354,7 @@ class RuleRepository:
 
             # Save to PostgreSQL
             self.db.add(rule)
-            await self.db.flush()
+            await self.db.commit()
             await self.db.refresh(rule)
 
             logger.info(
@@ -413,7 +413,7 @@ class RuleRepository:
 
             # Delete from PostgreSQL
             await self.db.delete(rule)
-            await self.db.flush()
+            await self.db.commit()
 
             logger.info(
                 "Rule deleted from database",
@@ -476,7 +476,7 @@ class RuleRepository:
             rule.enabled = True
             rule.updated_at = datetime.utcnow()
             self.db.add(rule)
-            await self.db.flush()
+            await self.db.commit()
 
             # Add to cache
             await self.add_to_cache(rule)
@@ -540,7 +540,7 @@ class RuleRepository:
             rule.enabled = False
             rule.updated_at = datetime.utcnow()
             self.db.add(rule)
-            await self.db.flush()
+            await self.db.commit()
 
             # Remove from cache
             await self.remove_from_cache(rule_id)
@@ -909,7 +909,7 @@ class RuleRepository:
             )
 
             self.db.add(execution)
-            await self.db.flush()
+            await self.db.commit()
             await self.db.refresh(execution)
 
             # Update rule statistics
@@ -930,7 +930,7 @@ class RuleRepository:
                     )
 
                 self.db.add(rule)
-                await self.db.flush()
+                await self.db.commit()
 
             logger.debug(
                 "Execution recorded",

@@ -479,6 +479,13 @@ class CacheStatusResponse(BaseModel):
     hit_count: int = Field(description="Number of cache hits")
     cache_version: str = Field(description="Cached version")
 
+class CacheStatisticsResponse(BaseModel):
+    """Schema for overall cache statistics."""
+
+    active_rules_count: int = Field(description="Number of active rules in cache")
+    rule_types_count: int = Field(description="Number of different rule type sets in cache")
+    priority_index_size: int = Field(description="Size of priority index")
+    timestamp: str = Field(description="Timestamp when statistics were retrieved")
 
 class HotReloadRequest(BaseModel):
     """Schema for hot reload requests."""
