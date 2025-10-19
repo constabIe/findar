@@ -277,7 +277,7 @@ class RuleEvaluationRequest(BaseModel):
     rule_ids: Optional[List[int]] = Field(
         None, description="Specific rule IDs to evaluate (None = all active)"
     )
-    correlation_id: str = Field(description="Correlation ID for tracking")
+    correlation_id: UUID = Field(description="Correlation ID for tracking")
 
     # Evaluation options
     include_context: bool = Field(
@@ -326,7 +326,7 @@ class RuleContext(BaseModel):
 class RuleEvaluationResult(BaseModel):
     """Result of evaluating a single rule against a transaction."""
 
-    rule_id: int = Field(description="ID of evaluated rule")
+    rule_id: UUID = Field(description="ID of evaluated rule")
     rule_name: str = Field(description="Name of evaluated rule")
     rule_type: RuleType = Field(description="Type of rule")
 
@@ -357,7 +357,7 @@ class TransactionEvaluationResult(BaseModel):
     """Complete evaluation result for a transaction against all rules."""
 
     transaction_id: UUID = Field(description="Evaluated transaction ID")
-    correlation_id: str = Field(description="Request correlation ID")
+    correlation_id: UUID = Field(description="Request correlation ID")
 
     # Overall results
     overall_risk_level: RiskLevel = Field(description="Overall assessed risk level")
@@ -398,7 +398,7 @@ class RuleCreateRequest(BaseModel):
     def validate_params_match_type(cls, params, info):
         """Validate that params match the rule type."""
         rule_type = info.data.get('type')
-        
+
         if rule_type == RuleType.THRESHOLD and not isinstance(params, ThresholdRuleParams):
             raise ValueError("Threshold rules must use ThresholdRuleParams")
         elif rule_type == RuleType.PATTERN and not isinstance(
@@ -411,7 +411,7 @@ class RuleCreateRequest(BaseModel):
             raise ValueError("Composite rules must use CompositeRuleParams")
         elif rule_type == RuleType.ML and not isinstance(params, MLRuleParams):
             raise ValueError("ML rules must use MLRuleParams")
-        
+
         return params
 
 
@@ -433,7 +433,7 @@ class RuleUpdateRequest(BaseModel):
 class RuleResponse(BaseModel):
     """Schema for rule API responses."""
 
-    id: int = Field(description="Rule ID")
+    id: UUID = Field(description="Rule ID")
     name: str = Field(description="Rule name")
     type: RuleType = Field(description="Rule type")
     params: Dict[str, Any] = Field(description="Rule parameters")
@@ -441,19 +441,21 @@ class RuleResponse(BaseModel):
     priority: int = Field(description="Rule priority")
     critical: bool = Field(description="Whether rule is critical")
     description: Optional[str] = Field(description="Rule description")
-    version: Optional[str] = Field(description="Rule version")
-    
+
     # Statistics
     execution_count: int = Field(description="Total executions")
     match_count: int = Field(description="Total matches")
-    match_rate: Optional[float] = Field(None, description="Match rate percentage")
+    # match_rate: Optional[float] = Field(None, description="Match rate percentage")
 
     # Timestamps
     created_at: datetime = Field(description="Creation timestamp")
     updated_at: datetime = Field(description="Last update timestamp")
-    last_executed_at: Optional[datetime] = Field(
-        None, description="Last execution timestamp"
-    )
+    # last_executed_at: Optional[datetime] = Field(
+    #     None, description="Last execution timestamp"
+    # )
+    class Config:
+        from_attributes = True  # replaces orm_mode=True in Pydantic v2
+        use_enum_values = True  # ensures Enum.value is used, not Enum object
 
 
 class RuleListResponse(BaseModel):
@@ -469,7 +471,7 @@ class RuleListResponse(BaseModel):
 class CacheStatusResponse(BaseModel):
     """Schema for rule cache status."""
 
-    rule_id: int = Field(description="Rule ID")
+    rule_id: UUID = Field(description="Rule ID")
     cache_key: str = Field(description="Redis cache key")
     status: CacheStatus = Field(description="Cache status")
     cached_at: Optional[datetime] = Field(None, description="Cache timestamp")

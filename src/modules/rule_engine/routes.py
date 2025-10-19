@@ -10,27 +10,30 @@ Provides REST API endpoints for managing fraud detection rules:
 All endpoints include comprehensive logging with correlation IDs.
 """
 
-from uuid import UUID
 from datetime import datetime
-from typing import List, Optional
 from http import HTTPStatus
+from typing import List, Optional
+from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Depends, Query, Body
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
-from src.core.logging import get_logger
 from src.core.exceptions import (
-    ValidationError, DatabaseError, RuleEvaluationError, AppBaseException
+    DatabaseError,
+    ValidationError,
 )
-from src.storage.dependencies import AsyncDbSessionDep, get_db_session
-from src.storage.redis.client import get_async_redis
+from src.core.logging import get_logger
+from src.storage.dependencies import AsyncDbSessionDep
+from src.storage.redis.client import get_async_redis_dependency
 
+from .enums import RuleType
 from .repository import RuleRepository
 from .schemas import (
-    RuleCreateRequest, RuleUpdateRequest, RuleResponse, RuleListResponse,
-    HotReloadRequest, HotReloadResponse, CacheStatusResponse
+    CacheStatusResponse,
+    RuleCreateRequest,
+    RuleListResponse,
+    RuleResponse,
+    RuleUpdateRequest,
 )
-from .enums import RuleType
 
 # Initialize logger
 logger = get_logger("rule_engine.routes")
@@ -42,7 +45,7 @@ router = APIRouter(prefix="/rules", tags=["Rule Engine"])
 
 async def get_rule_repository(
     db: AsyncDbSessionDep,
-    redis_client = Depends(get_async_redis)
+    redis_client = Depends(get_async_redis_dependency)
 ) -> RuleRepository:
     """Get rule repository instance with database and Redis dependencies."""
     return RuleRepository(db, redis_client)
@@ -107,10 +110,10 @@ async def create_rule(
             critical=rule_data.critical,
             event="rule_create_request"
         )
-        
+
         # Create rule in repository
         created_rule = await repository.create_rule(rule_data)
-        
+
         logger.info(
             "Rule created successfully",
             rule_id=str(created_rule.id),
@@ -118,9 +121,11 @@ async def create_rule(
             rule_type=created_rule.type.value,
             event="rule_created"
         )
-        
+
+        # print("Now RULE", created_rule)
+
         return RuleResponse.model_validate(created_rule)
-        
+
     except ValidationError as e:
         logger.warning(
             "Rule creation validation failed",
@@ -189,9 +194,9 @@ async def get_rule(
             rule_id=str(rule_id),
             event="rule_get_request"
         )
-        
+
         rule = await repository.get_rule_by_id(rule_id)
-        
+
         if not rule:
             logger.warning(
                 "Rule not found",
@@ -202,16 +207,16 @@ async def get_rule(
                 status_code=HTTPStatus.NOT_FOUND,
                 detail=f"Rule with ID {rule_id} not found"
             )
-        
+
         logger.debug(
             "Rule retrieved successfully",
             rule_id=str(rule_id),
             rule_name=rule.name,
             event="rule_retrieved"
         )
-        
+
         return RuleResponse.model_validate(rule)
-        
+
     except HTTPException:
         raise
     except DatabaseError as e:
@@ -280,14 +285,14 @@ async def list_rules(
             rule_type=rule_type.value if rule_type else None,
             event="rule_list_request"
         )
-        
+
         rules, total = await repository.get_all_rules(
             skip=skip,
             limit=limit,
             enabled_only=enabled_only,
             rule_type=rule_type
         )
-        
+
         logger.debug(
             "Rules listed successfully",
             total=total,
@@ -296,11 +301,11 @@ async def list_rules(
             limit=limit,
             event="rules_listed"
         )
-        
+
         # Calculate pagination info
         pages = (total + limit - 1) // limit if total > 0 else 0
         page = (skip // limit) + 1 if skip > 0 else 1
-        
+
         return RuleListResponse(
             rules=[RuleResponse.model_validate(rule) for rule in rules],
             total=total,
@@ -308,7 +313,7 @@ async def list_rules(
             page_size=limit,
             pages=pages
         )
-        
+
     except ValidationError as e:
         logger.warning(
             "Rules listing validation failed",
@@ -373,18 +378,18 @@ async def get_rules_by_type(
             rule_type=rule_type.value,
             event="rules_by_type_request"
         )
-        
+
         rules = await repository.get_rules_by_type(rule_type)
-        
+
         logger.debug(
             "Rules by type retrieved successfully",
             rule_type=rule_type.value,
             count=len(rules),
             event="rules_by_type_retrieved"
         )
-        
+
         return [RuleResponse.model_validate(rule) for rule in rules]
-        
+
     except DatabaseError as e:
         logger.error(
             "Rules by type retrieval database error",
@@ -447,19 +452,19 @@ async def update_rule(
             rule_id=str(rule_id),
             event="rule_update_request"
         )
-        
+
         # Update rule in repository
         updated_rule = await repository.update_rule(rule_id, rule_data)
-        
+
         logger.info(
             "Rule updated successfully",
             rule_id=str(rule_id),
             rule_name=updated_rule.name,
             event="rule_updated"
         )
-        
+
         return RuleResponse.model_validate(updated_rule)
-        
+
     except ValidationError as e:
         logger.warning(
             "Rule update validation failed",
@@ -538,10 +543,10 @@ async def delete_rule(
             rule_id=str(rule_id),
             event="rule_delete_request"
         )
-        
+
         # Delete rule from repository
         deleted = await repository.delete_rule(rule_id)
-        
+
         if not deleted:
             logger.warning(
                 "Rule not found for deletion",
@@ -552,13 +557,13 @@ async def delete_rule(
                 status_code=HTTPStatus.NOT_FOUND,
                 detail=f"Rule with ID {rule_id} not found"
             )
-        
+
         logger.info(
             "Rule deleted successfully",
             rule_id=str(rule_id),
             event="rule_deleted"
         )
-        
+
     except HTTPException:
         raise
     except DatabaseError as e:
@@ -620,18 +625,18 @@ async def activate_rule(
             rule_id=str(rule_id),
             event="rule_activate_request"
         )
-        
+
         activated_rule = await repository.activate_rule(rule_id)
-        
+
         logger.info(
             "Rule activated successfully",
             rule_id=str(rule_id),
             rule_name=activated_rule.name,
             event="rule_activated"
         )
-        
+
         return RuleResponse.model_validate(activated_rule)
-        
+
     except ValidationError as e:
         logger.warning(
             "Rule activation validation failed",
@@ -713,18 +718,18 @@ async def deactivate_rule(
             rule_id=str(rule_id),
             event="rule_deactivate_request"
         )
-        
+
         deactivated_rule = await repository.deactivate_rule(rule_id)
-        
+
         logger.info(
             "Rule deactivated successfully",
             rule_id=str(rule_id),
             rule_name=deactivated_rule.name,
             event="rule_deactivated"
         )
-        
+
         return RuleResponse.model_validate(deactivated_rule)
-        
+
     except ValidationError as e:
         logger.warning(
             "Rule deactivation validation failed",
@@ -802,16 +807,16 @@ async def get_cache_status(
             "Retrieving cache status",
             event="cache_status_request"
         )
-        
+
         status = await repository.get_cache_status()
-        
+
         logger.debug(
             "Cache status retrieved successfully",
             event="cache_status_retrieved"
         )
-        
+
         return CacheStatusResponse.model_validate(status)
-        
+
     except DatabaseError as e:
         logger.error(
             "Cache status retrieval error",
@@ -862,14 +867,14 @@ async def clear_cache(
             "Clearing entire rule cache",
             event="cache_clear_request"
         )
-        
+
         await repository.clear_cache()
-        
+
         logger.warning(
             "Cache cleared successfully",
             event="cache_cleared"
         )
-        
+
     except DatabaseError as e:
         logger.error(
             "Cache clear error",
@@ -935,21 +940,21 @@ async def hot_reload_rules(
             force=force,
             event="hot_reload_request"
         )
-        
+
         rules_loaded = await repository.refresh_cache(force=force)
-        
+
         logger.info(
             "Rules hot reloaded successfully",
             rules_loaded=rules_loaded,
             event="hot_reload_completed"
         )
-        
+
         return {
             "success": True,
             "rules_loaded": rules_loaded,
             "timestamp": datetime.utcnow().isoformat()
         }
-        
+
     except DatabaseError as e:
         logger.error(
             "Hot reload database error",
