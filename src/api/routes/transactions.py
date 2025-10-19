@@ -7,8 +7,7 @@ including transaction creation, status checking, and batch operations.
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from redis.asyncio import Redis
+from fastapi import APIRouter, HTTPException, status
 
 from src.core.logging import get_logger
 from src.modules.transactions.schemas import TransactionCreate, TransactionQueued
