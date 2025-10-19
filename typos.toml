@@ -1,8 +1,4 @@
-# typos.toml
-# Конфигурация проверки орфографии для pre-commit hook typos
-
 [files]
-# Исcключаемые пути (директории и файлы)
 extend-exclude = [
   "data/",
   "build/",
