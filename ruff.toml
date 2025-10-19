@@ -1,4 +1,4 @@
-# Exclude a variety of commonly ignored directories.
+# Excluude a variety of commonly ignored directories.
 exclude = [
     ".bzr",
     ".direnv",
