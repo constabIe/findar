@@ -5,7 +5,7 @@ This module handles notification delivery through various channels
 when suspicious transactions are detected.
 
 Responsibilities:
-- Send alerts via multiple channels (Email, Telegram, Webhook)
+- Send alerts via multiple channels (Email, Telegram)
 - Queue notifications for async delivery
 - Handle notification failures and retries
 - Track notification status
