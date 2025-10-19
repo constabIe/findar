@@ -55,8 +55,8 @@ class Rule(SQLModel, table=True):
     Supports multiple rule types with flexible parameter configuration.
     """
     __tablename__ = "rules" # type: ignore
-    
-    id: int = Field(primary_key=True, description="Rule unique identifier")
+
+    id: UUID = Field(primary_key=True, description="Rule unique identifier", default_factory=uuid4)
     name: str = Field(unique=True, description="Rule name")
     type: RuleType = Field(description="Rule type (threshold/pattern/composite/ml)")
     params: Dict[str, Any] = Field(sa_type=JSON, description="Rule-specific parameters")
@@ -88,7 +88,7 @@ class RuleExecution(SQLModel, table=True):
     __tablename__ = "rule_executions" # type: ignore
     
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    rule_id: int = Field(foreign_key="rules.id", description="Executed rule ID")
+    rule_id: UUID = Field(foreign_key="rules.id", description="Executed rule ID")
     transaction_id: UUID = Field(foreign_key="transactions.id", description="Evaluated transaction ID")
     correlation_id: str = Field(description="Request correlation ID")
     
@@ -113,8 +113,8 @@ class RuleCache(SQLModel, table=True):
     """
     __tablename__ = "rule_cache" # type: ignore
     
-    id: int = Field(primary_key=True)
-    rule_id: int = Field(foreign_key="rules.id", unique=True, description="Cached rule ID")
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    rule_id: UUID = Field(foreign_key="rules.id", unique=True, description="Cached rule ID")
     cache_key: str = Field(description="Redis cache key")
     cached_at: datetime = Field(default_factory=datetime.utcnow, description="Cache timestamp")
     expires_at: Optional[datetime] = Field(default=None, description="Cache expiration timestamp")

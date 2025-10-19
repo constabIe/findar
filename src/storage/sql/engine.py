@@ -203,3 +203,4 @@ async def close_async_engine():
 
 # Type annotation for dependency injection
 AsyncDbSession = Annotated[AsyncSession, "Async database session dependency"]
+AsyncDbSession = Annotated[AsyncSession, Depends(get_async_session)]

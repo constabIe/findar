@@ -55,62 +55,70 @@ def configure_logging(
     # JSON formatter for structured logging
     def json_formatter(record) -> str:
         """Custom JSON formatter for Loki compatibility."""
-        # Base log entry
-        log_entry = {
-            "timestamp": record["time"].isoformat(),
-            "level": record["level"].name,
-            "message": record["message"],
-            "module": record["name"],
-            "function": record["function"],
-            "line": record["line"],
-            "process_id": record["process"].id,
-            "thread_id": record["thread"].id,
-        }
-        
-        # Add context variables if available
-        if correlation_id_var.get():
-            log_entry["correlation_id"] = correlation_id_var.get()
-        if request_id_var.get():
-            log_entry["request_id"] = request_id_var.get()
-        if user_id_var.get():
-            log_entry["user_id"] = user_id_var.get()
-        
-        # Add extra fields from record
-        if record.get("extra"):
-            log_entry.update(record["extra"])
-        
-        # Add exception info if present
-        if record.get("exception"):
-            log_entry["exception"] = {
-                "type": record["exception"].type.__name__ if record["exception"].type else None,
-                "value": str(record["exception"].value) if record["exception"].value else None,
-                "traceback": record["exception"].traceback if record["exception"].traceback else None
+        try:
+            # Base log entry
+            log_entry = {
+                "timestamp": record["time"].isoformat() if "time" in record else None,
+                "level": record["level"].name if "level" in record else "UNKNOWN",
+                "message": record["message"] if "message" in record else "",
+                "module": record["name"] if "name" in record else "",
+                "function": record["function"] if "function" in record else "",
+                "line": record["line"] if "line" in record else 0,
+                "process_id": record["process"].id if "process" in record else None,
+                "thread_id": record["thread"].id if "thread" in record else None,
             }
-        
-        return json.dumps(log_entry, ensure_ascii=False)
+            
+            # Add context variables if available
+            if correlation_id_var.get():
+                log_entry["correlation_id"] = correlation_id_var.get()
+            if request_id_var.get():
+                log_entry["request_id"] = request_id_var.get()
+            if user_id_var.get():
+                log_entry["user_id"] = user_id_var.get()
+            
+            # Add extra fields from record
+            if "extra" in record and record["extra"]:
+                for key, value in record["extra"].items():
+                    if key not in log_entry:  # Don't override base fields
+                        log_entry[key] = value
+            
+            # Add exception info if present
+            if record.get("exception"):
+                log_entry["exception"] = {
+                    "type": record["exception"].type.__name__ if record["exception"].type else None,
+                    "value": str(record["exception"].value) if record["exception"].value else None,
+                }
+            
+            return json.dumps(log_entry, ensure_ascii=False, default=str)
+        except Exception as e:
+            # Fallback formatting if JSON fails
+            return json.dumps({"error": "Failed to format log", "message": str(e)}, ensure_ascii=False)
     
     # Simple text formatter for development
     def text_formatter(record) -> str:
         """Simple text formatter for console output."""
-        timestamp = record["time"].strftime("%Y-%m-%d %H:%M:%S")
-        level = record["level"].name
-        module = record["name"]
-        message = record["message"]
-        
-        # Add correlation ID if available
-        correlation = f" [{correlation_id_var.get()}]" if correlation_id_var.get() else ""
-        
-        # Add extra fields
-        extra_str = ""
-        if record.get("extra"):
-            extra_items = []
-            for key, value in record["extra"].items():
-                if key not in ["correlation_id", "request_id", "user_id"]:  # Skip context vars
-                    extra_items.append(f"{key}={value}")
-            if extra_items:
-                extra_str = f" | {', '.join(extra_items)}"
-        
-        return f"{timestamp} | {level:8} | {module:20} | {message}{correlation}{extra_str}\n"
+        try:
+            timestamp = record["time"].strftime("%Y-%m-%d %H:%M:%S") if "time" in record else "UNKNOWN"
+            level = record["level"].name if "level" in record else "UNKNOWN"
+            module = record["name"] if "name" in record else "UNKNOWN"
+            message = record["message"] if "message" in record else ""
+            
+            # Add correlation ID if available
+            correlation = f" [{correlation_id_var.get()}]" if correlation_id_var.get() else ""
+            
+            # Add extra fields
+            extra_str = ""
+            if "extra" in record and record["extra"]:
+                extra_items = []
+                for key, value in record["extra"].items():
+                    if key not in ["correlation_id", "request_id", "user_id"]:  # Skip context vars
+                        extra_items.append(f"{key}={value}")
+                if extra_items:
+                    extra_str = f" | {', '.join(extra_items)}"
+            
+            return f"{timestamp} | {level:8} | {module:20} | {message}{correlation}{extra_str}\n"
+        except Exception as e:
+            return f"ERROR formatting log: {str(e)}\n"
     
     # Configure console handler
     if enable_console:

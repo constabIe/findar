@@ -90,7 +90,6 @@ class CompositeOperator(str, Enum):
     AND = "and"
     OR = "or"
     NOT = "not"
-    XOR = "xor"
 
 
 class CacheStatus(str, Enum):

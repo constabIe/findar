@@ -255,13 +255,11 @@ class RuleCreateRequest(BaseModel):
     priority: int = Field(0, description="Rule priority")
     critical: bool = Field(False, description="Whether rule is critical")
     description: Optional[str] = Field(None, max_length=1000, description="Rule description")
-    tags: Optional[Dict[str, Any]] = Field(None, description="Rule tags and metadata")
 
-    @field_validator('params')
-    def validate_params_match_type(cls, params, values):
+    @field_validator('params', mode='after')
+    def validate_params_match_type(cls, params, info):
         """Validate that params match the rule type."""
-        rule_type = values.get('type')
-        params = values.get('params')
+        rule_type = info.data.get('type')
         
         if rule_type == RuleType.THRESHOLD and not isinstance(params, ThresholdRuleParams):
             raise ValueError("Threshold rules must use ThresholdRuleParams")
@@ -272,7 +270,7 @@ class RuleCreateRequest(BaseModel):
         elif rule_type == RuleType.ML and not isinstance(params, MLRuleParams):
             raise ValueError("ML rules must use MLRuleParams")
         
-        return values
+        return params
 
 
 class RuleUpdateRequest(BaseModel):
@@ -284,7 +282,6 @@ class RuleUpdateRequest(BaseModel):
     priority: Optional[int] = Field(None, description="Rule priority")
     critical: Optional[bool] = Field(None, description="Whether rule is critical")
     description: Optional[str] = Field(None, max_length=1000, description="Rule description")
-    tags: Optional[Dict[str, Any]] = Field(None, description="Rule tags and metadata")
 
 
 class RuleResponse(BaseModel):
@@ -299,7 +296,6 @@ class RuleResponse(BaseModel):
     critical: bool = Field(description="Whether rule is critical")
     description: Optional[str] = Field(description="Rule description")
     version: Optional[str] = Field(description="Rule version")
-    tags: Optional[Dict[str, Any]] = Field(description="Rule tags and metadata")
     
     # Statistics
     execution_count: int = Field(description="Total executions")
