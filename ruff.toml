@@ -24,6 +24,8 @@ exclude = [
 # Target Python version
 target-version = "py313"
 
+line-length = 88
+
 [lint]
 # Enable common rule sets
 select = [
@@ -32,7 +34,6 @@ select = [
     "F",      # Pyflakes
     "I",      # isort (import order)
 ]
-line-length = 120
 
 # Nothing ignored by default
 ignore = []
