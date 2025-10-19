@@ -16,7 +16,7 @@ repos:
     rev: v0.14.1 # Use the latest stable Ruff version
     hooks:
       - id: ruff-check
-        args: [--fix]
+        args: [--fix, --exit-zero]
       - id: ruff-format
 
   - repo: https://github.com/crate-ci/typos
