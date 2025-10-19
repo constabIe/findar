@@ -11,17 +11,17 @@ from .client import (
     get_sync_redis_dependency,
     close_redis_connections,
     AsyncRedisClient,
-    SyncRedisClient
+    SyncRedisClient,
 )
 
 __all__ = [
     "get_async_redis",
-    "get_sync_redis", 
+    "get_sync_redis",
     "get_async_redis_dependency",
     "get_sync_redis_dependency",
     "close_redis_connections",
     "AsyncRedisClient",
-    "SyncRedisClient"
+    "SyncRedisClient",
 ]
 
 __all__ = []

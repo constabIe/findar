@@ -10,6 +10,7 @@ from enum import Enum
 
 class RuleType(str, Enum):
     """Types of fraud detection rules."""
+
     THRESHOLD = "threshold"
     PATTERN = "pattern"
     COMPOSITE = "composite"
@@ -18,6 +19,7 @@ class RuleType(str, Enum):
 
 class RuleStatus(str, Enum):
     """Rule execution status."""
+
     ACTIVE = "active"
     INACTIVE = "inactive"
     DISABLED = "disabled"
@@ -26,6 +28,7 @@ class RuleStatus(str, Enum):
 
 class TransactionStatus(str, Enum):
     """Transaction processing status."""
+
     QUEUED = "queued"
     PROCESSING = "processing"
     APPROVED = "approved"
@@ -36,6 +39,7 @@ class TransactionStatus(str, Enum):
 
 class TransactionType(str, Enum):
     """Types of financial transactions."""
+
     TRANSFER = "transfer"
     DEPOSIT = "deposit"
     WITHDRAWAL = "withdrawal"
@@ -44,6 +48,7 @@ class TransactionType(str, Enum):
 
 class RuleMatchStatus(str, Enum):
     """Result of rule evaluation."""
+
     MATCHED = "matched"
     NOT_MATCHED = "not_matched"
     ERROR = "error"
@@ -52,6 +57,7 @@ class RuleMatchStatus(str, Enum):
 
 class RiskLevel(str, Enum):
     """Risk level assessment."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -60,6 +66,7 @@ class RiskLevel(str, Enum):
 
 class ThresholdOperator(str, Enum):
     """Operators for threshold comparisons."""
+
     GREATER_THAN = "gt"
     GREATER_EQUAL = "gte"
     LESS_THAN = "lt"
@@ -72,6 +79,7 @@ class ThresholdOperator(str, Enum):
 
 class TimeWindow(str, Enum):
     """Time windows for pattern and aggregation rules."""
+
     MINUTE = "1m"
     FIVE_MINUTES = "5m"
     TEN_MINUTES = "10m"
@@ -87,6 +95,7 @@ class TimeWindow(str, Enum):
 
 class CompositeOperator(str, Enum):
     """Logical operators for composite rules."""
+
     AND = "and"
     OR = "or"
     NOT = "not"
@@ -95,6 +104,7 @@ class CompositeOperator(str, Enum):
 
 class CacheStatus(str, Enum):
     """Cache status for Redis stored rules."""
+
     CACHED = "cached"
     EXPIRED = "expired"
     MISSING = "missing"
