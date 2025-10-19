@@ -226,3 +226,6 @@ __marimo__/
 
 #github
 .github/instructions
+
+#logs
+logs/
