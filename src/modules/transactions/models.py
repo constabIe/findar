@@ -14,7 +14,6 @@ class Transaction(SQLModel, table=True):
     fields and relationships.
     """
 
-    
     __tablename__ = "transactions"  # type: ignore
     __table_args__ = (
         UniqueConstraint("transaction_id", name="uq_transactions_transaction_id"),
@@ -29,8 +28,7 @@ class Transaction(SQLModel, table=True):
         default_factory=datetime.utcnow, description="Transaction timestamp"
     )
     type: TransactionType = Field(description="Type of transaction")
-    correlation_id: str = Field(
-        description="Request correlation ID for tracking")
+    correlation_id: str = Field(description="Request correlation ID for tracking")
     status: TransactionStatus = Field(
         default=TransactionStatus.QUEUED, description="Transaction processing status"
     )
@@ -44,8 +42,7 @@ class Transaction(SQLModel, table=True):
         default=None, description="Merchant identifier for payments"
     )
     # merchant_type: Optional[str] = Field(default=None, description="Type/category of merchant")
-    location: Optional[str] = Field(
-        default=None, description="Transaction location")
+    location: Optional[str] = Field(default=None, description="Transaction location")
     device_id: Optional[str] = Field(
         default=None, description="Device used for transaction"
     )
@@ -60,5 +57,3 @@ class Transaction(SQLModel, table=True):
     updated_at: datetime = Field(
         default_factory=datetime.utcnow, description="Record update timestamp"
     )
-
-
