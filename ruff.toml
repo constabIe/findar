@@ -1,4 +1,4 @@
-# Exclude a variety of commonly ignored directories.
+# Ignore common build and environment directories
 exclude = [
     ".bzr",
     ".direnv",
@@ -20,25 +20,31 @@ exclude = [
     "node_modules",
     "venv",
 ]
-# Assume Python 3.12
-target-version = "py312"
+
+# Target Python version
+target-version = "py313"
 
 [lint]
-# Enable Pyflakes `E` and `F` codes by default.
+# Enable common rule sets
 select = [
-    # Pyflakes
-    "F",
-    # Pycodestyle
-    "E",
-    "W",
-    # isort
-    "I001",
+    "E",      # Pycodestyle errors
+    "W",      # Pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort (import order)
 ]
+
+# Nothing ignored by default
 ignore = []
 
-
+# Optional: file-specific ignores (empty = none)
 per-file-ignores = {}
 
 [lint.mccabe]
-# Unlike Flake8, default to a complexity level of 10.
+# Maximum allowed complexity
 max-complexity = 10
+
+[format]
+# Ensure consistent style even if editor uses tabs/spaces differently
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"

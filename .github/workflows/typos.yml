@@ -2,10 +2,10 @@ name: typos
 "on":
   push:
     branches:
-      - main
+      - master
   pull_request:
     branches:
-      - main
+      - master
 jobs:
   typos:
     timeout-minutes: 15
@@ -14,4 +14,4 @@ jobs:
       - uses: actions/checkout@v5
       - uses: crate-ci/typos@v1.38.1
         with:
-          config: ./.github/typos.toml
+          config: ./typos.toml

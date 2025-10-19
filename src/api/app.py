@@ -9,6 +9,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from src.storage.dependencies import get_db_session
+
 
 def create_app() -> FastAPI:
     """Create and configure FastAPI application."""
@@ -23,7 +25,7 @@ def create_app() -> FastAPI:
     # CORS middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"], 
+        allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -31,7 +33,7 @@ def create_app() -> FastAPI:
 
     # Health check endpoint
     @app.get("/health", tags=["Health"])
-    async def health_check():
+    async def health_check(get_db_session=get_db_session):
         """Health check endpoint for monitoring and load balancers."""
         return JSONResponse(
             content={

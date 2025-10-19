@@ -223,3 +223,9 @@ __marimo__/
 .idea
 # Ignore dynaconf secret files
 .secrets.*
+
+#github
+.github/instructions
+
+#logs
+logs/
