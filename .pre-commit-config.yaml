@@ -12,13 +12,15 @@
 fail_fast: false
 
 repos:
-  # 🐍 Ruff — Python lint + format (всё из ruff.toml)
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.1
     hooks:
       - id: ruff
+        name: ruff (auto-fix)
+        args: ["--fix"]
         stages: [pre-push]
       - id: ruff-format
+        name: ruff format
         stages: [pre-push]
 
   - repo: https://github.com/crate-ci/typos
