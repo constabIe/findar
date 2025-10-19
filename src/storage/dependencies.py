@@ -6,13 +6,14 @@ for the fraud detection system components.
 """
 
 from typing import Annotated
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-import redis.asyncio as redis
-from redis import Redis as SyncRedis
 
-from .sql import get_async_session
+import redis.asyncio as redis
+from fastapi import Depends
+from redis import Redis as SyncRedis
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from .redis import get_async_redis_dependency, get_sync_redis_dependency
+from .sql import get_async_session
 
 # Type aliases for direct use in FastAPI endpoints
 AsyncDbSessionDep = Annotated[AsyncSession, Depends(get_async_session)]

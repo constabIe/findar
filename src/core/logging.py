@@ -5,14 +5,14 @@ This module provides structured JSON logging with flexible parameter injection,
 correlation tracking, and performance monitoring for the fraud detection system.
 """
 
-import sys
 import json
+import sys
 import time
-from typing import Any, Dict, Optional, Union
 from contextvars import ContextVar
 from functools import wraps
+from typing import Optional
+
 from loguru import logger as loguru_logger
-from src.config import settings
 
 # Context variables for correlation tracking
 correlation_id_var: ContextVar[Optional[str]] = ContextVar(
@@ -263,7 +263,7 @@ def get_logger(name: str) -> LoggerAdapter:
                 log_level=settings.get("default.logging.level", "INFO"),
                 json_format=settings.get("default.logging.json_format", True),
             )
-        except (ImportError, AttributeError) as e:
+        except (ImportError, AttributeError):
             # Fallback to default configuration if settings unavailable
             configure_logging()
 

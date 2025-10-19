@@ -8,6 +8,7 @@ middleware, and exception handlers.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
 from src.storage.dependencies import get_db_session
 
 

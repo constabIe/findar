@@ -6,21 +6,20 @@ and other data structures used in the fraud detection rule engine.
 """
 
 from datetime import datetime
-from typing import Dict, Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
 from .enums import (
-    RuleType,
-    RuleStatus,
-    RuleMatchStatus,
+    CacheStatus,
+    CompositeOperator,
     RiskLevel,
-    TransactionType,
+    RuleMatchStatus,
+    RuleType,
     ThresholdOperator,
     TimeWindow,
-    CompositeOperator,
-    CacheStatus,
+    TransactionType,
 )
 
 

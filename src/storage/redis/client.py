@@ -6,18 +6,20 @@ Celery queue operations in the fraud detection system.
 """
 
 from typing import Annotated, AsyncGenerator, Generator
-import redis.asyncio as redis
+
 from redis import Redis as SyncRedis
-from redis.asyncio import ConnectionPool as AsyncConnectionPool, Redis as AsyncRedis
+from redis.asyncio import ConnectionPool as AsyncConnectionPool
+from redis.asyncio import Redis as AsyncRedis
 from redis.exceptions import (
-    RedisError,
     ConnectionError as RedisConnectionError,
-    TimeoutError,
+)
+from redis.exceptions import (
     ResponseError,
+    TimeoutError,
 )
 
+from src.core.exceptions import ConfigurationError, DatabaseError
 from src.core.logging import get_logger
-from src.core.exceptions import DatabaseError, ConfigurationError
 
 logger = get_logger("storage.redis.client")
 

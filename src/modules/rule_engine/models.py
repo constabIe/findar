@@ -6,12 +6,12 @@ used in the fraud detection system.
 """
 
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 from uuid import UUID, uuid4
 
-from sqlmodel import SQLModel, Field, JSON
+from sqlmodel import JSON, Field, SQLModel
 
-from .enums import RuleType, RuleStatus, TransactionStatus, TransactionType
+from .enums import RuleType, TransactionStatus, TransactionType
 
 
 class Transaction(SQLModel, table=True):

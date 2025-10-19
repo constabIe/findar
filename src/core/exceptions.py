@@ -5,8 +5,8 @@ This module defines all custom exceptions used throughout the application,
 providing structured error handling with correlation tracking and proper logging.
 """
 
-from typing import Optional, Dict, Any
 import uuid
+from typing import Any, Dict, Optional
 
 
 class AppBaseException(Exception):

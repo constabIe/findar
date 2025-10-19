@@ -5,13 +5,13 @@ Contains Redis client management for caching and queue operations.
 """
 
 from .client import (
-    get_async_redis,
-    get_sync_redis,
-    get_async_redis_dependency,
-    get_sync_redis_dependency,
-    close_redis_connections,
     AsyncRedisClient,
     SyncRedisClient,
+    close_redis_connections,
+    get_async_redis,
+    get_async_redis_dependency,
+    get_sync_redis,
+    get_sync_redis_dependency,
 )
 
 __all__ = [

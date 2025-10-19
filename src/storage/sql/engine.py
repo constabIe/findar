@@ -6,17 +6,15 @@ for the fraud detection system.
 """
 
 from typing import Annotated, AsyncGenerator
-from fastapi.params import Depends
-from sqlmodel import SQLModel
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.exc import (
-    SQLAlchemyError,
-    OperationalError,
-    DatabaseError as SQLDatabaseError,
-)
 
+from sqlalchemy.exc import (
+    OperationalError,
+    SQLAlchemyError,
+)
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from src.core.exceptions import ConfigurationError, DatabaseError
 from src.core.logging import get_logger
-from src.core.exceptions import DatabaseError, ConfigurationError
 
 logger = get_logger("storage.sql.engine")
 
