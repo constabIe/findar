@@ -24,8 +24,6 @@ exclude = [
 # Target Python version
 target-version = "py313"
 
-line-length = 88
-
 [lint]
 # Enable common rule sets
 select = [
