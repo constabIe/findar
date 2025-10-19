@@ -32,6 +32,7 @@ select = [
     "F",      # Pyflakes
     "I",      # isort (import order)
 ]
+line-length = 120
 
 # Nothing ignored by default
 ignore = []
