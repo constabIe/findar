@@ -327,5 +327,5 @@ async def close_redis_connections():
 
 
 # Type annotations for dependency injection
-AsyncRedisClient = Annotated[redis.Redis, "Async Redis client dependency"]
+AsyncRedisClient = Annotated[AsyncRedis, "Async Redis client dependency"]
 SyncRedisClient = Annotated[SyncRedis, "Sync Redis client dependency"]

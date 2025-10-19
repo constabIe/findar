@@ -20,6 +20,40 @@ logger = get_logger("storage.sql.engine")
 _async_engine = None
 _async_session_maker = None
 
+def get_database_url() -> str:
+    """
+    Construct the async database URL from configuration.
+    
+    Returns:
+        str: Async database URL
+    """
+    try:
+        from src.config import settings
+        
+        # Validate required database configuration
+        try:
+            host = settings.default.database.POSTGRES_HOST
+            port = settings.default.database.POSTGRES_PORT
+            database = settings.default.database.POSTGRES_DB
+            user = settings.default.database.POSTGRES_USER
+            password = settings.default.database.POSTGRES_PASSWORD
+        except AttributeError as e:
+            raise ConfigurationError(
+                "Missing required database configuration",
+                config_key=str(e),
+                details={"missing_config": "database settings in .secrets.toml"}
+            )
+        
+        # Build async database URL from settings
+        database_url = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}"
+        return database_url
+        
+    except ImportError as e:
+        raise ConfigurationError(
+            "Failed to import configuration",
+            details={"import_error": str(e)}
+        ) from e
+
 
 def get_async_engine():
     """
@@ -31,82 +65,29 @@ def get_async_engine():
     global _async_engine
     
     if _async_engine is None:
+        from src.config import settings
+        database_url = get_database_url()
+        
         try:
-            from src.config import settings
+            _async_engine = create_async_engine(
+                database_url,
+                echo=getattr(settings.default, 'database', {}).get('echo', False),
+                pool_size=getattr(settings.default, 'database', {}).get('pool_size', 10),
+                max_overflow=getattr(settings.default, 'database', {}).get('max_overflow', 20),
+                pool_pre_ping=True,
+                pool_recycle=3600  # Recycle connections every hour
+            )
             
-            # Validate required database configuration
-            try:
-                host = settings.default.database.POSTGRES_HOST
-                port = settings.default.database.POSTGRES_PORT
-                database = settings.default.database.POSTGRES_DB
-                user = settings.default.database.POSTGRES_USER
-                password = settings.default.database.POSTGRES_PASSWORD
-            except AttributeError as e:
-                raise ConfigurationError(
-                    "Missing required database configuration",
-                    config_key=str(e),
-                    details={"missing_config": "database settings in .secrets.toml"}
-                )
-            
-            # Validate configuration values
-            if not all([host, database, user, password]):
-                missing_fields = []
-                if not host: missing_fields.append("POSTGRES_HOST")
-                if not database: missing_fields.append("POSTGRES_DB") 
-                if not user: missing_fields.append("POSTGRES_USER")
-                if not password: missing_fields.append("POSTGRES_PASSWORD")
-                
-                raise ConfigurationError(
-                    "Database configuration contains empty values",
-                    details={"missing_fields": missing_fields}
-                )
-            
-            # Validate port is numeric
-            try:
-                port = int(port)
-                if port <= 0 or port > 65535:
-                    raise ValueError("Port must be between 1 and 65535")
-            except (ValueError, TypeError) as e:
-                raise ConfigurationError(
-                    f"Invalid database port: {port}",
-                    config_key="POSTGRES_PORT",
-                    details={"provided_value": str(port), "error": str(e)}
-                )
-            
-            # Build async database URL from settings
-            database_url = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}"
-            
-            logger.info("Initializing async database engine", 
-                       host=host,
-                       port=port,
-                       database=database,
-                       event="async_engine_init")
-            
-            try:
-                _async_engine = create_async_engine(
-                    database_url,
-                    echo=getattr(settings.default, 'database', {}).get('echo', False),
-                    pool_size=getattr(settings.default, 'database', {}).get('pool_size', 10),
-                    max_overflow=getattr(settings.default, 'database', {}).get('max_overflow', 20),
-                    pool_pre_ping=True,
-                    pool_recycle=3600  # Recycle connections every hour
-                )
-                
-                logger.info("Database engine created successfully",
-                           event="engine_created")
-                           
-            except SQLAlchemyError as e:
-                raise DatabaseError(
-                    "Failed to create database engine",
-                    operation="create_engine",
-                    details={"database_url": f"postgresql+asyncpg://{user}:***@{host}:{port}/{database}"}
-                ) from e
-                
-        except ImportError as e:
-            raise ConfigurationError(
-                "Failed to import configuration",
-                details={"import_error": str(e)}
+            logger.info("Database engine created successfully",
+                        event="engine_created")
+                        
+        except SQLAlchemyError as e:
+            raise DatabaseError(
+                "Failed to create database engine",
+                operation="create_engine",
+                details={"database_url": database_url}
             ) from e
+                
         
     return _async_engine
 
@@ -128,6 +109,7 @@ def get_async_session_maker():
                 class_=AsyncSession,
                 expire_on_commit=False, # WARNING: Can lead to bugs, read more about this parameter
             )
+            print("Async session started")
             
             logger.info("Async session maker created successfully",
                        event="session_maker_created")
@@ -150,6 +132,7 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     """
     try:
         session_maker = get_async_session_maker()
+        print("Async session started")
     except Exception as e:
         raise DatabaseError(
             "Failed to get session maker",
@@ -161,6 +144,7 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
             try:
                 logger.debug("Async database session started",
                            event="async_session_start")
+                print("Async session started")
                 yield session
             except SQLAlchemyError as e:
                 logger.error("Database session error",
