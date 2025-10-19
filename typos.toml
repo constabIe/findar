@@ -1,0 +1,27 @@
+[files]
+extend-exclude = [
+  "data/",
+  "build/",
+  "dist/",
+  ".git/",
+  ".venv/",
+  "venv/",
+  "node_modules/",
+  "src/dispatch/static/dispatch/src/",
+  "src/dispatch/database/revisions/",
+  "data/dispatch-sample-data.dump"
+]
+
+# Добавляем собственные словарные исключения (разрешённые слова)
+[default.extend-words]
+API = "API"
+uuid = "uuid"
+pytest = "pytest"
+asyncio = "asyncio"
+typos = "typos"
+ruff = "ruff"
+pytestcov = "pytestcov"
+Dockerfile = "Dockerfile"
+yaml = "yaml"
+uvicorn = "uvicorn"
+mypy = "mypy"
