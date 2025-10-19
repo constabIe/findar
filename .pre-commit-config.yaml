@@ -13,15 +13,11 @@ fail_fast: false
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.1
+    rev: v0.14.1 # Use the latest stable Ruff version
     hooks:
       - id: ruff
-        name: ruff (auto-fix)
-        args: ["--fix"]
-        stages: [pre-push]
+        args: [--fix, --exit-zero-on-fix] # Automatically fix linting issues
       - id: ruff-format
-        name: ruff format
-        stages: [pre-push]
 
   - repo: https://github.com/crate-ci/typos
     rev: v1.38.1
