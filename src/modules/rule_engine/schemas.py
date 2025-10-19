@@ -277,7 +277,7 @@ class RuleEvaluationRequest(BaseModel):
     rule_ids: Optional[List[int]] = Field(
         None, description="Specific rule IDs to evaluate (None = all active)"
     )
-    correlation_id: str = Field(description="Correlation ID for tracking")
+    correlation_id: UUID = Field(description="Correlation ID for tracking")
 
     # Evaluation options
     include_context: bool = Field(
@@ -326,7 +326,7 @@ class RuleContext(BaseModel):
 class RuleEvaluationResult(BaseModel):
     """Result of evaluating a single rule against a transaction."""
 
-    rule_id: int = Field(description="ID of evaluated rule")
+    rule_id: UUID = Field(description="ID of evaluated rule")
     rule_name: str = Field(description="Name of evaluated rule")
     rule_type: RuleType = Field(description="Type of rule")
 
@@ -357,7 +357,7 @@ class TransactionEvaluationResult(BaseModel):
     """Complete evaluation result for a transaction against all rules."""
 
     transaction_id: UUID = Field(description="Evaluated transaction ID")
-    correlation_id: str = Field(description="Request correlation ID")
+    correlation_id: UUID = Field(description="Request correlation ID")
 
     # Overall results
     overall_risk_level: RiskLevel = Field(description="Overall assessed risk level")
@@ -392,20 +392,14 @@ class RuleCreateRequest(BaseModel):
     enabled: bool = Field(True, description="Whether rule is enabled")
     priority: int = Field(0, description="Rule priority")
     critical: bool = Field(False, description="Whether rule is critical")
-    description: Optional[str] = Field(
-        None, max_length=1000, description="Rule description"
-    )
-    tags: Optional[Dict[str, Any]] = Field(None, description="Rule tags and metadata")
+    description: Optional[str] = Field(None, max_length=1000, description="Rule description")
 
-    @field_validator("params")
-    def validate_params_match_type(cls, params, values):
+    @field_validator('params', mode='after')
+    def validate_params_match_type(cls, params, info):
         """Validate that params match the rule type."""
-        rule_type = values.get("type")
-        params = values.get("params")
+        rule_type = info.data.get('type')
 
-        if rule_type == RuleType.THRESHOLD and not isinstance(
-            params, ThresholdRuleParams
-        ):
+        if rule_type == RuleType.THRESHOLD and not isinstance(params, ThresholdRuleParams):
             raise ValueError("Threshold rules must use ThresholdRuleParams")
         elif rule_type == RuleType.PATTERN and not isinstance(
             params, PatternRuleParams
@@ -418,7 +412,7 @@ class RuleCreateRequest(BaseModel):
         elif rule_type == RuleType.ML and not isinstance(params, MLRuleParams):
             raise ValueError("ML rules must use MLRuleParams")
 
-        return values
+        return params
 
 
 class RuleUpdateRequest(BaseModel):
@@ -433,16 +427,13 @@ class RuleUpdateRequest(BaseModel):
     enabled: Optional[bool] = Field(None, description="Whether rule is enabled")
     priority: Optional[int] = Field(None, description="Rule priority")
     critical: Optional[bool] = Field(None, description="Whether rule is critical")
-    description: Optional[str] = Field(
-        None, max_length=1000, description="Rule description"
-    )
-    tags: Optional[Dict[str, Any]] = Field(None, description="Rule tags and metadata")
+    description: Optional[str] = Field(None, max_length=1000, description="Rule description")
 
 
 class RuleResponse(BaseModel):
     """Schema for rule API responses."""
 
-    id: int = Field(description="Rule ID")
+    id: UUID = Field(description="Rule ID")
     name: str = Field(description="Rule name")
     type: RuleType = Field(description="Rule type")
     params: Dict[str, Any] = Field(description="Rule parameters")
@@ -450,20 +441,21 @@ class RuleResponse(BaseModel):
     priority: int = Field(description="Rule priority")
     critical: bool = Field(description="Whether rule is critical")
     description: Optional[str] = Field(description="Rule description")
-    version: Optional[str] = Field(description="Rule version")
-    tags: Optional[Dict[str, Any]] = Field(description="Rule tags and metadata")
 
     # Statistics
     execution_count: int = Field(description="Total executions")
     match_count: int = Field(description="Total matches")
-    match_rate: Optional[float] = Field(None, description="Match rate percentage")
+    # match_rate: Optional[float] = Field(None, description="Match rate percentage")
 
     # Timestamps
     created_at: datetime = Field(description="Creation timestamp")
     updated_at: datetime = Field(description="Last update timestamp")
-    last_executed_at: Optional[datetime] = Field(
-        None, description="Last execution timestamp"
-    )
+    # last_executed_at: Optional[datetime] = Field(
+    #     None, description="Last execution timestamp"
+    # )
+    class Config:
+        from_attributes = True  # replaces orm_mode=True in Pydantic v2
+        use_enum_values = True  # ensures Enum.value is used, not Enum object
 
 
 class RuleListResponse(BaseModel):
@@ -479,7 +471,7 @@ class RuleListResponse(BaseModel):
 class CacheStatusResponse(BaseModel):
     """Schema for rule cache status."""
 
-    rule_id: int = Field(description="Rule ID")
+    rule_id: UUID = Field(description="Rule ID")
     cache_key: str = Field(description="Redis cache key")
     status: CacheStatus = Field(description="Cache status")
     cached_at: Optional[datetime] = Field(None, description="Cache timestamp")
@@ -487,6 +479,13 @@ class CacheStatusResponse(BaseModel):
     hit_count: int = Field(description="Number of cache hits")
     cache_version: str = Field(description="Cached version")
 
+class CacheStatisticsResponse(BaseModel):
+    """Schema for overall cache statistics."""
+
+    active_rules_count: int = Field(description="Number of active rules in cache")
+    rule_types_count: int = Field(description="Number of different rule type sets in cache")
+    priority_index_size: int = Field(description="Size of priority index")
+    timestamp: str = Field(description="Timestamp when statistics were retrieved")
 
 class HotReloadRequest(BaseModel):
     """Schema for hot reload requests."""

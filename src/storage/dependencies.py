@@ -17,7 +17,7 @@ from .sql import get_async_session
 
 # Type aliases for direct use in FastAPI endpoints
 AsyncDbSessionDep = Annotated[AsyncSession, Depends(get_async_session)]
-AsyncRedisDep = Annotated[redis.Redis, Depends(get_async_redis_dependency)]
+# AsyncRedisDep = Annotated[redis.Redis, Depends(get_async_redis_dependency)]
 SyncRedisDep = Annotated[SyncRedis, Depends(get_sync_redis_dependency)]
 
 
@@ -31,6 +31,8 @@ def get_db_session():
     return Depends(get_async_session)
 
 
+DbSessionDep = Annotated[AsyncSession, Depends(get_db_session)]
+
 def get_async_redis_client():
     """
     FastAPI dependency for async Redis client.
@@ -39,6 +41,8 @@ def get_async_redis_client():
     """
     return Depends(get_async_redis_dependency)
 
+
+AsyncRedisDep = Annotated[redis.Redis, get_async_redis_client()]
 
 def get_sync_redis_client():
     """

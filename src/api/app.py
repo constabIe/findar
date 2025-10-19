@@ -55,10 +55,13 @@ def create_app() -> FastAPI:
             }
         )
 
-    # TODO: Register API routers
-    # from src.api.routes import transactions, rules, statistics
+    # Register API routers
+    from src.modules.rule_engine.routes import router as rule_engine_router
+    app.include_router(rule_engine_router, prefix="/api/v1", tags=["Rule Engine"])
+
+    # TODO: Register additional API routers as they are implemented
+    # from src.api.routes import transactions, statistics
     # app.include_router(transactions.router, prefix="/api/v1", tags=["Transactions"])
-    # app.include_router(rules.router, prefix="/api/v1", tags=["Rules"])
     # app.include_router(statistics.router, prefix="/api/v1", tags=["Statistics"])
 
     return app
