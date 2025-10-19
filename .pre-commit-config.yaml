@@ -18,7 +18,7 @@ repos:
       - id: ruff
         name: ruff (auto-fix)
         args: ["--fix"]
-        stages: [pre-commit]
+        stages: [pre-push]
       - id: ruff-format
         name: ruff format
         stages: [pre-push]
