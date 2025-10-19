@@ -30,7 +30,7 @@ router = APIRouter()
 )
 async def create_transaction(
     payload: TransactionCreate,
-    redis_client: Redis = Depends(AsyncRedisDep),
+    redis_client: AsyncRedisDep,
 ) -> TransactionQueued:
     """
     Create and enqueue a new transaction for processing.

@@ -55,9 +55,12 @@ def create_app() -> FastAPI:
             }
         )
 
-    # TODO: Register API routers
-    # from src.api.routes import transactions, rules, statistics
-    # app.include_router(transactions.router, prefix="/api/v1", tags=["Transactions"])
+    # Register API routers
+    from src.api.routes import transactions
+    app.include_router(transactions.router, prefix="/api/v1", tags=["Transactions"])
+    
+    # TODO: Register additional routers
+    # from src.api.routes import rules, statistics
     # app.include_router(rules.router, prefix="/api/v1", tags=["Rules"])
     # app.include_router(statistics.router, prefix="/api/v1", tags=["Statistics"])
 
