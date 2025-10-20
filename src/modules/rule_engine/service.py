@@ -6,21 +6,17 @@ against various types of fraud detection rules (threshold, pattern, composite, M
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from loguru import logger
 from redis.asyncio import Redis
 
-from src.storage.models import Rule
-
 from .enums import (
     RiskLevel,
     RuleMatchStatus,
     RuleType,
-    ThresholdOperator,
-    TimeWindow,
     TransactionStatus,
 )
 from .schemas import ThresholdRuleParams
@@ -54,7 +50,9 @@ class RuleEvaluationResult:
         self.execution_time_ms = execution_time_ms
         self.match_reason = match_reason
         self.error_message = error_message
-        self.status = RuleMatchStatus.MATCHED if matched else RuleMatchStatus.NOT_MATCHED
+        self.status = (
+            RuleMatchStatus.MATCHED if matched else RuleMatchStatus.NOT_MATCHED
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert result to dictionary for serialization."""
@@ -136,9 +134,7 @@ async def get_cached_active_rules(redis_client: Redis) -> List[Dict[str, Any]]:
             )
             return rules_list
 
-        logger.warning(
-            "No active rules found in cache", event="cache_miss"
-        )
+        logger.warning("No active rules found in cache", event="cache_miss")
         return []
 
     except Exception as e:
@@ -313,7 +309,9 @@ async def evaluate_threshold_rule(
     amount = float(transaction_data.get("amount", 0))
     from_account = transaction_data.get("from_account", "")
     location = transaction_data.get("location")
-    timestamp = datetime.fromisoformat(transaction_data.get("timestamp", datetime.utcnow().isoformat()))
+    timestamp = datetime.fromisoformat(
+        transaction_data.get("timestamp", datetime.utcnow().isoformat())
+    )
 
     matched = False
     match_reason = None
@@ -378,7 +376,7 @@ async def evaluate_pattern_rule(
     Evaluate a pattern-based rule against a transaction.
 
     Detects suspicious patterns like structuring, rapid succession, etc.
-    
+
     TODO: Implement pattern detection logic
     - Structuring (multiple small transactions to avoid thresholds)
     - Rapid succession (many transactions in short time)

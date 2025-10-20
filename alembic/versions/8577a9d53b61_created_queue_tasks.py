@@ -32,7 +32,15 @@ def upgrade() -> None:
         sa.Column("transaction_id", sa.Uuid(), nullable=True),
         sa.Column(
             "status",
-            sa.Enum("PENDING", "APPROVED", "PROCESSING", "FLAGGED", "FAILED", "COMPLETED", name="taskstatus"),
+            sa.Enum(
+                "PENDING",
+                "APPROVED",
+                "PROCESSING",
+                "FLAGGED",
+                "FAILED",
+                "COMPLETED",
+                name="taskstatus",
+            ),
             nullable=False,
         ),
         sa.Column("retry_count", sa.Integer(), nullable=False),

@@ -12,7 +12,6 @@ Defines tasks for processing transactions through the fraud detection pipeline:
 import json
 import socket
 import traceback
-from datetime import datetime
 from time import time
 from typing import Any, Dict, List
 from uuid import UUID
@@ -20,7 +19,6 @@ from uuid import UUID
 from celery import Task
 from celery.exceptions import MaxRetriesExceededError
 from loguru import logger
-from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import DatabaseError, RuleEvaluationError
@@ -40,7 +38,6 @@ from src.modules.rule_engine import service as rule_engine_service
 from src.modules.rule_engine.enums import RiskLevel
 from src.modules.rule_engine.enums import TransactionStatus as TxnStatus
 from src.modules.transactions.repository import TransactionRepository
-from src.storage.dependencies import AsyncRedisDep
 from src.storage.redis import get_async_redis_dependency
 from src.storage.sql.engine import get_async_session_maker
 
@@ -66,7 +63,7 @@ class TransactionProcessingTask(Task):
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         """
         Handle task failure.
-        
+
         Args:
             exc: Exception that caused failure
             task_id: Unique task ID
@@ -74,15 +71,13 @@ class TransactionProcessingTask(Task):
             kwargs: Task kwargs
             einfo: Exception info
         """
-        logger.error(
-            f"Task {task_id} failed: {exc}\n{einfo}"
-        )
+        logger.error(f"Task {task_id} failed: {exc}\n{einfo}")
         increment_error_counter(error_type=type(exc).__name__)
 
     def on_retry(self, exc, task_id, args, kwargs, einfo):
         """
         Handle task retry.
-        
+
         Args:
             exc: Exception that caused retry
             task_id: Unique task ID
@@ -90,15 +85,13 @@ class TransactionProcessingTask(Task):
             kwargs: Task kwargs
             einfo: Exception info
         """
-        logger.warning(
-            f"Task {task_id} retrying due to: {exc}"
-        )
+        logger.warning(f"Task {task_id} retrying due to: {exc}")
         increment_retry_counter()
 
     def on_success(self, retval, task_id, args, kwargs):
         """
         Handle task success.
-        
+
         Args:
             retval: Return value
             task_id: Unique task ID
@@ -123,7 +116,7 @@ def process_transaction(
 ) -> Dict[str, Any]:
     """
     Process a transaction through the fraud detection pipeline.
-    
+
     This task:
     1. Marks task as processing
     2. Receives FULL transaction data from Redis (no DB fetch needed!)
@@ -131,15 +124,15 @@ def process_transaction(
     4. Updates transaction status based on evaluation
     5. Sends notifications if suspicious
     6. Records metrics
-    
+
     Args:
         transaction_data: COMPLETE transaction data from Redis queue
         correlation_id: Correlation ID for tracking
         queue_task_id: Queue task ID for status updates
-        
+
     Returns:
         Dict with processing results
-        
+
     Raises:
         Retry: If processing fails and retries available
         MaxRetriesExceededError: If all retries exhausted
@@ -219,7 +212,7 @@ def process_transaction(
         # Retry if possible
         if self.request.retries < self.max_retries:
             increment_task_counter(TaskStatus.FAILED.value)
-            raise self.retry(exc=exc, countdown=2 ** self.request.retries)
+            raise self.retry(exc=exc, countdown=2**self.request.retries)
         else:
             raise MaxRetriesExceededError(
                 f"Task failed after {self.max_retries} retries: {exc}"
@@ -235,14 +228,14 @@ async def _process_transaction_async(
 ) -> Dict[str, Any]:
     """
     Async implementation of transaction processing.
-    
+
     Args:
         transaction_data: COMPLETE transaction data from Redis (no DB fetch!)
         correlation_id: Correlation ID
         queue_task_id: Queue task UUID
         worker_id: Celery worker ID
         worker_hostname: Worker hostname
-        
+
     Returns:
         Processing results dictionary
     """
@@ -267,11 +260,7 @@ async def _process_transaction_async(
 
         # Update transaction status in DB (async write)
         db_write_start = time()
-        await _update_transaction_status(
-            session,
-            transaction_id,
-            evaluation_result
-        )
+        await _update_transaction_status(session, transaction_id, evaluation_result)
         db_write_time_ms = int((time() - db_write_start) * 1000)
         observe_db_write_time((time() - db_write_start))
 
@@ -326,21 +315,19 @@ async def _process_transaction_async(
         }
 
 
-async def _evaluate_transaction(
-    transaction: Dict[str, Any]
-) -> Dict[str, Any]:
+async def _evaluate_transaction(transaction: Dict[str, Any]) -> Dict[str, Any]:
     """
     Evaluate transaction with rule engine.
-    
+
     Args:
         transaction: Complete transaction data from Redis
-        
+
     Returns:
         Evaluation results dictionary
     """
-    transaction_id = transaction.get('id')
-    correlation_id = transaction.get('correlation_id', '')
-    
+    transaction_id = transaction.get("id")
+    correlation_id = transaction.get("correlation_id", "")
+
     logger.info(
         f"Starting rule engine evaluation for transaction {transaction_id}",
         event="rule_engine_evaluation_start",
@@ -352,29 +339,29 @@ async def _evaluate_transaction(
         # Get Redis client for fetching active rules
         redis_gen = get_async_redis_dependency()
         redis_client = await anext(redis_gen)
-        
+
         # Get active rules from cache
         active_rules = await rule_engine_service.get_cached_active_rules(redis_client)
-        
+
         if not active_rules:
-                logger.warning(
-                    f"No active rules found in cache, loading from database",
-                    event="no_cached_rules",
-                    transaction_id=transaction_id,
-                )
-                # TODO: Load rules from database if cache is empty
-                # For now, return approved status
-                return {
-                    "is_suspicious": False,
-                    "risk_score": 0,
-                    "risk_level": RiskLevel.LOW.value,
-                    "final_status": TxnStatus.APPROVED.value,
-                    "triggered_rules": [],
-                    "total_rules_evaluated": 0,
-                    "evaluation_details": {
-                        "message": "No active rules in cache",
-                    },
-                }
+            logger.warning(
+                "No active rules found in cache, loading from database",
+                event="no_cached_rules",
+                transaction_id=transaction_id,
+            )
+            # TODO: Load rules from database if cache is empty
+            # For now, return approved status
+            return {
+                "is_suspicious": False,
+                "risk_score": 0,
+                "risk_level": RiskLevel.LOW.value,
+                "final_status": TxnStatus.APPROVED.value,
+                "triggered_rules": [],
+                "total_rules_evaluated": 0,
+                "evaluation_details": {
+                    "message": "No active rules in cache",
+                },
+            }
 
         # Evaluate transaction against all active rules
         evaluation_result = await rule_engine_service.evaluate_transaction(
@@ -388,16 +375,16 @@ async def _evaluate_transaction(
         is_failed = evaluation_result.final_status == TxnStatus.FAILED
 
         result_dict = {
-                "is_suspicious": is_flagged or is_failed,
-                "risk_score": _risk_level_to_score(evaluation_result.risk_level),
-                "risk_level": evaluation_result.risk_level.value,
-                "final_status": evaluation_result.final_status.value,
-                "triggered_rules": [r.to_dict() for r in evaluation_result.matched_rules],
-                "total_rules_evaluated": evaluation_result.total_rules_evaluated,
-                "total_execution_time_ms": evaluation_result.total_execution_time_ms,
-                "has_critical_match": evaluation_result.has_critical_match,
-                "evaluation_details": evaluation_result.to_dict(),
-            }
+            "is_suspicious": is_flagged or is_failed,
+            "risk_score": _risk_level_to_score(evaluation_result.risk_level),
+            "risk_level": evaluation_result.risk_level.value,
+            "final_status": evaluation_result.final_status.value,
+            "triggered_rules": [r.to_dict() for r in evaluation_result.matched_rules],
+            "total_rules_evaluated": evaluation_result.total_rules_evaluated,
+            "total_execution_time_ms": evaluation_result.total_execution_time_ms,
+            "has_critical_match": evaluation_result.has_critical_match,
+            "evaluation_details": evaluation_result.to_dict(),
+        }
 
         logger.info(
             f"Rule engine evaluation completed for transaction {transaction_id}",
@@ -409,7 +396,7 @@ async def _evaluate_transaction(
         )
 
         return result_dict
-            
+
     except Exception as e:
         logger.error(
             f"Rule engine evaluation failed for transaction {transaction_id}: {e}",
@@ -418,7 +405,7 @@ async def _evaluate_transaction(
             error=str(e),
             traceback=traceback.format_exc(),
         )
-        
+
         # Return safe defaults on error
         return {
             "is_suspicious": False,
@@ -446,13 +433,11 @@ def _risk_level_to_score(risk_level: RiskLevel) -> float:
 
 
 async def _update_transaction_status(
-    session: AsyncSession,
-    transaction_id: UUID,
-    evaluation_result: Dict[str, Any]
+    session: AsyncSession, transaction_id: UUID, evaluation_result: Dict[str, Any]
 ) -> None:
     """
     Update transaction status in database based on rule engine evaluation.
-    
+
     Args:
         session: Database session
         transaction_id: Transaction UUID
@@ -460,17 +445,19 @@ async def _update_transaction_status(
     """
     try:
         transaction_repo = TransactionRepository(session)
-        
+
         # Get final status from evaluation
-        final_status_str = evaluation_result.get("final_status", TxnStatus.APPROVED.value)
+        final_status_str = evaluation_result.get(
+            "final_status", TxnStatus.APPROVED.value
+        )
         final_status = TxnStatus(final_status_str)
-        
+
         # Update transaction status
         await transaction_repo.update_status(
             transaction_id=transaction_id,
             status=final_status,
         )
-        
+
         logger.info(
             f"Updated transaction {transaction_id} status to {final_status.value}",
             event="transaction_status_updated",
@@ -479,7 +466,7 @@ async def _update_transaction_status(
             is_suspicious=evaluation_result.get("is_suspicious"),
             risk_level=evaluation_result.get("risk_level"),
         )
-        
+
     except Exception as e:
         logger.error(
             f"Failed to update transaction {transaction_id} status: {e}",
@@ -494,27 +481,26 @@ async def _update_transaction_status(
 
 
 async def _send_notifications(
-    transaction: Dict[str, Any],
-    evaluation_result: Dict[str, Any]
+    transaction: Dict[str, Any], evaluation_result: Dict[str, Any]
 ) -> None:
     """
     Send notifications for suspicious/flagged transactions.
-    
+
     Args:
         transaction: Transaction data from Redis
         evaluation_result: Evaluation results from rule engine
     """
     try:
-        transaction_id = transaction.get('id')
+        transaction_id = transaction.get("id")
         triggered_rules = evaluation_result.get("triggered_rules", [])
         risk_level = evaluation_result.get("risk_level", "low")
-        
+
         if not triggered_rules:
             logger.debug(
                 f"No notifications needed for transaction {transaction_id} - no rules matched"
             )
             return
-        
+
         logger.info(
             f"Sending fraud alert for suspicious transaction {transaction_id}",
             event="sending_fraud_alert",
@@ -522,11 +508,11 @@ async def _send_notifications(
             risk_level=risk_level,
             matched_rules_count=len(triggered_rules),
         )
-        
+
         # Call notifications module (stub for now)
         # TODO: Import and call actual notifications.send_fraud_alert() when implemented
         _print_fraud_alert(str(transaction_id), triggered_rules, risk_level)
-        
+
     except Exception as e:
         logger.error(
             f"Failed to send notification for transaction {transaction.get('id')}: {e}",
@@ -537,13 +523,11 @@ async def _send_notifications(
 
 
 def _print_fraud_alert(
-    transaction_id: str,
-    matched_rules: List[Dict[str, Any]],
-    risk_level: str
+    transaction_id: str, matched_rules: List[Dict[str, Any]], risk_level: str
 ) -> None:
     """
     Print fraud alert to console (temporary stub for notifications module).
-    
+
     Args:
         transaction_id: Transaction UUID
         matched_rules: List of matched rule dictionaries
@@ -571,10 +555,10 @@ async def _save_rule_executions_to_redis(
 ) -> None:
     """
     Save rule execution results to Redis for later persistence to PostgreSQL.
-    
+
     This allows fast async storage, with a separate Celery worker
     handling the actual database writes.
-    
+
     Args:
         correlation_id: Transaction correlation ID
         transaction_id: Transaction UUID
@@ -583,10 +567,10 @@ async def _save_rule_executions_to_redis(
     try:
         redis_gen = get_async_redis_dependency()
         redis_client = await anext(redis_gen)
-        
+
         # Prepare rule execution data
         triggered_rules = evaluation_result.get("triggered_rules", [])
-        
+
         if not triggered_rules:
             logger.debug(
                 f"No rule executions to save for transaction {transaction_id}",
@@ -594,7 +578,7 @@ async def _save_rule_executions_to_redis(
                 correlation_id=correlation_id,
             )
             return
-        
+
         # Store each rule execution in Redis
         redis_key = f"rule_executions:{correlation_id}"
         execution_data = {
@@ -604,14 +588,14 @@ async def _save_rule_executions_to_redis(
             "total_rules_evaluated": evaluation_result.get("total_rules_evaluated", 0),
             "saved_at": time(),
         }
-        
+
         # Store with 1 hour TTL
         await redis_client.setex(
             redis_key,
             3600,  # 1 hour
             json.dumps(execution_data),
         )
-        
+
         logger.info(
             f"Saved {len(triggered_rules)} rule executions to Redis",
             event="rule_executions_saved_to_redis",
@@ -620,14 +604,14 @@ async def _save_rule_executions_to_redis(
             redis_key=redis_key,
             matched_rules_count=len(triggered_rules),
         )
-        
+
         # TODO: Trigger Celery task to persist to PostgreSQL
         # celery_app.send_task(
         #     "queue.save_rule_executions_to_db",
         #     args=[correlation_id],
         #     queue="rule_executions",
         # )
-        
+
     except Exception as e:
         logger.error(
             f"Failed to save rule executions to Redis: {e}",
@@ -647,7 +631,7 @@ async def _mark_task_failed(
 ) -> None:
     """
     Mark task as failed in database.
-    
+
     Args:
         queue_task_id: Queue task UUID
         error_type: Type of error
@@ -668,10 +652,10 @@ async def _mark_task_failed(
 def _map_exception_to_error_type(exc: Exception) -> ErrorType:
     """
     Map Python exception to ErrorType enum.
-    
+
     Args:
         exc: Exception instance
-        
+
     Returns:
         Corresponding ErrorType
     """
@@ -692,10 +676,10 @@ def _map_exception_to_error_type(exc: Exception) -> ErrorType:
 def cleanup_old_tasks() -> Dict[str, Any]:
     """
     Periodic task to clean up old completed tasks.
-    
+
     Runs daily to remove tasks older than 30 days to prevent
     database bloat while keeping recent history for debugging.
-    
+
     Returns:
         Dict with cleanup statistics
     """
@@ -726,21 +710,21 @@ def save_rule_executions_to_db(
 ) -> Dict[str, Any]:
     """
     Save rule execution results from Redis to PostgreSQL.
-    
+
     This task runs asynchronously after transaction processing to persist
     rule evaluation results for analytics and compliance.
-    
+
     Args:
         correlation_id: Transaction correlation ID used as Redis key
-        
+
     Returns:
         Dict with save statistics
-        
+
     Raises:
         Retry: If save fails and retries available
     """
     import asyncio
-    
+
     logger.info(
         f"Starting rule executions persistence for correlation_id={correlation_id}",
         event="save_rule_executions_start",
@@ -749,19 +733,17 @@ def save_rule_executions_to_db(
 
     try:
         # Run async save in event loop
-        result = asyncio.run(
-            _save_rule_executions_to_db_async(correlation_id)
-        )
-        
+        result = asyncio.run(_save_rule_executions_to_db_async(correlation_id))
+
         logger.info(
             f"Rule executions saved successfully: {result['saved_count']} records",
             event="save_rule_executions_complete",
             correlation_id=correlation_id,
-            saved_count=result['saved_count'],
+            saved_count=result["saved_count"],
         )
-        
+
         return result
-        
+
     except Exception as exc:
         logger.error(
             f"Failed to save rule executions: {exc}",
@@ -769,10 +751,10 @@ def save_rule_executions_to_db(
             correlation_id=correlation_id,
             error=str(exc),
         )
-        
+
         # Retry if possible
         if self.request.retries < self.max_retries:
-            raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+            raise self.retry(exc=exc, countdown=60 * (2**self.request.retries))
         else:
             raise
 
@@ -782,25 +764,25 @@ async def _save_rule_executions_to_db_async(
 ) -> Dict[str, Any]:
     """
     Async implementation of saving rule executions from Redis to PostgreSQL.
-    
+
     Args:
         correlation_id: Transaction correlation ID
-        
+
     Returns:
         Dict with save results
     """
     from src.storage.models import RuleExecution
-    
+
     # Get Redis client
     redis_gen = get_async_redis_dependency()
     redis_client = await anext(redis_gen)
-    
+
     # Read execution data from Redis
     redis_key = f"rule_executions:{correlation_id}"
-    
+
     try:
         cached_data = await redis_client.get(redis_key)
-        
+
         if not cached_data:
             logger.warning(
                 f"No rule execution data found in Redis for {correlation_id}",
@@ -813,11 +795,11 @@ async def _save_rule_executions_to_db_async(
                 "status": "no_data",
                 "correlation_id": correlation_id,
             }
-        
+
         execution_data = json.loads(cached_data)
         transaction_id = UUID(execution_data["transaction_id"])
         triggered_rules = execution_data.get("triggered_rules", [])
-        
+
         if not triggered_rules:
             logger.debug(f"No triggered rules to save for {correlation_id}")
             # Delete from Redis since there's nothing to save
@@ -827,11 +809,11 @@ async def _save_rule_executions_to_db_async(
                 "status": "no_rules",
                 "correlation_id": correlation_id,
             }
-        
+
         # Save to PostgreSQL
         async with AsyncSessionLocal() as session:
             saved_count = 0
-            
+
             for rule_result in triggered_rules:
                 try:
                     rule_execution = RuleExecution(
@@ -849,41 +831,41 @@ async def _save_rule_executions_to_db_async(
                         },
                         error_message=rule_result.get("error_message"),
                     )
-                    
+
                     session.add(rule_execution)
                     saved_count += 1
-                    
+
                 except Exception as e:
                     logger.error(
                         f"Error creating RuleExecution for rule {rule_result.get('rule_id')}: {e}",
                         correlation_id=correlation_id,
                     )
                     continue
-            
+
             # Commit all executions
             await session.commit()
-            
+
             logger.info(
                 f"Saved {saved_count} rule executions to database",
                 event="rule_executions_persisted",
                 correlation_id=correlation_id,
                 saved_count=saved_count,
             )
-        
+
         # Delete from Redis after successful save
         await redis_client.delete(redis_key)
-        
+
         logger.debug(
             f"Deleted rule executions from Redis: {redis_key}",
             redis_key=redis_key,
         )
-        
+
         return {
             "saved_count": saved_count,
             "status": "success",
             "correlation_id": correlation_id,
         }
-        
+
     except Exception as e:
         logger.error(
             f"Error in _save_rule_executions_to_db_async: {e}",

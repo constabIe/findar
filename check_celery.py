@@ -16,7 +16,7 @@ print(f"💾 Result backend: {celery_app.conf.result_backend}")
 print("\n📋 Registered Tasks:")
 print("-" * 80)
 for task_name in sorted(celery_app.tasks.keys()):
-    if not task_name.startswith('celery.'):
+    if not task_name.startswith("celery."):
         print(f"  ✓ {task_name}")
 
 print("\n🔄 Task Routes:")
