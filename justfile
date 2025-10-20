@@ -4,31 +4,30 @@
 default:
   @just --list
 
-# Backend
-
+# Initialize environment variables
+env: 
+  cp .example.secrets.toml .secrets.toml
+  cp docker/.env.example .env
+  
 # Apply migrations
-migrate:
+migrate: env
   uv run alembic upgrade head
 
 # Start application
-run: migrate
+run: env 
   uv sync
   uv run -m src.api
 
-# Initialize environment variables
-env: 
-  cp docker/.env.example .env
-
 # docker compose build 
-build *args:
+build *args: env
   docker compose build {{args}}
 
 # docker compose up
-up *args:
+up *args: env
   docker compose up {{args}} -d
 
 # docker compose restart
-restart *args:
+restart *args: env
   docker compose restart {{args}}
 
 # docker compose down
@@ -47,5 +46,3 @@ ps:
 confirm-lint:
   git add .
   git commit -m "chore: linting"
-
-  
