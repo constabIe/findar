@@ -1,34 +1,48 @@
+#!/usr/bin/env just --justfile
+
+# default recipe to display help information
 default:
-  just --list
+  @just --list
 
-# run *args:
-#   poetry run uvicorn src.main:app --reload {{args}}
+# Initialize environment variables
+env: 
+  cp .example.secrets.toml .secrets.toml
+  cp docker/.env.example .env
+  
+# Apply migrations
+migrate: env
+  uv run alembic upgrade head
 
-# mm *args:
-#   poetry run alembic revision --autogenerate -m "{{args}}"
+# Start application
+run: env 
+  uv sync
+  uv run -m src.api
 
-# migrate:
-#   poetry run alembic upgrade head
+# docker compose build 
+build *args: env
+  docker compose build {{args}}
 
-# downgrade *args:
-#   poetry run alembic downgrade {{args}}
+# docker compose up
+up *args: env
+  docker compose up {{args}} -d
 
-# ruff *args:
-#   poetry run ruff check {{args}} src
+# docker compose restart
+restart *args: env
+  docker compose restart {{args}}
 
-# lint:
-#   poetry run ruff format src
-#   just ruff --fix
+# docker compose down
+down *args:
+  docker compose down {{args}}
 
-# docker
-up:
-  docker compose up -d
-
+# docker compose kill
 kill *args:
   docker compose kill {{args}}
 
-build:
-  docker compose build
-
+# docker ps
 ps:
-  docker compose ps
+  docker ps
+  
+# Confirm auto lint action  
+confirm-lint:
+  git add .
+  git commit -m "chore: linting"
