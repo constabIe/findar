@@ -12,7 +12,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import Column
 from sqlmodel import JSON, Field, SQLModel, String
 
-from .enums import RuleType, TransactionStatus, TransactionType
+from ..modules.rule_engine.enums import RuleType, TransactionStatus, TransactionType
 
 
 class Transaction(SQLModel, table=True):
@@ -37,7 +37,7 @@ class Transaction(SQLModel, table=True):
     correlation_id: str = Field(
         description="Request correlation ID for tracking")
     status: TransactionStatus = Field(
-        default=TransactionStatus.QUEUED, description="Transaction processing status"
+        default=TransactionStatus.PENDING, description="Transaction processing status"
     )
 
     # Additional fields for rule evaluation

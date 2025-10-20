@@ -67,7 +67,6 @@ async def create_transaction(
         amount=payload.amount,
         from_account=payload.from_account,
         to_account=payload.to_account,
-        correlation_id=payload.correlation_id,
     )
 
     try:
@@ -94,7 +93,6 @@ async def create_transaction(
             "Transaction creation failed",
             event="transaction_create_error",
             error=str(e),
-            correlation_id=payload.correlation_id,
         )
 
         raise HTTPException(

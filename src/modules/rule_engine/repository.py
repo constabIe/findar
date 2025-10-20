@@ -22,7 +22,7 @@ from src.core.logging import get_logger
 from src.storage.dependencies import AsyncRedisDep, DbSessionDep
 
 from .enums import RuleType
-from .models import Rule, RuleExecution
+from ...storage.models import Rule, RuleExecution
 from .schemas import (
     RuleCreateRequest,
     RuleUpdateRequest,

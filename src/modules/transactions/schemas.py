@@ -30,7 +30,7 @@ class TransactionCreate(BaseModel):
         ..., min_length=1, description="Destination account identifier"
     )
     type: str = Field(..., description="Type of transaction")
-    correlation_id: str = Field(..., description="Request correlation ID for tracking")
+    # correlation_id: Optional[str] = Field(default=None, description="Request correlation ID for tracking")
 
     # Optional fields with defaults
     currency: str = Field(default="USD", description="Transaction currency")

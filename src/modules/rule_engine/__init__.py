@@ -34,7 +34,7 @@ from .enums import (
     TransactionStatus,
     TransactionType,
 )
-from .models import Rule, RuleCache, RuleExecution, Transaction
+from ...storage.models import Rule, RuleCache, RuleExecution, Transaction
 from .schemas import (
     # Cache schemas
     CacheStatusResponse,
