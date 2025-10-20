@@ -19,10 +19,10 @@ AsyncSessionDep = Annotated[AsyncSession, Depends(get_async_session)]
 async def get_transaction_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Get async database session for transaction operations.
-    
+
     This is a convenience wrapper around the storage layer's
     get_async_session function, specifically for the transactions module.
-    
+
     Yields:
         AsyncSession: Async SQLAlchemy session
     """

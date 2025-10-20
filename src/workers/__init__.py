@@ -7,5 +7,3 @@ celery_app = Celery(
 )
 
 celery_app.autodiscover_tasks(["src.workers.tasks"])
-
-

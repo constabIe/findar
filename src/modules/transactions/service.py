@@ -8,7 +8,7 @@ Celery task triggering.
 
 from datetime import datetime
 from typing import Any, Dict
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,9 +27,7 @@ CELERY_QUEUE = "transactions.consume"
 
 
 async def enqueue_transaction(
-    redis_client: Redis, 
-    session: AsyncSession, 
-    data: Dict[str, Any]
+    redis_client: Redis, session: AsyncSession, data: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
     Enqueue a transaction to Redis Stream and save to PostgreSQL.
@@ -162,7 +160,7 @@ async def enqueue_transaction(
 
             # Update queue task with celery_task_id
             from src.modules.queue.schemas import TaskUpdate
-            
+
             await queue_repo.update_task(
                 task_id=queue_task.id,
                 update_data=TaskUpdate(celery_task_id=celery_task.id),
@@ -204,7 +202,7 @@ async def enqueue_transaction(
     except Exception as e:
         # Rollback database transaction on error
         await session.rollback()
-        
+
         logger.error(
             "Transaction enqueue failed",
             event="enqueue_error",

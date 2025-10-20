@@ -20,8 +20,8 @@ from src.core.exceptions import (
 )
 from src.core.logging import get_logger
 from src.storage.dependencies import AsyncRedisDep, DbSessionDep
-
 from src.storage.models import Rule, RuleExecution
+
 from .enums import RuleType
 from .schemas import (
     RuleCreateRequest,

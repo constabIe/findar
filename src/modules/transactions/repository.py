@@ -22,7 +22,7 @@ from src.storage.models import Transaction
 class TransactionRepository:
     """
     Repository for managing transactions in the database.
-    
+
     Handles CRUD operations for transaction records, including
     creation, updates, and queries by various identifiers.
     """
@@ -30,7 +30,7 @@ class TransactionRepository:
     def __init__(self, session: AsyncSession):
         """
         Initialize repository with database session.
-        
+
         Args:
             session: Async SQLAlchemy session for database operations
         """
@@ -53,7 +53,7 @@ class TransactionRepository:
     ) -> Transaction:
         """
         Create a new transaction record in the database.
-        
+
         Args:
             transaction_id: Unique transaction identifier
             amount: Transaction amount
@@ -67,10 +67,10 @@ class TransactionRepository:
             location: Optional transaction location
             device_id: Optional device identifier
             ip_address: Optional IP address
-            
+
         Returns:
             Created Transaction instance
-            
+
         Raises:
             DatabaseError: If transaction creation fails
         """
@@ -126,23 +126,23 @@ class TransactionRepository:
     async def get_by_id(self, transaction_id: UUID) -> Optional[Transaction]:
         """
         Get a transaction by its ID.
-        
+
         Args:
             transaction_id: Transaction UUID
-            
+
         Returns:
             Transaction instance if found, None otherwise
         """
         try:
-            stmt = select(Transaction).where(Transaction.id == transaction_id) # type: ignore
+            stmt = select(Transaction).where(Transaction.id == transaction_id)  # type: ignore
             result = await self.session.execute(stmt)
             transaction = result.scalar_one_or_none()
-            
+
             if transaction:
                 logger.debug(f"Found transaction: id={transaction_id}")
             else:
                 logger.debug(f"Transaction not found: id={transaction_id}")
-                
+
             return transaction
 
         except Exception as e:
@@ -156,25 +156,27 @@ class TransactionRepository:
     async def get_by_correlation_id(self, correlation_id: str) -> Optional[Transaction]:
         """
         Get a transaction by its correlation ID.
-        
+
         Args:
             correlation_id: Request correlation ID
-            
+
         Returns:
             Transaction instance if found, None otherwise
         """
         try:
             stmt = select(Transaction).where(
-                Transaction.correlation_id == correlation_id # type: ignore
+                Transaction.correlation_id == correlation_id  # type: ignore
             )
             result = await self.session.execute(stmt)
             transaction = result.scalar_one_or_none()
-            
+
             if transaction:
                 logger.debug(f"Found transaction by correlation_id: {correlation_id}")
             else:
-                logger.debug(f"Transaction not found by correlation_id: {correlation_id}")
-                
+                logger.debug(
+                    f"Transaction not found by correlation_id: {correlation_id}"
+                )
+
             return transaction
 
         except Exception as e:
@@ -186,26 +188,24 @@ class TransactionRepository:
             )
 
     async def update_status(
-        self, 
-        transaction_id: UUID, 
-        status: TransactionStatus
+        self, transaction_id: UUID, status: TransactionStatus
     ) -> Transaction:
         """
         Update transaction status.
-        
+
         Args:
             transaction_id: Transaction UUID
             status: New transaction status
-            
+
         Returns:
             Updated Transaction instance
-            
+
         Raises:
             DatabaseError: If transaction not found or update fails
         """
         try:
             transaction = await self.get_by_id(transaction_id)
-            
+
             if not transaction:
                 raise DatabaseError(
                     "Transaction not found",

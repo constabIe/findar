@@ -9,9 +9,8 @@ Create Date: 2025-10-19 16:42:43.791565
 from typing import Sequence, Union
 
 import sqlalchemy as sa
-import sqlmodel
 import sqlalchemy.dialects.postgresql as postgres
-
+import sqlmodel
 
 from alembic import op
 
@@ -31,8 +30,7 @@ def upgrade() -> None:
         sa.Column("name", sqlmodel.AutoString(), nullable=False),
         sa.Column(
             "type",
-            postgres.ENUM("THRESHOLD", "PATTERN", "COMPOSITE",
-                          "ML", name="ruletype"),
+            postgres.ENUM("THRESHOLD", "PATTERN", "COMPOSITE", "ML", name="ruletype"),
             nullable=False,
         ),
         sa.Column("params", sa.JSON(), nullable=False),

@@ -16,16 +16,16 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import DuplicateTaskError, TaskNotFoundError
+from src.modules.queue.models import QueueTask
 
 from .enums import ErrorType, TaskStatus
-from src.modules.queue.models import QueueTask
 from .schemas import QueueMetrics, TaskCreate, TaskUpdate
 
 
 class QueueRepository:
     """
     Repository for managing queue tasks in the database.
-    
+
     Handles CRUD operations, idempotency checks, status updates,
     and metrics calculation for transaction processing tasks.
     """
@@ -33,27 +33,25 @@ class QueueRepository:
     def __init__(self, session: AsyncSession):
         """
         Initialize repository with database session.
-        
+
         Args:
             session: Async SQLAlchemy session for database operations
         """
         self.session = session
 
     async def create_task(
-        self,
-        task_data: TaskCreate,
-        celery_task_id: Optional[str] = None
+        self, task_data: TaskCreate, celery_task_id: Optional[str] = None
     ) -> QueueTask:
         """
         Create a new queue task with idempotency check.
-        
+
         Args:
             task_data: Task creation data
             celery_task_id: Optional Celery task ID
-            
+
         Returns:
             Created QueueTask instance
-            
+
         Raises:
             DuplicateTaskError: If task with correlation_id already exists
         """
@@ -102,60 +100,56 @@ class QueueRepository:
     async def get_by_id(self, task_id: UUID) -> Optional[QueueTask]:
         """
         Get task by ID.
-        
+
         Args:
             task_id: Task UUID
-            
+
         Returns:
             QueueTask if found, None otherwise
         """
-        stmt = select(QueueTask).where(QueueTask.id == task_id) # type: ignore
+        stmt = select(QueueTask).where(QueueTask.id == task_id)  # type: ignore
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_correlation_id(self, correlation_id: str) -> Optional[QueueTask]:
         """
         Get task by correlation ID (for idempotency check).
-        
+
         Args:
             correlation_id: Transaction correlation ID
-            
+
         Returns:
             QueueTask if found, None otherwise
         """
-        stmt = select(QueueTask).where(QueueTask.correlation_id == correlation_id) # type: ignore
+        stmt = select(QueueTask).where(QueueTask.correlation_id == correlation_id)  # type: ignore
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_celery_task_id(self, celery_task_id: str) -> Optional[QueueTask]:
         """
         Get task by Celery task ID.
-        
+
         Args:
             celery_task_id: Celery task ID
-            
+
         Returns:
             QueueTask if found, None otherwise
         """
-        stmt = select(QueueTask).where(QueueTask.celery_task_id == celery_task_id) # type: ignore
+        stmt = select(QueueTask).where(QueueTask.celery_task_id == celery_task_id)  # type: ignore
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def update_task(
-        self,
-        task_id: UUID,
-        update_data: TaskUpdate
-    ) -> QueueTask:
+    async def update_task(self, task_id: UUID, update_data: TaskUpdate) -> QueueTask:
         """
         Update task with new data.
-        
+
         Args:
             task_id: Task UUID
             update_data: Update data
-            
+
         Returns:
             Updated QueueTask
-            
+
         Raises:
             TaskNotFoundError: If task not found
         """
@@ -183,15 +177,17 @@ class QueueRepository:
             logger.error(f"Error updating task {task_id}: {e}")
             raise
 
-    async def mark_started(self, task_id: UUID, worker_id: str, worker_hostname: str) -> QueueTask:
+    async def mark_started(
+        self, task_id: UUID, worker_id: str, worker_hostname: str
+    ) -> QueueTask:
         """
         Mark task as started (PROCESSING status).
-        
+
         Args:
             task_id: Task UUID
             worker_id: Worker ID processing the task
             worker_hostname: Worker hostname
-            
+
         Returns:
             Updated QueueTask
         """
@@ -213,14 +209,14 @@ class QueueRepository:
     ) -> QueueTask:
         """
         Mark task as successfully completed.
-        
+
         Args:
             task_id: Task UUID
             processing_time_ms: Total processing time
             rule_engine_time_ms: Rule engine processing time
             db_write_time_ms: Database write time
             notification_time_ms: Notification send time
-            
+
         Returns:
             Updated QueueTask
         """
@@ -244,14 +240,14 @@ class QueueRepository:
     ) -> QueueTask:
         """
         Mark task as failed.
-        
+
         Args:
             task_id: Task UUID
             error_type: Type of error
             error_message: Error message
             error_traceback: Full error traceback
             retry: Whether task will be retried
-            
+
         Returns:
             Updated QueueTask
         """
@@ -277,23 +273,21 @@ class QueueRepository:
         return await self.update_task(task_id, update_data)
 
     async def get_tasks_by_status(
-        self,
-        status: TaskStatus,
-        limit: int = 100
+        self, status: TaskStatus, limit: int = 100
     ) -> List[QueueTask]:
         """
         Get tasks by status.
-        
+
         Args:
             status: Task status to filter by
             limit: Maximum number of tasks to return
-            
+
         Returns:
             List of QueueTask instances
         """
         stmt = (
             select(QueueTask)
-            .where(QueueTask.status == status) # type: ignore
+            .where(QueueTask.status == status)  # type: ignore
             .order_by(QueueTask.created_at.desc())
             .limit(limit)
         )
@@ -303,41 +297,45 @@ class QueueRepository:
     async def get_metrics(self) -> QueueMetrics:
         """
         Calculate queue performance metrics.
-        
+
         Returns:
             QueueMetrics with current statistics
         """
         # Count tasks by status
-        status_counts_stmt = (
-            select(
-                QueueTask.status,
-                func.count(QueueTask.id).label("count")
-            )
-            .group_by(QueueTask.status)
-        )
+        status_counts_stmt = select(
+            QueueTask.status, func.count(QueueTask.id).label("count")
+        ).group_by(QueueTask.status)
         status_result = await self.session.execute(status_counts_stmt)
         status_counts = {row[0]: row[1] for row in status_result}
 
         # Calculate processing time statistics
         completed_stmt = select(QueueTask).where(
-            QueueTask.status == TaskStatus.COMPLETED # type: ignore
+            QueueTask.status == TaskStatus.COMPLETED  # type: ignore
         )
         completed_result = await self.session.execute(completed_stmt)
         completed_tasks = list(completed_result.scalars().all())
 
         processing_times = [
-            t.processing_time_ms for t in completed_tasks
+            t.processing_time_ms
+            for t in completed_tasks
             if t.processing_time_ms is not None
         ]
 
         rule_engine_times = [
-            t.rule_engine_time_ms for t in completed_tasks
+            t.rule_engine_time_ms
+            for t in completed_tasks
             if t.rule_engine_time_ms is not None
         ]
 
         # Calculate averages and percentiles
-        avg_processing = sum(processing_times) / len(processing_times) if processing_times else None
-        avg_rule_engine = sum(rule_engine_times) / len(rule_engine_times) if rule_engine_times else None
+        avg_processing = (
+            sum(processing_times) / len(processing_times) if processing_times else None
+        )
+        avg_rule_engine = (
+            sum(rule_engine_times) / len(rule_engine_times)
+            if rule_engine_times
+            else None
+        )
 
         p95_processing = None
         p99_processing = None
@@ -345,8 +343,16 @@ class QueueRepository:
             sorted_times = sorted(processing_times)
             p95_idx = int(len(sorted_times) * 0.95)
             p99_idx = int(len(sorted_times) * 0.99)
-            p95_processing = sorted_times[p95_idx] if p95_idx < len(sorted_times) else sorted_times[-1]
-            p99_processing = sorted_times[p99_idx] if p99_idx < len(sorted_times) else sorted_times[-1]
+            p95_processing = (
+                sorted_times[p95_idx]
+                if p95_idx < len(sorted_times)
+                else sorted_times[-1]
+            )
+            p99_processing = (
+                sorted_times[p99_idx]
+                if p99_idx < len(sorted_times)
+                else sorted_times[-1]
+            )
 
         # Count total retries
         total_retries_stmt = select(func.sum(QueueTask.retry_count))
