@@ -70,7 +70,10 @@ async def enqueue_transaction(
 
         # Add to Redis Stream with retention policy
         await redis_client.xadd(
-            STREAM_KEY, fields=payload, maxlen=10000, approximate=True # type: ignore
+            STREAM_KEY,
+            fields=payload, # type: ignore
+            maxlen=10000,
+            approximate=True,
         )
 
         logger.info(
@@ -84,7 +87,7 @@ async def enqueue_transaction(
         # transactions_enqueued_total.inc()
 
         # Trigger Celery worker
-        '''
+        """
         TODO: Use with queue module which is not implemented yet
         try:
             from src.workers import celery_app
@@ -102,7 +105,7 @@ async def enqueue_transaction(
                 error=str(e),
             )
             # Don't fail the enqueue if Celery trigger fails
-        '''
+        """
 
         return {"id": txn_id, "queued_at": now, "correlation_id": correlation_id}
 
