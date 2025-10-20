@@ -46,3 +46,7 @@ ps:
 confirm-lint:
   git add .
   git commit -m "chore: linting"
+
+# Delete files ignored by git
+clean:
+  git clean -Xdf
