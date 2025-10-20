@@ -11,12 +11,11 @@ from enum import Enum
 class TaskStatus(str, Enum):
     """
     Status of a queue task processing.
-
     """
 
     PENDING = "pending"  # Task created, waiting for worker
-    APPROVED = "processing"  # Task being processed by worker
-    FLAGGED = "completed"  # Successfully completed
+    PROCESSING = "processing"  # Task being processed by worker
+    COMPLETED = "completed"  # Successfully completed
     FAILED = "failed"  # Failed after all retries
 
 

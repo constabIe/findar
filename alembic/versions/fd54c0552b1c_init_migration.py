@@ -65,11 +65,14 @@ def upgrade() -> None:
         sa.Column("correlation_id", sqlmodel.AutoString(), nullable=False),
         sa.Column(
             "status",
+            
             postgres.ENUM(
                 "PENDING",
                 "APPROVED",
+                "PROCESSING",
                 "FLAGGED",
                 "FAILED",
+                "COMPLETED",
                 name="transactionstatus",
             ),
             nullable=False,

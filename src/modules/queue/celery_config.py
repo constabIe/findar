@@ -70,13 +70,17 @@ celery_app.conf.update(
 
     # Task routing and priority
     task_routes={
-        "src.modules.queue.tasks.process_transaction": {
+        "queue.process_transaction": {
             "queue": "transactions",
             "routing_key": "transaction.process",
         },
-        "src.modules.queue.tasks.send_notification": {
-            "queue": "notifications",
-            "routing_key": "notification.send",
+        "queue.save_rule_executions_to_db": {
+            "queue": "rule_executions",
+            "routing_key": "rule_execution.save",
+        },
+        "queue.cleanup_old_tasks": {
+            "queue": "celery",
+            "routing_key": "maintenance.cleanup",
         },
     },
 
@@ -92,10 +96,10 @@ celery_app.conf.update(
             queue_arguments={"x-max-priority": 20},
         ),
         Queue(
-            "notifications",
-            Exchange("notifications"),
-            routing_key="notification.#",
-            queue_arguments={"x-max-priority": 10},
+            "rule_executions",
+            Exchange("rule_executions"),
+            routing_key="rule_execution.#",
+            queue_arguments={"x-max-priority": 15},
         ),
         Queue(
             "celery",  # Default queue
@@ -119,9 +123,9 @@ celery_app.conf.update(
 
     # Beat scheduler (for periodic tasks)
     beat_schedule={
-        # Example: Clean up old completed tasks every day
+        # Clean up old completed tasks every day
         "cleanup-old-tasks": {
-            "task": "src.modules.queue.tasks.cleanup_old_tasks",
+            "task": "queue.cleanup_old_tasks",
             "schedule": 86400.0,  # Run every 24 hours
         },
     },
@@ -132,3 +136,6 @@ celery_app.autodiscover_tasks(
     ["src.modules.queue"],
     force=True
 )
+
+# Explicitly import tasks to ensure they're registered
+from . import tasks  # noqa: F401, E402

@@ -255,7 +255,8 @@ class QueueRepository:
         if not task:
             raise TaskNotFoundError(f"Task with id {task_id} not found")
 
-        new_status = TaskStatus.RETRY if retry else TaskStatus.FAILED
+        # If retrying, set back to PENDING; otherwise mark as FAILED
+        new_status = TaskStatus.PENDING if retry else TaskStatus.FAILED
 
         update_data = TaskUpdate(
             status=new_status,
@@ -370,7 +371,7 @@ class QueueRepository:
             processing_tasks=status_counts.get(TaskStatus.PROCESSING, 0),
             completed_tasks=status_counts.get(TaskStatus.COMPLETED, 0),
             failed_tasks=failed,
-            retry_tasks=status_counts.get(TaskStatus.RETRY, 0),
+            retry_tasks=int(total_retries),  # Use actual retry count instead of status
             avg_processing_time_ms=avg_processing,
             avg_rule_engine_time_ms=avg_rule_engine,
             p95_processing_time_ms=p95_processing,
