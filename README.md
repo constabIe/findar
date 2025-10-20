@@ -25,7 +25,7 @@ uv sync
 
 4. Настройте переменные окружения:
 ```bash
-cp config/.env.example .env
+cp docker/.env.example .env
 ```
 Отредактируйте `.env` с вашими настройками базы данных и Redis.
 

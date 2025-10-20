@@ -1,34 +1,30 @@
 default:
   just --list
 
-# run *args:
-#   poetry run uvicorn src.main:app --reload {{args}}
+migrate:
+  uv run alembic upgrade head
+  
+run:
+  uv sync
+  uv run -m src.api
 
-# mm *args:
-#   poetry run alembic revision --autogenerate -m "{{args}}"
+env: 
+  cp docker/.env.example .env
 
-# migrate:
-#   poetry run alembic upgrade head
+build *args:
+  docker compose build {{args}}
 
-# downgrade *args:
-#   poetry run alembic downgrade {{args}}
+up *args:
+  docker compose up {{args}} -d
 
-# ruff *args:
-#   poetry run ruff check {{args}} src
-
-# lint:
-#   poetry run ruff format src
-#   just ruff --fix
-
-# docker
-up:
-  docker compose up -d
+restart *args:
+  docker compose restart {{args}}
+  
+down *args:
+  docker compose down {{args}}
 
 kill *args:
   docker compose kill {{args}}
 
-build:
-  docker compose build
-
 ps:
-  docker compose ps
+  docker ps
