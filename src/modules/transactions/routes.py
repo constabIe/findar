@@ -10,6 +10,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, status
 
 from src.core.logging import get_logger
+from src.modules.transactions.dependencies import AsyncSessionDep
 from src.modules.transactions.schemas import TransactionCreate, TransactionQueued
 from src.modules.transactions.service import enqueue_transaction
 from src.storage.dependencies import AsyncRedisDep
@@ -30,19 +31,23 @@ router = APIRouter()
 async def create_transaction(
     payload: TransactionCreate,
     redis_client: AsyncRedisDep,
+    session: AsyncSessionDep,
 ) -> TransactionQueued:
     """
     Create and enqueue a new transaction for processing.
 
     This endpoint:
     1. Validates the incoming transaction data using Pydantic schemas
-    2. Enqueues the transaction to Redis Stream for asynchronous processing
-    3. Triggers Celery workers to process the transaction
-    4. Returns transaction metadata including ID and correlation ID
+    2. Saves transaction to PostgreSQL database
+    3. Creates QueueTask record for tracking
+    4. Enqueues the transaction to Redis Stream for asynchronous processing
+    5. Triggers Celery workers to process the transaction
+    6. Returns transaction metadata including ID and correlation ID
 
     Args:
         payload: Validated transaction data from request body
         redis_client: Redis client dependency for queue operations
+        session: Async database session dependency for PostgreSQL operations
 
     Returns:
         TransactionQueued: Response containing transaction ID, queue timestamp, and correlation ID
@@ -57,7 +62,6 @@ async def create_transaction(
             "from_account": "ACC123",
             "to_account": "ACC456",
             "type": "transfer",
-            "correlation_id": "req-123",
             "currency": "USD"
         }
     """
@@ -70,9 +74,11 @@ async def create_transaction(
     )
 
     try:
-        # Enqueue transaction for processing
+        # Enqueue transaction for processing (saves to DB, queue, and Redis)
         queued = await enqueue_transaction(
-            redis_client=redis_client, data=payload.model_dump()
+            redis_client=redis_client,
+            session=session,
+            data=payload.model_dump(),
         )
 
         logger.info(

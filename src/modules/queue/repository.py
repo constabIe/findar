@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.exceptions import DuplicateTaskError, TaskNotFoundError
 
 from .enums import ErrorType, TaskStatus
-from .models import QueueTask
+from src.modules.queue.models import QueueTask
 from .schemas import QueueMetrics, TaskCreate, TaskUpdate
 
 

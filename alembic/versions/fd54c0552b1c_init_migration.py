@@ -10,6 +10,8 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 import sqlmodel
+import sqlalchemy.dialects.postgresql as postgres
+
 
 from alembic import op
 
@@ -29,7 +31,8 @@ def upgrade() -> None:
         sa.Column("name", sqlmodel.AutoString(), nullable=False),
         sa.Column(
             "type",
-            sa.Enum("THRESHOLD", "PATTERN", "COMPOSITE", "ML", name="ruletype"),
+            postgres.ENUM("THRESHOLD", "PATTERN", "COMPOSITE",
+                          "ML", name="ruletype"),
             nullable=False,
         ),
         sa.Column("params", sa.JSON(), nullable=False),
@@ -56,7 +59,7 @@ def upgrade() -> None:
         sa.Column("timestamp", sa.DateTime(), nullable=False),
         sa.Column(
             "type",
-            sa.Enum(
+            postgres.ENUM(
                 "TRANSFER", "DEPOSIT", "WITHDRAWAL", "PAYMENT", name="transactiontype"
             ),
             nullable=False,
@@ -64,12 +67,10 @@ def upgrade() -> None:
         sa.Column("correlation_id", sqlmodel.AutoString(), nullable=False),
         sa.Column(
             "status",
-            sa.Enum(
-                "QUEUED",
-                "PROCESSING",
+            postgres.ENUM(
+                "PENDING",
                 "APPROVED",
                 "FLAGGED",
-                "REJECTED",
                 "FAILED",
                 name="transactionstatus",
             ),
@@ -134,4 +135,9 @@ def downgrade() -> None:
     op.drop_table("rule_cache")
     op.drop_table("transactions")
     op.drop_table("rules")
+
+    op.execute("DROP TYPE IF EXISTS transactionstatus CASCADE;")
+    op.execute("DROP TYPE IF EXISTS transactiontype CASCADE;")
+    op.execute("DROP TYPE IF EXISTS ruletype CASCADE;")
+
     # ### end Alembic commands ###

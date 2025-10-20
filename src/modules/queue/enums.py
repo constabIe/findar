@@ -11,18 +11,12 @@ from enum import Enum
 class TaskStatus(str, Enum):
     """
     Status of a queue task processing.
-    
-    Lifecycle:
-    PENDING -> PROCESSING -> COMPLETED
-                         -> FAILED -> RETRY -> PROCESSING
-                                  -> FAILED (after max retries)
-    """
 
+    """
     PENDING = "pending"  # Task created, waiting for worker
-    PROCESSING = "processing"  # Task being processed by worker
-    COMPLETED = "completed"  # Successfully completed
+    APPROVED = "processing"  # Task being processed by worker
+    FLAGGED = "completed"  # Successfully completed
     FAILED = "failed"  # Failed after all retries
-    RETRY = "retry"  # Scheduled for retry
 
 
 class TaskPriority(int, Enum):

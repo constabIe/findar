@@ -22,7 +22,8 @@ Components:
 - enums: Enumeration types for consistent value handling
 """
 
-from ...storage.models import Rule, RuleCache, RuleExecution, Transaction
+# from src.storage.models import Rule, RuleCache, RuleExecution, Transaction
+
 from .enums import (
     CacheStatus,
     CompositeOperator,
