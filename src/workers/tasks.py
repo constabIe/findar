@@ -16,8 +16,8 @@ from src.modules.reporting.metrics import (
     transactions_failed_total,
     transactions_processed_total,
 )
-from src.storage.models import Transaction
 from src.modules.transactions.service import STREAM_KEY
+from src.storage.models import Transaction
 from src.storage.redis import get_sync_redis
 from src.storage.sql.engine import get_async_session_maker
 

@@ -13,7 +13,6 @@ from uuid import uuid4
 from redis.asyncio import Redis
 
 from src.core.logging import get_logger
-from src.modules.reporting.metrics import transactions_enqueued_total
 
 logger = get_logger("transactions.service")
 

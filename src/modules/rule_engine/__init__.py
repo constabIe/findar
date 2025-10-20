@@ -22,6 +22,7 @@ Components:
 - enums: Enumeration types for consistent value handling
 """
 
+from ...storage.models import Rule, RuleCache, RuleExecution, Transaction
 from .enums import (
     CacheStatus,
     CompositeOperator,
@@ -34,7 +35,6 @@ from .enums import (
     TransactionStatus,
     TransactionType,
 )
-from ...storage.models import Rule, RuleCache, RuleExecution, Transaction
 from .schemas import (
     # Cache schemas
     CacheStatusResponse,

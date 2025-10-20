@@ -29,7 +29,6 @@ from .enums import RuleType
 from .repository import RuleRepository
 from .schemas import (
     CacheStatisticsResponse,
-    CacheStatusResponse,
     RuleCreateRequest,
     RuleListResponse,
     RuleResponse,
@@ -815,7 +814,7 @@ async def get_cache_status(
             "Cache status retrieved successfully",
             event="cache_status_retrieved"
         )
-        
+
         print("SSS: ", status)
 
         return CacheStatisticsResponse.model_validate(status)
@@ -856,12 +855,12 @@ async def get_cache_status(
 # ) -> None:
 #     """
 #     Clear all rules from the Redis cache.
-    
+
 #     This operation does not affect the database, only removes cached entries.
-    
+
 #     Args:
 #         repository: Injected rule repository
-        
+
 #     Raises:
 #         HTTPException: If cache operation fails
 #     """
