@@ -787,14 +787,14 @@ class RuleRepository:
                     if cached_rule_ids:
                         # Find rules that are cached but no longer enabled in DB
                         disabled_rule_ids = cached_rule_ids - enabled_rule_ids
-                        
+
                         if disabled_rule_ids:
                             logger.info(
                                 "Removing disabled rules from cache",
                                 count=len(disabled_rule_ids),
                                 event="cache_cleanup_disabled",
                             )
-                            
+
                             for rule_id_str in disabled_rule_ids:
                                 try:
                                     rule_id = UUID(rule_id_str)
