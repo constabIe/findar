@@ -20,9 +20,9 @@ from src.core.exceptions import (
 )
 from src.core.logging import get_logger
 from src.storage.dependencies import AsyncRedisDep, DbSessionDep
+from src.storage.models import Rule, RuleExecution
 
 from .enums import RuleType
-from .models import Rule, RuleExecution
 from .schemas import (
     RuleCreateRequest,
     RuleUpdateRequest,
@@ -40,7 +40,7 @@ RULE_INDEX_KEY = "rule_index"  # Sorted set of rule IDs by priority
 class RuleRepository:
     """
     Repository for rule CRUD operations with dual storage management.
-    
+
     Manages rules in PostgreSQL (persistent storage) and Redis (cache).
     Ensures data consistency across both storage systems.
     """
@@ -49,11 +49,11 @@ class RuleRepository:
         self,
         db_session: DbSessionDep,
         async_redis: AsyncRedisDep,
-        sync_redis: Optional[SyncRedis] = None
+        sync_redis: Optional[SyncRedis] = None,
     ):
         """
         Initialize repository with database and cache clients.
-        
+
         Args:
             db_session: SQLModel async database session
             async_redis: Async Redis client for cache operations
@@ -64,24 +64,21 @@ class RuleRepository:
         self.sync_redis = sync_redis
         self.cache_ttl = 3600  # 1 hour default TTL
 
-
     async def create_rule(
-        self,
-        create_request: RuleCreateRequest,
-        created_by: Optional[str] = None
+        self, create_request: RuleCreateRequest, created_by: Optional[str] = None
     ) -> Rule:
         """
         Create a new fraud detection rule.
-        
+
         Creates rule in PostgreSQL and adds to Redis cache if enabled.
-        
+
         Args:
             create_request: Rule creation request with parameters
             created_by: User creating the rule (for audit)
-            
+
         Returns:
             Created Rule instance
-            
+
         Raises:
             ValidationError: If rule name already exists
             DatabaseError: If database operation fails
@@ -93,7 +90,7 @@ class RuleRepository:
                 raise ValidationError(
                     f"Rule with name '{create_request.name}' already exists",
                     field="name",
-                    value=create_request.name
+                    value=create_request.name,
                 )
 
             # Create rule instance
@@ -107,7 +104,7 @@ class RuleRepository:
                 description=create_request.description,
                 created_by=created_by,
                 created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                updated_at=datetime.utcnow(),
             )
 
             print("NEW RULE: ", rule)
@@ -122,7 +119,7 @@ class RuleRepository:
                 rule_id=rule.id,
                 rule_name=rule.name,
                 rule_type=rule.type,
-                event="rule_created"
+                event="rule_created",
             )
 
             # Add to Redis if enabled
@@ -135,30 +132,27 @@ class RuleRepository:
             raise
         except Exception as e:
             logger.error(
-                "Failed to create rule",
-                error=str(e),
-                event="rule_creation_failed"
+                "Failed to create rule", error=str(e), event="rule_creation_failed"
             )
             raise DatabaseError(
                 "Failed to create rule",
                 operation="create_rule",
-                details={"error": str(e)}
+                details={"error": str(e)},
             ) from e
-
 
     async def get_rule_by_id(self, rule_id: UUID) -> Optional[Rule]:
         """
         Get rule by ID from PostgreSQL.
-        
+
         Args:
             rule_id: Rule ID to retrieve
-            
+
         Returns:
             Rule instance or None if not found
         """
         try:
             result = await self.db.execute(
-                select(Rule).where(Rule.id == rule_id) # type: ignore
+                select(Rule).where(Rule.id == rule_id)  # type: ignore
             )
             return result.scalars().first()
         except Exception as e:
@@ -166,34 +160,31 @@ class RuleRepository:
                 "Failed to get rule",
                 rule_id=str(rule_id),
                 error=str(e),
-                event="get_rule_failed"
+                event="get_rule_failed",
             )
             raise DatabaseError(
-                "Failed to retrieve rule",
-                operation="get_rule_by_id",
-                table="rules"
+                "Failed to retrieve rule", operation="get_rule_by_id", table="rules"
             ) from e
 
     async def _get_rule_by_name(self, name: str) -> Optional[Rule]:
         """
         Get rule by name (internal helper).
-        
+
         Args:
             name: Rule name to search for
-            
+
         Returns:
             Rule instance or None if not found
         """
         try:
             print("HW:: ", name)
             result = await self.db.execute(
-                select(Rule).where(Rule.name == name) # type: ignore
+                select(Rule).where(Rule.name == name)  # type: ignore
             )
             return result.scalars().first()
         except Exception as e:
             raise DatabaseError(
-                "Failed to retrieve rule by name",
-                operation="get_rule_by_name"
+                "Failed to retrieve rule by name", operation="get_rule_by_name"
             ) from e
 
     async def get_all_rules(
@@ -201,17 +192,17 @@ class RuleRepository:
         skip: int = 0,
         limit: int = 100,
         enabled_only: bool = False,
-        rule_type: Optional[RuleType] = None
+        rule_type: Optional[RuleType] = None,
     ) -> tuple[Sequence[Rule], int]:
         """
         Get all rules with optional filtering.
-        
+
         Args:
             skip: Number of rules to skip (pagination)
             limit: Maximum number of rules to return
             enabled_only: Only return enabled rules
             rule_type: Filter by rule type
-            
+
         Returns:
             Tuple of (rules list, total count)
         """
@@ -220,21 +211,25 @@ class RuleRepository:
 
             # Apply filters
             if enabled_only:
-                query = query.where(Rule.enabled == True) # type: ignore
+                query = query.where(Rule.enabled == True)  # type: ignore
             if rule_type:
-                query = query.where(Rule.type == rule_type) # type: ignore
+                query = query.where(Rule.type == rule_type)  # type: ignore
 
             # Get total count
             count_result = await self.db.execute(
                 select(Rule).where(
-                    (Rule.enabled == True) if enabled_only else True, # type: ignore
-                    (Rule.type == rule_type) if rule_type else True # type: ignore
+                    (Rule.enabled == True) if enabled_only else True,  # type: ignore
+                    (Rule.type == rule_type) if rule_type else True,  # type: ignore
                 )
             )
             total = len(count_result.scalars().all())
 
             # Apply ordering and pagination
-            query = query.order_by(desc("priority"), desc("updated_at")).offset(skip).limit(limit)
+            query = (
+                query.order_by(desc("priority"), desc("updated_at"))
+                .offset(skip)
+                .limit(limit)
+            )
 
             result = await self.db.execute(query)
             rules = result.scalars().all()
@@ -244,73 +239,61 @@ class RuleRepository:
                 count=len(rules),
                 total=total,
                 enabled_only=enabled_only,
-                event="rules_retrieved"
+                event="rules_retrieved",
             )
 
             return rules, total
 
         except Exception as e:
             logger.error(
-                "Failed to get all rules",
-                error=str(e),
-                event="get_all_rules_failed"
+                "Failed to get all rules", error=str(e), event="get_all_rules_failed"
             )
             raise DatabaseError(
-                "Failed to retrieve rules",
-                operation="get_all_rules"
+                "Failed to retrieve rules", operation="get_all_rules"
             ) from e
 
     async def get_active_rules(self) -> List[Rule]:
         """
         Get all enabled rules, prioritized by execution order.
-        
+
         Returns:
             List of enabled rules ordered by priority
         """
-        rules, _ = await self.get_all_rules(
-            skip=0,
-            limit=10000,
-            enabled_only=True
-        )
+        rules, _ = await self.get_all_rules(skip=0, limit=10000, enabled_only=True)
         return list(rules)
 
     async def get_rules_by_type(self, rule_type: RuleType) -> Sequence[Rule]:
         """
         Get all rules of a specific type.
-        
+
         Args:
             rule_type: Type of rules to retrieve
-            
+
         Returns:
             List of rules matching the type
         """
-        rules, _ = await self.get_all_rules(
-            skip=0,
-            limit=10000,
-            rule_type=rule_type
-        )
+        rules, _ = await self.get_all_rules(skip=0, limit=10000, rule_type=rule_type)
         return list(rules)
-
 
     async def update_rule(
         self,
         rule_id: UUID,
         update_request: RuleUpdateRequest,
-        updated_by: Optional[str] = None
+        updated_by: Optional[str] = None,
     ) -> Rule:
         """
         Update an existing rule in both PostgreSQL and Redis.
-        
+
         If rule is enabled, updates Redis cache. If disabled, removes from cache.
-        
+
         Args:
             rule_id: Rule ID to update
             update_request: Update request with new parameters
             updated_by: User updating the rule
-            
+
         Returns:
             Updated Rule instance
-            
+
         Raises:
             ValidationError: If rule not found or validation fails
             DatabaseError: If database operation fails
@@ -320,9 +303,7 @@ class RuleRepository:
             rule = await self.get_rule_by_id(rule_id)
             if not rule:
                 raise ValidationError(
-                    f"Rule with ID {rule_id} not found",
-                    field="rule_id",
-                    value=rule_id
+                    f"Rule with ID {rule_id} not found", field="rule_id", value=rule_id
                 )
 
             # Check for name conflicts
@@ -332,7 +313,7 @@ class RuleRepository:
                     raise ValidationError(
                         f"Rule with name '{update_request.name}' already exists",
                         field="name",
-                        value=update_request.name
+                        value=update_request.name,
                     )
 
             # Update fields
@@ -361,7 +342,7 @@ class RuleRepository:
                 "Rule updated successfully",
                 rule_id=rule.id,
                 rule_name=rule.name,
-                event="rule_updated"
+                event="rule_updated",
             )
 
             # Sync with Redis
@@ -379,24 +360,20 @@ class RuleRepository:
                 "Failed to update rule",
                 rule_id=str(rule_id),
                 error=str(e),
-                event="rule_update_failed"
+                event="rule_update_failed",
             )
-            raise DatabaseError(
-                "Failed to update rule",
-                operation="update_rule"
-            ) from e
-
+            raise DatabaseError("Failed to update rule", operation="update_rule") from e
 
     async def delete_rule(self, rule_id: UUID) -> bool:
         """
         Delete a rule from both PostgreSQL and Redis.
-        
+
         Args:
             rule_id: Rule ID to delete
-            
+
         Returns:
             True if rule was deleted, False if not found
-            
+
         Raises:
             DatabaseError: If database operation fails
         """
@@ -407,7 +384,7 @@ class RuleRepository:
                 logger.warning(
                     "Rule not found for deletion",
                     rule_id=str(rule_id),
-                    event="rule_not_found"
+                    event="rule_not_found",
                 )
                 return False
 
@@ -419,7 +396,7 @@ class RuleRepository:
                 "Rule deleted from database",
                 rule_id=str(rule_id),
                 rule_name=rule.name,
-                event="rule_deleted"
+                event="rule_deleted",
             )
 
             # Delete from Redis
@@ -432,24 +409,20 @@ class RuleRepository:
                 "Failed to delete rule",
                 rule_id=str(rule_id),
                 error=str(e),
-                event="rule_deletion_failed"
+                event="rule_deletion_failed",
             )
-            raise DatabaseError(
-                "Failed to delete rule",
-                operation="delete_rule"
-            ) from e
-
+            raise DatabaseError("Failed to delete rule", operation="delete_rule") from e
 
     async def activate_rule(self, rule_id: UUID) -> Rule:
         """
         Activate a rule and add it to Redis cache.
-        
+
         Args:
             rule_id: Rule ID to activate
-            
+
         Returns:
             Activated Rule instance
-            
+
         Raises:
             ValidationError: If rule not found
             DatabaseError: If operation fails
@@ -458,9 +431,7 @@ class RuleRepository:
             rule = await self.get_rule_by_id(rule_id)
             if not rule:
                 raise ValidationError(
-                    f"Rule with ID {rule_id} not found",
-                    field="rule_id",
-                    value=rule_id
+                    f"Rule with ID {rule_id} not found", field="rule_id", value=rule_id
                 )
 
             if rule.enabled:
@@ -468,7 +439,7 @@ class RuleRepository:
                     "Rule already active",
                     rule_id=str(rule_id),
                     rule_name=rule.name,
-                    event="rule_already_active"
+                    event="rule_already_active",
                 )
                 return rule
 
@@ -485,7 +456,7 @@ class RuleRepository:
                 "Rule activated successfully",
                 rule_id=str(rule_id),
                 rule_name=rule.name,
-                event="rule_activated"
+                event="rule_activated",
             )
 
             return rule
@@ -497,23 +468,22 @@ class RuleRepository:
                 "Failed to activate rule",
                 rule_id=str(rule_id),
                 error=str(e),
-                event="rule_activation_failed"
+                event="rule_activation_failed",
             )
             raise DatabaseError(
-                "Failed to activate rule",
-                operation="activate_rule"
+                "Failed to activate rule", operation="activate_rule"
             ) from e
 
     async def deactivate_rule(self, rule_id: UUID) -> Rule:
         """
         Deactivate a rule and remove it from Redis cache.
-        
+
         Args:
             rule_id: Rule ID to deactivate
-            
+
         Returns:
             Deactivated Rule instance
-            
+
         Raises:
             ValidationError: If rule not found
             DatabaseError: If operation fails
@@ -522,9 +492,7 @@ class RuleRepository:
             rule = await self.get_rule_by_id(rule_id)
             if not rule:
                 raise ValidationError(
-                    f"Rule with ID {rule_id} not found",
-                    field="rule_id",
-                    value=rule_id
+                    f"Rule with ID {rule_id} not found", field="rule_id", value=rule_id
                 )
 
             if not rule.enabled:
@@ -532,7 +500,7 @@ class RuleRepository:
                     "Rule already inactive",
                     rule_id=str(rule_id),
                     rule_name=rule.name,
-                    event="rule_already_inactive"
+                    event="rule_already_inactive",
                 )
                 return rule
 
@@ -549,7 +517,7 @@ class RuleRepository:
                 "Rule deactivated successfully",
                 rule_id=str(rule_id),
                 rule_name=rule.name,
-                event="rule_deactivated"
+                event="rule_deactivated",
             )
 
             return rule
@@ -561,25 +529,23 @@ class RuleRepository:
                 "Failed to deactivate rule",
                 rule_id=str(rule_id),
                 error=str(e),
-                event="rule_deactivation_failed"
+                event="rule_deactivation_failed",
             )
             raise DatabaseError(
-                "Failed to deactivate rule",
-                operation="deactivate_rule"
+                "Failed to deactivate rule", operation="deactivate_rule"
             ) from e
-
 
     async def add_to_cache(self, rule: Rule, ttl: Optional[int] = None) -> bool:
         """
         Add or update rule in Redis cache.
-        
+
         Args:
             rule: Rule instance to cache
             ttl: Time to live in seconds (default: 1 hour)
-            
+
         Returns:
             True if successfully cached
-            
+
         Raises:
             DatabaseError: If Redis operation fails
         """
@@ -605,31 +571,26 @@ class RuleRepository:
 
             # Cache rule
             await self.async_redis.setex(
-                cache_key,
-                ttl,
-                json.dumps(rule_data, default=str)
+                cache_key, ttl, json.dumps(rule_data, default=str)
             )
 
             # Add to active rules list
             # POSSIBLE BUG HERE
-            await self.async_redis.sadd(ACTIVE_RULES_KEY, str(rule.id)) # type: ignore
+            await self.async_redis.sadd(ACTIVE_RULES_KEY, str(rule.id))  # type: ignore
 
             # Add to type-specific set
             type_key = f"{RULE_TYPE_KEY_PREFIX}{rule.type.value}"
-            await self.async_redis.sadd(type_key, str(rule.id)) # type: ignore
+            await self.async_redis.sadd(type_key, str(rule.id))  # type: ignore
 
             # Update rule index (sorted set by priority)
-            await self.async_redis.zadd(
-                RULE_INDEX_KEY,
-                {str(rule.id): rule.priority}
-            )
+            await self.async_redis.zadd(RULE_INDEX_KEY, {str(rule.id): rule.priority})
 
             logger.debug(
                 "Rule added to cache",
                 rule_id=rule.id,
                 cache_key=cache_key,
                 ttl=ttl,
-                event="rule_cached"
+                event="rule_cached",
             )
 
             return True
@@ -639,24 +600,24 @@ class RuleRepository:
                 "Failed to add rule to cache",
                 rule_id=rule.id,
                 error=str(e),
-                event="cache_add_failed"
+                event="cache_add_failed",
             )
             raise DatabaseError(
                 "Failed to cache rule",
                 operation="add_to_cache",
-                details={"error": str(e)}
+                details={"error": str(e)},
             ) from e
 
     async def remove_from_cache(self, rule_id: UUID) -> bool:
         """
         Remove rule from Redis cache.
-        
+
         Args:
             rule_id: Rule ID to remove
-            
+
         Returns:
             True if rule was removed, False if not found
-            
+
         Raises:
             DatabaseError: If Redis operation fails
         """
@@ -667,7 +628,7 @@ class RuleRepository:
             deleted = await self.async_redis.delete(cache_key)
 
             # Remove from active rules set
-            await self.async_redis.srem(ACTIVE_RULES_KEY, str(rule_id)) # type: ignore
+            await self.async_redis.srem(ACTIVE_RULES_KEY, str(rule_id))  # type: ignore
 
             # Remove from rule index
             await self.async_redis.zrem(RULE_INDEX_KEY, str(rule_id))
@@ -676,7 +637,7 @@ class RuleRepository:
                 "Rule removed from cache",
                 rule_id=str(rule_id),
                 cache_key=cache_key,
-                event="rule_cache_removed"
+                event="rule_cache_removed",
             )
 
             return bool(deleted)
@@ -686,23 +647,22 @@ class RuleRepository:
                 "Failed to remove rule from cache",
                 rule_id=str(rule_id),
                 error=str(e),
-                event="cache_remove_failed"
+                event="cache_remove_failed",
             )
             raise DatabaseError(
-                "Failed to remove rule from cache",
-                operation="remove_from_cache"
+                "Failed to remove rule from cache", operation="remove_from_cache"
             ) from e
 
     async def get_from_cache(self, rule_id: UUID) -> Optional[Dict[str, Any]]:
         """
         Get rule from Redis cache.
-        
+
         Args:
             rule_id: Rule ID to retrieve
-            
+
         Returns:
             Rule data dictionary or None if not cached
-            
+
         Raises:
             DatabaseError: If Redis operation fails
         """
@@ -712,18 +672,14 @@ class RuleRepository:
 
             if not cached_data:
                 logger.debug(
-                    "Rule not found in cache",
-                    rule_id=str(rule_id),
-                    event="cache_miss"
+                    "Rule not found in cache", rule_id=str(rule_id), event="cache_miss"
                 )
                 return None
 
             rule_data = json.loads(cached_data)
 
             logger.debug(
-                "Rule retrieved from cache",
-                rule_id=str(rule_id),
-                event="cache_hit"
+                "Rule retrieved from cache", rule_id=str(rule_id), event="cache_hit"
             )
 
             return rule_data
@@ -733,38 +689,33 @@ class RuleRepository:
                 "Failed to get rule from cache",
                 rule_id=str(rule_id),
                 error=str(e),
-                event="cache_get_failed"
+                event="cache_get_failed",
             )
             raise DatabaseError(
-                "Failed to retrieve rule from cache",
-                operation="get_from_cache"
+                "Failed to retrieve rule from cache", operation="get_from_cache"
             ) from e
 
     async def clear_cache(self) -> int:
         """
         Clear all rules from Redis cache.
-        
+
         Returns:
             Number of rules removed from cache
-            
+
         Raises:
             DatabaseError: If Redis operation fails
         """
         try:
             # Get all rule IDs from active rules set
-            active_rule_ids = await self.async_redis.smembers(ACTIVE_RULES_KEY) # type: ignore
+            active_rule_ids = await self.async_redis.smembers(ACTIVE_RULES_KEY)  # type: ignore
 
             if not active_rule_ids:
-                logger.info(
-                    "Cache already empty",
-                    event="cache_clear_empty"
-                )
+                logger.info("Cache already empty", event="cache_clear_empty")
                 return 0
 
             # Delete all rule cache keys
             cache_keys = [
-                f"{RULE_CACHE_KEY_PREFIX}{rule_id}"
-                for rule_id in active_rule_ids
+                f"{RULE_CACHE_KEY_PREFIX}{rule_id}" for rule_id in active_rule_ids
             ]
 
             deleted = await self.async_redis.delete(*cache_keys)
@@ -782,34 +733,29 @@ class RuleRepository:
             logger.info(
                 "Cache cleared successfully",
                 rules_removed=deleted,
-                event="cache_cleared"
+                event="cache_cleared",
             )
 
             return deleted
 
         except Exception as e:
             logger.error(
-                "Failed to clear cache",
-                error=str(e),
-                event="cache_clear_failed"
+                "Failed to clear cache", error=str(e), event="cache_clear_failed"
             )
-            raise DatabaseError(
-                "Failed to clear cache",
-                operation="clear_cache"
-            ) from e
+            raise DatabaseError("Failed to clear cache", operation="clear_cache") from e
 
     async def refresh_cache(self, force: bool = False) -> int:
         """
         Refresh Redis cache with all active rules from database.
-        
+
         Useful for hot reload and cache recovery.
-        
+
         Args:
             force: Clear existing cache before refresh
-            
+
         Returns:
             Number of rules added to cache
-            
+
         Raises:
             DatabaseError: If operation fails
         """
@@ -822,9 +768,7 @@ class RuleRepository:
 
             # Get all enabled rules
             active_rules, _ = await self.get_all_rules(
-                skip=0,
-                limit=10000,
-                enabled_only=True
+                skip=0, limit=10000, enabled_only=True
             )
 
             # Add to cache
@@ -837,7 +781,7 @@ class RuleRepository:
                     logger.warning(
                         "Failed to cache rule during refresh",
                         rule_id=rule.id,
-                        error=str(e)
+                        error=str(e),
                     )
                     continue
 
@@ -848,22 +792,18 @@ class RuleRepository:
                 rules_refreshed=cache_count,
                 elapsed_ms=round(elapsed_ms, 2),
                 force=force,
-                event="cache_refreshed"
+                event="cache_refreshed",
             )
 
             return cache_count
 
         except Exception as e:
             logger.error(
-                "Failed to refresh cache",
-                error=str(e),
-                event="cache_refresh_failed"
+                "Failed to refresh cache", error=str(e), event="cache_refresh_failed"
             )
             raise DatabaseError(
-                "Failed to refresh cache",
-                operation="refresh_cache"
+                "Failed to refresh cache", operation="refresh_cache"
             ) from e
-
 
     async def record_execution(
         self,
@@ -874,11 +814,11 @@ class RuleRepository:
         confidence_score: Optional[float],
         execution_time_ms: float,
         context: Dict[str, Any],
-        error_message: Optional[str] = None
+        error_message: Optional[str] = None,
     ) -> RuleExecution:
         """
         Record rule execution for audit logging and statistics.
-        
+
         Args:
             rule_id: ID of executed rule
             transaction_id: ID of evaluated transaction
@@ -888,10 +828,10 @@ class RuleRepository:
             execution_time_ms: Execution time in milliseconds
             context: Execution context data
             error_message: Error message if execution failed
-            
+
         Returns:
             Created RuleExecution record
-            
+
         Raises:
             DatabaseError: If database operation fails
         """
@@ -905,7 +845,7 @@ class RuleRepository:
                 execution_time_ms=execution_time_ms,
                 context=context,
                 error_message=error_message,
-                executed_at=datetime.utcnow()
+                executed_at=datetime.utcnow(),
             )
 
             self.db.add(execution)
@@ -925,9 +865,9 @@ class RuleRepository:
                     rule.average_execution_time_ms = execution_time_ms
                 else:
                     rule.average_execution_time_ms = (
-                        (rule.average_execution_time_ms * (rule.execution_count - 1) +
-                         execution_time_ms) / rule.execution_count
-                    )
+                        rule.average_execution_time_ms * (rule.execution_count - 1)
+                        + execution_time_ms
+                    ) / rule.execution_count
 
                 self.db.add(rule)
                 await self.db.commit()
@@ -938,7 +878,7 @@ class RuleRepository:
                 transaction_id=transaction_id,
                 matched=matched,
                 execution_time_ms=execution_time_ms,
-                event="execution_recorded"
+                event="execution_recorded",
             )
 
             return execution
@@ -948,11 +888,10 @@ class RuleRepository:
                 "Failed to record execution",
                 rule_id=str(rule_id),
                 error=str(e),
-                event="execution_record_failed"
+                event="execution_record_failed",
             )
             raise DatabaseError(
-                "Failed to record rule execution",
-                operation="record_execution"
+                "Failed to record rule execution", operation="record_execution"
             ) from e
 
     # ==================== CACHE Status Operations ====================
@@ -960,16 +899,16 @@ class RuleRepository:
     async def get_cache_status(self) -> Dict[str, Any]:
         """
         Get current status of the rule cache.
-        
+
         Returns:
             Dict with cache status information
-            
+
         Raises:
             DatabaseError: If cache operation fails
         """
         try:
             # Get active rules from cache
-            active_rule_ids = await self.async_redis.smembers(ACTIVE_RULES_KEY) # type: ignore
+            active_rule_ids = await self.async_redis.smembers(ACTIVE_RULES_KEY)  # type: ignore
 
             # Get rule types from cache
             type_keys = await self.async_redis.keys(f"{RULE_TYPE_KEY_PREFIX}*")
@@ -982,23 +921,20 @@ class RuleRepository:
                 active_rules_count=len(active_rule_ids) if active_rule_ids else 0,
                 rule_types_count=len(type_keys) if type_keys else 0,
                 priority_index_size=index_size,
-                event="cache_status_retrieved"
+                event="cache_status_retrieved",
             )
 
             return {
                 "active_rules_count": len(active_rule_ids) if active_rule_ids else 0,
                 "rule_types_count": len(type_keys) if type_keys else 0,
                 "priority_index_size": index_size,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
         except Exception as e:
             logger.error(
-                "Failed to get cache status",
-                error=str(e),
-                event="cache_status_failed"
+                "Failed to get cache status", error=str(e), event="cache_status_failed"
             )
             raise DatabaseError(
-                "Failed to get cache status",
-                operation="get_cache_status"
+                "Failed to get cache status", operation="get_cache_status"
             ) from e

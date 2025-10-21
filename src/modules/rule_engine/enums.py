@@ -29,11 +29,9 @@ class RuleStatus(str, Enum):
 class TransactionStatus(str, Enum):
     """Transaction processing status."""
 
-    QUEUED = "queued"
-    PROCESSING = "processing"
+    PENDING = "pending"
     APPROVED = "approved"
     FLAGGED = "flagged"
-    REJECTED = "rejected"
     FAILED = "failed"
 
 
