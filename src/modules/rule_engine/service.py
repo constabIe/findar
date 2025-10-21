@@ -112,6 +112,10 @@ async def get_cached_active_rules(redis_client: Redis) -> List[Dict[str, Any]]:
     """
     Get active rules from Redis cache.
 
+    Rules are stored in Redis as:
+    - SET 'active_rules:all' contains rule IDs
+    - STRING 'rule:<rule_id>' contains rule JSON data
+
     If cache is empty or expired, returns empty list (caller should load from DB).
 
     Args:
@@ -121,21 +125,50 @@ async def get_cached_active_rules(redis_client: Redis) -> List[Dict[str, Any]]:
         List of rule dictionaries from cache
     """
     try:
-        # Try to get cached active rules list
+        # Get all active rule IDs from SET
         cached_rules_key = ACTIVE_RULES_KEY
-        cached_data = await redis_client.get(cached_rules_key)
+        rule_ids = await redis_client.smembers(cached_rules_key)  # type: ignore
 
-        if cached_data:
-            rules_list = json.loads(cached_data)
-            logger.info(
-                f"Retrieved {len(rules_list)} active rules from cache",
-                event="cache_hit",
-                count=len(rules_list),
-            )
-            return rules_list
+        if not rule_ids:
+            logger.warning("No active rules found in cache", event="cache_miss")
+            return []
 
-        logger.warning("No active rules found in cache", event="cache_miss")
-        return []
+        # Fetch each rule's data from cache
+        rules_list = []
+        for rule_id_bytes in rule_ids:
+            rule_id = None
+            try:
+                rule_id = rule_id_bytes.decode('utf-8') if isinstance(rule_id_bytes, bytes) else str(rule_id_bytes)
+                rule_cache_key = f"{RULE_CACHE_KEY_PREFIX}{rule_id}"
+                
+                # Get rule data
+                rule_data = await redis_client.get(rule_cache_key)
+                
+                if rule_data:
+                    rule_dict = json.loads(rule_data)
+                    rules_list.append(rule_dict)
+                else:
+                    logger.warning(
+                        f"Rule {rule_id} in active set but not in cache",
+                        rule_id=rule_id,
+                        event="cache_inconsistency",
+                    )
+            except Exception as e:
+                logger.error(
+                    f"Failed to load rule from cache: {e}",
+                    rule_id=rule_id or 'unknown',
+                    error=str(e),
+                )
+                continue
+
+        logger.info(
+            f"Retrieved {len(rules_list)} active rules from cache",
+            event="cache_hit",
+            count=len(rules_list),
+            total_ids=len(rule_ids),
+        )
+        
+        return rules_list
 
     except Exception as e:
         logger.error(
@@ -313,6 +346,20 @@ async def evaluate_threshold_rule(
         transaction_data.get("timestamp", datetime.utcnow().isoformat())
     )
 
+    # DEBUG: Log all values for troubleshooting
+    logger.debug(
+        f"THRESHOLD RULE EVALUATION DEBUG",
+        rule_id=str(rule_id),
+        rule_name=rule_name,
+        transaction_amount=amount,
+        transaction_amount_type=type(amount).__name__,
+        rule_max_amount=params.max_amount,
+        rule_max_amount_type=type(params.max_amount).__name__ if params.max_amount else None,
+        rule_min_amount=params.min_amount,
+        is_critical=is_critical,
+        transaction_data_amount_raw=transaction_data.get("amount"),
+    )
+
     matched = False
     match_reason = None
     risk_level = RiskLevel.LOW
@@ -322,6 +369,14 @@ async def evaluate_threshold_rule(
         matched = True
         match_reason = f"Amount {amount} exceeds maximum {params.max_amount}"
         risk_level = RiskLevel.HIGH if is_critical else RiskLevel.MEDIUM
+        
+        logger.info(
+            f"THRESHOLD RULE MATCHED: Amount check",
+            rule_name=rule_name,
+            amount=amount,
+            max_amount=params.max_amount,
+            match_reason=match_reason,
+        )
 
     elif params.min_amount is not None and amount < params.min_amount:
         matched = True

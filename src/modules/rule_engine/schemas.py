@@ -90,9 +90,11 @@ class ThresholdRuleParams(BaseModel):
     )
 
     @field_validator("allowed_hours_end")
-    def validate_time_range(cls, v, values):
+    @classmethod
+    def validate_time_range(cls, v, info):
         """Validate that end hour is after start hour."""
-        start = values.get("allowed_hours_start")
+        # In Pydantic v2, use info.data to access other field values
+        start = info.data.get("allowed_hours_start")
         if start is not None and v is not None and v <= start:
             raise ValueError(
                 "allowed_hours_end must be greater than allowed_hours_start"
@@ -215,10 +217,10 @@ class CompositeRuleParams(BaseModel):
     )
 
     @field_validator("expression")
-    def validate_expression(cls, v, values):
+    def validate_expression(cls, v, info):
         """Validate boolean expression contains only referenced rule IDs."""
         if v is not None:
-            rule_ids = values.get("rule_ids", [])
+            rule_ids = info.data.get("rule_ids", [])
             # Basic validation - could be enhanced with actual parsing
             for rule_id in rule_ids:
                 if f"rule{rule_id}" not in v:

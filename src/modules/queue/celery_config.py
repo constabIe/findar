@@ -48,7 +48,10 @@ celery_app.conf.update(
     task_time_limit=300,  # Hard time limit: 5 minutes
     task_soft_time_limit=240,  # Soft time limit: 4 minutes
     # Worker settings
-    worker_prefetch_multiplier=2,  # How many tasks to prefetch per worker process
+    # IMPORTANT: Use 'solo' pool for async tasks to avoid event loop conflicts
+    # Alternative: use 'gevent' or 'eventlet' pool, but 'solo' is simplest for dev
+    worker_pool="solo",  # Single-threaded worker (no fork, no event loop issues)
+    worker_prefetch_multiplier=1,  # Prefetch only 1 task at a time for solo pool
     worker_max_tasks_per_child=1000,  # Restart worker after N tasks (prevents memory leaks)
     worker_disable_rate_limits=False,
     worker_log_format="[%(asctime)s: %(levelname)s/%(processName)s] %(message)s",

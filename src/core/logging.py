@@ -28,7 +28,7 @@ _logging_configured = False
 def configure_logging(
     log_level: str = "INFO",
     json_format: bool = True,
-    enable_console: bool = False,
+    enable_console: bool = True,
     enable_file: bool = True,
     file_path: str = "logs/findar.log",
     file_rotation: str = "100 MB",
@@ -572,7 +572,7 @@ def init_logging() -> None:
         configure_logging(
             log_level=settings.get("logging.level", "INFO"),
             json_format=settings.get("logging.json_format", True),
-            enable_console=settings.get("logging.enable_console", False),
+            enable_console=settings.get("logging.enable_console", True),
             enable_file=settings.get("logging.enable_file", False),
             file_path=settings.get("logging.file_path", "logs/findar.log"),
         )

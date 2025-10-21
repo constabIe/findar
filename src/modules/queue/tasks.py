@@ -9,6 +9,64 @@ Defines tasks for processing transactions through the fraud detection pipeline:
 5. Track metrics and errors
 """
 
+import asyncio
+import json
+import socket
+import traceback
+from datetime import datetime
+from time import time
+from typing import Any, Dict, List
+from uuid import UUID
+
+from celery import Task
+from celery.exceptions import MaxRetriesExceededError
+from loguru import logger
+from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
+
+
+def get_or_create_event_loop():
+    """
+    Get existing event loop or create new one if needed.
+    
+    This prevents "Event loop is closed" errors in Celery workers.
+    Safe to use in solo pool or gevent pool workers.
+    
+    Returns:
+        Event loop instance
+    """
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+    except RuntimeError:
+        # No event loop in current thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
+    return loop
+
+
+def run_async(coro):
+    """
+    Run async coroutine safely in Celery task context.
+    
+    Uses existing event loop when possible, creates new one if needed.
+    This is more reliable than asyncio.run() which always creates new loop.
+    
+    Args:
+        coro: Coroutine to execute
+        
+    Returns:
+        Result of coroutine execution
+    """
+    loop = get_or_create_event_loop()
+    return loop.run_until_complete(coro)
+
+
+from src.core.exceptions import DatabaseError, RuleEvaluationError
+
 import json
 import socket
 import traceback
@@ -137,8 +195,6 @@ def process_transaction(
         Retry: If processing fails and retries available
         MaxRetriesExceededError: If all retries exhausted
     """
-    import asyncio
-
     # Get worker info
     worker_id = self.request.id
     worker_hostname = socket.gethostname()
@@ -157,8 +213,8 @@ def process_transaction(
     start_time = time()
 
     try:
-        # Run async processing in event loop
-        result = asyncio.run(
+        # Run async processing using safe event loop handler
+        result = run_async(
             _process_transaction_async(
                 transaction_data=transaction_data,
                 correlation_id=correlation_id,
@@ -194,7 +250,7 @@ def process_transaction(
 
         # Try to mark task as failed in database
         try:
-            asyncio.run(
+            run_async(
                 _mark_task_failed(
                     queue_task_id=UUID(queue_task_id),
                     error_type=error_type,
@@ -333,6 +389,8 @@ async def _evaluate_transaction(transaction: Dict[str, Any]) -> Dict[str, Any]:
         event="rule_engine_evaluation_start",
         transaction_id=transaction_id,
         correlation_id=correlation_id,
+        transaction_amount=transaction.get("amount"),
+        transaction_amount_type=type(transaction.get("amount")).__name__,
     )
 
     try:
@@ -342,6 +400,13 @@ async def _evaluate_transaction(transaction: Dict[str, Any]) -> Dict[str, Any]:
 
         # Get active rules from cache
         active_rules = await rule_engine_service.get_cached_active_rules(redis_client)
+
+        logger.info(
+            f"Retrieved {len(active_rules) if active_rules else 0} active rules from cache",
+            event="active_rules_retrieved",
+            transaction_id=transaction_id,
+            rules_count=len(active_rules) if active_rules else 0,
+        )
 
         if not active_rules:
             logger.warning(
@@ -392,7 +457,9 @@ async def _evaluate_transaction(transaction: Dict[str, Any]) -> Dict[str, Any]:
             transaction_id=transaction_id,
             is_suspicious=result_dict["is_suspicious"],
             risk_level=result_dict["risk_level"],
+            final_status=result_dict["final_status"],
             matched_rules_count=len(evaluation_result.matched_rules),
+            triggered_rules=[r["rule_name"] for r in result_dict["triggered_rules"]],
         )
 
         return result_dict
@@ -723,8 +790,6 @@ def save_rule_executions_to_db(
     Raises:
         Retry: If save fails and retries available
     """
-    import asyncio
-
     logger.info(
         f"Starting rule executions persistence for correlation_id={correlation_id}",
         event="save_rule_executions_start",
@@ -732,8 +797,8 @@ def save_rule_executions_to_db(
     )
 
     try:
-        # Run async save in event loop
-        result = asyncio.run(_save_rule_executions_to_db_async(correlation_id))
+        # Run async save using safe event loop handler
+        result = run_async(_save_rule_executions_to_db_async(correlation_id))
 
         logger.info(
             f"Rule executions saved successfully: {result['saved_count']} records",
