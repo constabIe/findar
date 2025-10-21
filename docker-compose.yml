@@ -173,7 +173,7 @@ services:
       - loki
 
   alertmanager:
-    image: prom/alertmanager:v0.28.a1
+    image: prom/alertmanager:v0.28.1
     container_name: alertmanager
     volumes:
       - ./monitoring/alertmanager:/etc/alertmanager
