@@ -41,10 +41,10 @@ kill *args:
 # docker ps
 ps:
   docker ps
-  
+
 # Confirm auto lint action  
 confirm-lint:
-  git add .
+  git add @pwd
   git commit -m "chore: linting"
 
 # Delete files ignored by git
