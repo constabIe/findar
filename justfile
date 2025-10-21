@@ -44,7 +44,7 @@ ps:
 
 # Confirm auto lint action  
 confirm-lint:
-  git add @pwd
+  git add $(pwd)
   git commit -m "chore: linting"
 
 # Delete files ignored by git
