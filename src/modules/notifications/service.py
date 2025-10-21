@@ -9,19 +9,19 @@ Notes:
 - All network calls use httpx (async). Email uses smtplib executed in a threadpool to avoid blocking.
 - Errors use core.exceptions.NotificationError where appropriate.
 """
+
 from __future__ import annotations
 
 import asyncio
-import ssl
 import smtplib
+import ssl
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 from uuid import UUID
 
 import httpx
-from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     # Imported for type checking only; runtime uses a session from the app
@@ -29,8 +29,8 @@ if TYPE_CHECKING:
 else:
     AsyncSession = Any
 
-from src.core.logging import get_logger
 from src.core.exceptions import NotificationError
+from src.core.logging import get_logger
 from src.modules.notifications.enums import (
     NotificationChannel,
     NotificationStatus,
@@ -41,7 +41,10 @@ from src.modules.notifications.models import (
 )
 from src.modules.notifications.repository import NotificationRepository
 from src.modules.notifications.schemas import NotificationDeliveryCreate
-from src.modules.reporting.metrics import increment_error_counter, observe_notification_time
+from src.modules.reporting.metrics import (
+    increment_error_counter,
+    observe_notification_time,
+)
 
 logger = get_logger("notifications")
 
@@ -85,20 +88,31 @@ class NotificationService:
             templates = await self.repo.get_templates(
                 template_type=TemplateType.FRAUD_ALERT, enabled_only=True
             )
-        except Exception as exc:
-            logger.exception("Failed to load templates", component="notifications", correlation_id=correlation_id)
+        except Exception:
+            logger.exception(
+                "Failed to load templates",
+                component="notifications",
+                correlation_id=correlation_id,
+            )
             increment_error_counter("templates_load_error")
             return []
 
         if not templates:
-            logger.warning("No enabled fraud templates found", component="notifications", correlation_id=correlation_id)
+            logger.warning(
+                "No enabled fraud templates found",
+                component="notifications",
+                correlation_id=correlation_id,
+            )
             return []
 
         created_ids: List[UUID] = []
 
         for template in templates:
             try:
-                if template.channel not in (NotificationChannel.EMAIL, NotificationChannel.TELEGRAM):
+                if template.channel not in (
+                    NotificationChannel.EMAIL,
+                    NotificationChannel.TELEGRAM,
+                ):
                     logger.info(
                         "Skipping unsupported template channel",
                         component="notifications",
@@ -111,10 +125,15 @@ class NotificationService:
                     try:
                         await self.repo.increment_template_usage(template.id)
                     except Exception:
-                        logger.debug("Failed to increment template usage", template_id=str(template.id))
+                        logger.debug(
+                            "Failed to increment template usage",
+                            template_id=str(template.id),
+                        )
                     continue
 
-                rendered = await self._render_template(template, transaction_data, evaluation_result)
+                rendered = await self._render_template(
+                    template, transaction_data, evaluation_result
+                )
 
                 delivery_payload = NotificationDeliveryCreate(
                     transaction_id=UUID(transaction_data["id"]),
@@ -139,12 +158,15 @@ class NotificationService:
                 try:
                     await self.repo.increment_template_usage(template.id)
                 except Exception:
-                    logger.debug("Failed to increment template usage", template_id=str(template.id))
+                    logger.debug(
+                        "Failed to increment template usage",
+                        template_id=str(template.id),
+                    )
 
                 # Fire-and-forget send
                 asyncio.create_task(self._send_notification_async(delivery_record.id))
 
-            except Exception as exc:
+            except Exception:
                 logger.exception(
                     "Failed to create notification delivery",
                     component="notifications",
@@ -190,14 +212,22 @@ class NotificationService:
         Complex templates should be migrated to Jinja2 later.
         """
         try:
-            vars_map = self._prepare_template_variables(template, transaction_data, evaluation_result)
+            vars_map = self._prepare_template_variables(
+                template, transaction_data, evaluation_result
+            )
             subject = None
             if getattr(template, "subject_template", None):
-                subject = self._render_template_string(template.subject_template, vars_map)
+                subject = self._render_template_string(
+                    template.subject_template, vars_map
+                )
             body = self._render_template_string(template.body_template, vars_map)
             return {"subject": subject, "body": body}
         except Exception as exc:
-            logger.exception("Template rendering failed", component="notifications", template_id=str(getattr(template, "id", "unknown")))
+            logger.exception(
+                "Template rendering failed",
+                component="notifications",
+                template_id=str(getattr(template, "id", "unknown")),
+            )
             raise NotificationError("template_render_failed") from exc
 
     def _prepare_template_variables(
@@ -256,12 +286,16 @@ class NotificationService:
         if getattr(template, "include_fraud_probability", False):
             rule_results = evaluation_result.get("rule_results", []) or []
             if rule_results:
-                avg_conf = sum(r.get("confidence_score", 0) for r in rule_results) / len(rule_results)
+                avg_conf = sum(
+                    r.get("confidence_score", 0) for r in rule_results
+                ) / len(rule_results)
                 variables["fraud_probability"] = f"{avg_conf:.2%}"
             else:
                 variables["fraud_probability"] = "Unknown"
 
-        variables["overall_risk_level"] = evaluation_result.get("overall_risk_level", "Unknown")
+        variables["overall_risk_level"] = evaluation_result.get(
+            "overall_risk_level", "Unknown"
+        )
         variables["flagged"] = evaluation_result.get("flagged", False)
         variables["should_block"] = evaluation_result.get("should_block", False)
 
@@ -271,11 +305,16 @@ class NotificationService:
             if isinstance(custom, dict):
                 variables.update(custom)
         except Exception:
-            logger.warning("Malformed custom_fields on template", template_id=str(getattr(template, "id", "unknown")))
+            logger.warning(
+                "Malformed custom_fields on template",
+                template_id=str(getattr(template, "id", "unknown")),
+            )
 
         return variables
 
-    def _render_template_string(self, template_string: str, variables: Dict[str, Any]) -> str:
+    def _render_template_string(
+        self, template_string: str, variables: Dict[str, Any]
+    ) -> str:
         """
         Render a template string using simple replacement:
         converts '{{var}}' to '{var}' and uses str.format.
@@ -285,10 +324,14 @@ class NotificationService:
             safe = template_string.replace("{{", "{").replace("}}", "}")
             return safe.format(**variables)
         except KeyError as exc:
-            logger.warning("Missing template variable", component="notifications", detail=str(exc))
+            logger.warning(
+                "Missing template variable", component="notifications", detail=str(exc)
+            )
             return template_string
         except Exception:
-            logger.exception("Unexpected template rendering error", component="notifications")
+            logger.exception(
+                "Unexpected template rendering error", component="notifications"
+            )
             return template_string
 
     async def _send_notification_async(self, delivery_id: UUID) -> None:
@@ -300,7 +343,11 @@ class NotificationService:
         try:
             delivery = await self.repo.get_delivery(delivery_id)
             if not delivery:
-                logger.warning("Delivery not found", component="notifications", delivery_id=str(delivery_id))
+                logger.warning(
+                    "Delivery not found",
+                    component="notifications",
+                    delivery_id=str(delivery_id),
+                )
                 return
 
             attempt_no = (delivery.attempts or 0) + 1
@@ -314,8 +361,14 @@ class NotificationService:
                     success=False,
                     error_message=err,
                 )
-                await self.repo.update_delivery_status(delivery_id, NotificationStatus.FAILED, error_message=err)
-                logger.error("Missing channel configuration", component="notifications", delivery_id=str(delivery_id))
+                await self.repo.update_delivery_status(
+                    delivery_id, NotificationStatus.FAILED, error_message=err
+                )
+                logger.error(
+                    "Missing channel configuration",
+                    component="notifications",
+                    delivery_id=str(delivery_id),
+                )
                 increment_error_counter("channel_config_missing")
                 return
 
@@ -325,10 +378,14 @@ class NotificationService:
             try:
                 if delivery.channel == NotificationChannel.EMAIL:
                     cfg = channel_cfg.config or {}
-                    send_ok, send_err = await self.send_email(delivery.recipients, delivery.subject or "", delivery.body, cfg)
+                    send_ok, send_err = await self.send_email(
+                        delivery.recipients, delivery.subject or "", delivery.body, cfg
+                    )
                 elif delivery.channel == NotificationChannel.TELEGRAM:
                     cfg = channel_cfg.config or {}
-                    send_ok, send_err = await self.send_telegram(delivery.recipients, delivery.body, cfg)
+                    send_ok, send_err = await self.send_telegram(
+                        delivery.recipients, delivery.body, cfg
+                    )
                 else:
                     send_ok = False
                     send_err = f"unsupported_channel:{delivery.channel}"
@@ -347,7 +404,9 @@ class NotificationService:
                 )
                 await self.repo.increment_delivery_attempt(delivery_id)
             except Exception:
-                logger.exception("Failed to persist delivery attempt", delivery_id=str(delivery_id))
+                logger.exception(
+                    "Failed to persist delivery attempt", delivery_id=str(delivery_id)
+                )
 
             # update status based on result and attempts
             try:
@@ -356,11 +415,23 @@ class NotificationService:
                 max_attempts = updated.max_attempts or 1
 
                 if send_ok:
-                    await self.repo.update_delivery_status(delivery_id, NotificationStatus.DELIVERED)
-                    logger.info("Delivery delivered", component="notifications", delivery_id=str(delivery_id))
+                    await self.repo.update_delivery_status(
+                        delivery_id, NotificationStatus.DELIVERED
+                    )
+                    logger.info(
+                        "Delivery delivered",
+                        component="notifications",
+                        delivery_id=str(delivery_id),
+                    )
                 else:
-                    new_status = NotificationStatus.FAILED if attempts_now >= max_attempts else NotificationStatus.RETRYING
-                    await self.repo.update_delivery_status(delivery_id, new_status, error_message=send_err)
+                    new_status = (
+                        NotificationStatus.FAILED
+                        if attempts_now >= max_attempts
+                        else NotificationStatus.RETRYING
+                    )
+                    await self.repo.update_delivery_status(
+                        delivery_id, new_status, error_message=send_err
+                    )
                     logger.warning(
                         "Delivery send failed",
                         component="notifications",
@@ -371,11 +442,17 @@ class NotificationService:
                     )
                     increment_error_counter("delivery_send_error")
             except Exception:
-                logger.exception("Failed to update delivery status", delivery_id=str(delivery_id))
+                logger.exception(
+                    "Failed to update delivery status", delivery_id=str(delivery_id)
+                )
                 increment_error_counter("delivery_update_error")
 
         except Exception:
-            logger.exception("Unexpected error in _send_notification_async", component="notifications", delivery_id=str(delivery_id))
+            logger.exception(
+                "Unexpected error in _send_notification_async",
+                component="notifications",
+                delivery_id=str(delivery_id),
+            )
             increment_error_counter("notification_unexpected_error")
 
     async def send_email(
@@ -411,7 +488,9 @@ class NotificationService:
                     server.send_message(message)
 
             await loop.run_in_executor(None, _smtp_send)
-            logger.info("Email sent", component="notifications", recipients=len(recipients))
+            logger.info(
+                "Email sent", component="notifications", recipients=len(recipients)
+            )
             return True, None
         except Exception as exc:
             logger.exception("Email sending failed", component="notifications")
@@ -437,7 +516,11 @@ class NotificationService:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 for chat_id in recipients:
                     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-                    payload = {"chat_id": chat_id, "text": message, "parse_mode": "HTML"}
+                    payload = {
+                        "chat_id": chat_id,
+                        "text": message,
+                        "parse_mode": "HTML",
+                    }
                     resp = await client.post(url, json=payload)
                     if resp.status_code == 200:
                         success_count += 1
@@ -451,7 +534,11 @@ class NotificationService:
                         )
 
             if success_count == len(recipients):
-                logger.info("Telegram messages sent", component="notifications", recipients=success_count)
+                logger.info(
+                    "Telegram messages sent",
+                    component="notifications",
+                    recipients=success_count,
+                )
                 return True, None
             err = f"telegram_partial:{success_count}/{len(recipients)}"
             logger.warning(err, component="notifications")
@@ -459,4 +546,3 @@ class NotificationService:
         except Exception as exc:
             logger.exception("Telegram sending failed", component="notifications")
             return False, str(exc)
-

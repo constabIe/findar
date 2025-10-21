@@ -6,10 +6,8 @@ delivery tracking, and related database operations.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import UUID
-
-from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sqlalchemy import and_, desc, func, select, update  # pragma: no cover
@@ -21,7 +19,11 @@ else:
     AsyncSession = Any
     sqlmodel_select = lambda *a, **k: None
 
-from src.modules.notifications.enums import NotificationChannel, NotificationStatus, TemplateType
+from src.modules.notifications.enums import (
+    NotificationChannel,
+    NotificationStatus,
+    TemplateType,
+)
 from src.modules.notifications.models import (
     NotificationChannelConfig,
     NotificationDelivery,
@@ -39,7 +41,7 @@ from src.modules.notifications.schemas import (
 class NotificationRepository:
     """
     Repository for notification-related database operations.
-    
+
     Handles CRUD operations for templates, channel configurations,
     delivery tracking, and statistics queries.
     """
@@ -47,7 +49,7 @@ class NotificationRepository:
     def __init__(self, db_session: AsyncSession):
         """
         Initialize notification repository.
-        
+
         Args:
             db_session: Database session for operations
         """
@@ -59,10 +61,10 @@ class NotificationRepository:
     ) -> NotificationTemplate:
         """
         Create a new notification template.
-        
+
         Args:
             template_data: Template creation data
-            
+
         Returns:
             Created template
         """
@@ -86,11 +88,11 @@ class NotificationRepository:
             custom_fields=template_data.custom_fields,
             description=template_data.description,
         )
-        
+
         self.db_session.add(template)
         await self.db_session.commit()
         await self.db_session.refresh(template)
-        
+
         return template
 
     async def get_template(self, template_id: UUID) -> Optional[NotificationTemplate]:
@@ -112,31 +114,33 @@ class NotificationRepository:
     ) -> List[NotificationTemplate]:
         """
         Get templates with filtering options.
-        
+
         Args:
             template_type: Filter by template type
             channel: Filter by notification channel
             enabled_only: Only return enabled templates
             limit: Maximum number of results
             offset: Number of results to skip
-            
+
         Returns:
             List of templates
         """
         query = sqlmodel_select(NotificationTemplate)
-        
+
         if template_type:
             query = query.where(NotificationTemplate.type == template_type)
-        
+
         if channel:
             query = query.where(NotificationTemplate.channel == channel)
-        
+
         if enabled_only:
             query = query.where(NotificationTemplate.enabled == True)
-        
-        query = query.order_by(desc(NotificationTemplate.priority), desc(NotificationTemplate.created_at))
+
+        query = query.order_by(
+            desc(NotificationTemplate.priority), desc(NotificationTemplate.created_at)
+        )
         query = query.limit(limit).offset(offset)
-        
+
         result = await self.db_session.execute(query)
         return result.scalars().all()
 
@@ -147,17 +151,17 @@ class NotificationRepository:
         template = await self.get_template(template_id)
         if not template:
             return None
-        
+
         # Update fields
         update_dict = update_data.model_dump(exclude_unset=True)
         for field, value in update_dict.items():
             setattr(template, field, value)
-        
+
         template.updated_at = datetime.utcnow()
-        
+
         await self.db_session.commit()
         await self.db_session.refresh(template)
-        
+
         return template
 
     async def delete_template(self, template_id: UUID) -> bool:
@@ -165,10 +169,10 @@ class NotificationRepository:
         template = await self.get_template(template_id)
         if not template:
             return False
-        
+
         await self.db_session.delete(template)
         await self.db_session.commit()
-        
+
         return True
 
     async def increment_template_usage(self, template_id: UUID) -> None:
@@ -194,11 +198,11 @@ class NotificationRepository:
             rate_limit_per_minute=config_data.rate_limit_per_minute,
             description=config_data.description,
         )
-        
+
         self.db_session.add(config)
         await self.db_session.commit()
         await self.db_session.refresh(config)
-        
+
         return config
 
     async def get_channel_config(
@@ -226,16 +230,16 @@ class NotificationRepository:
         config = await self.get_channel_config(channel)
         if not config:
             return None
-        
+
         for field, value in config_data.items():
             if hasattr(config, field):
                 setattr(config, field, value)
-        
+
         config.updated_at = datetime.utcnow()
-        
+
         await self.db_session.commit()
         await self.db_session.refresh(config)
-        
+
         return config
 
     # Delivery operations
@@ -252,15 +256,15 @@ class NotificationRepository:
             recipients=delivery_data.recipients,
             priority=delivery_data.priority,
             scheduled_at=delivery_data.scheduled_at,
-                metadata_=delivery_data.metadata,
+            metadata_=delivery_data.metadata,
             status=NotificationStatus.PENDING,
             max_attempts=3,  # Default value
         )
-        
+
         self.db_session.add(delivery)
         await self.db_session.commit()
         await self.db_session.refresh(delivery)
-        
+
         return delivery
 
     async def get_delivery(self, delivery_id: UUID) -> Optional[NotificationDelivery]:
@@ -282,19 +286,19 @@ class NotificationRepository:
     ) -> List[NotificationDelivery]:
         """Get deliveries with filtering."""
         query = sqlmodel_select(NotificationDelivery)
-        
+
         if transaction_id:
             query = query.where(NotificationDelivery.transaction_id == transaction_id)
-        
+
         if status:
             query = query.where(NotificationDelivery.status == status)
-        
+
         if channel:
             query = query.where(NotificationDelivery.channel == channel)
-        
+
         query = query.order_by(desc(NotificationDelivery.created_at))
         query = query.limit(limit).offset(offset)
-        
+
         result = await self.db_session.execute(query)
         return result.scalars().all()
 
@@ -308,20 +312,20 @@ class NotificationRepository:
         delivery = await self.get_delivery(delivery_id)
         if not delivery:
             return None
-        
+
         delivery.status = status
         delivery.error_message = error_message
-        
+
         if status == NotificationStatus.DELIVERED:
             delivery.delivered_at = datetime.utcnow()
         elif status == NotificationStatus.FAILED:
             delivery.failed_at = datetime.utcnow()
-        
+
         delivery.updated_at = datetime.utcnow()
-        
+
         await self.db_session.commit()
         await self.db_session.refresh(delivery)
-        
+
         return delivery
 
     async def increment_delivery_attempt(self, delivery_id: UUID) -> None:
@@ -354,20 +358,20 @@ class NotificationRepository:
             error_code=error_code,
             response_status=response_status,
             response_body=response_body,
-                metadata_=metadata or {},
+            metadata_=metadata or {},
             completed_at=datetime.utcnow(),
         )
-        
+
         # Calculate duration if we have start time
         if metadata and "started_at" in metadata:
             start_time = datetime.fromisoformat(metadata["started_at"])
             duration = (attempt.completed_at - start_time).total_seconds() * 1000
             attempt.duration_ms = int(duration)
-        
+
         self.db_session.add(attempt)
         await self.db_session.commit()
         await self.db_session.refresh(attempt)
-        
+
         return attempt
 
     # Statistics operations
@@ -378,42 +382,62 @@ class NotificationRepository:
     ) -> Dict[str, Any]:
         """Get delivery statistics."""
         query = sqlmodel_select(NotificationDelivery)
-        
+
         if start_date:
             query = query.where(NotificationDelivery.created_at >= start_date)
-        
+
         if end_date:
             query = query.where(NotificationDelivery.created_at <= end_date)
-        
+
         result = await self.db_session.execute(query)
         deliveries = result.scalars().all()
-        
+
         # Calculate statistics
         total_deliveries = len(deliveries)
-        successful_deliveries = sum(1 for d in deliveries if d.status == NotificationStatus.DELIVERED)
-        failed_deliveries = sum(1 for d in deliveries if d.status == NotificationStatus.FAILED)
-        pending_deliveries = sum(1 for d in deliveries if d.status == NotificationStatus.PENDING)
-        
+        successful_deliveries = sum(
+            1 for d in deliveries if d.status == NotificationStatus.DELIVERED
+        )
+        failed_deliveries = sum(
+            1 for d in deliveries if d.status == NotificationStatus.FAILED
+        )
+        pending_deliveries = sum(
+            1 for d in deliveries if d.status == NotificationStatus.PENDING
+        )
+
         # Channel-specific stats
         channel_stats = {}
         for channel in NotificationChannel:
             channel_deliveries = [d for d in deliveries if d.channel == channel]
             channel_stats[channel] = {
                 "total": len(channel_deliveries),
-                "successful": sum(1 for d in channel_deliveries if d.status == NotificationStatus.DELIVERED),
-                "failed": sum(1 for d in channel_deliveries if d.status == NotificationStatus.FAILED),
-                "pending": sum(1 for d in channel_deliveries if d.status == NotificationStatus.PENDING),
+                "successful": sum(
+                    1
+                    for d in channel_deliveries
+                    if d.status == NotificationStatus.DELIVERED
+                ),
+                "failed": sum(
+                    1
+                    for d in channel_deliveries
+                    if d.status == NotificationStatus.FAILED
+                ),
+                "pending": sum(
+                    1
+                    for d in channel_deliveries
+                    if d.status == NotificationStatus.PENDING
+                ),
             }
-        
+
         # Template usage stats
         template_usage = {}
         for delivery in deliveries:
             template_id = str(delivery.template_id)
             template_usage[template_id] = template_usage.get(template_id, 0) + 1
-        
+
         # Error rate
-        error_rate = failed_deliveries / total_deliveries if total_deliveries > 0 else 0.0
-        
+        error_rate = (
+            failed_deliveries / total_deliveries if total_deliveries > 0 else 0.0
+        )
+
         return {
             "total_deliveries": total_deliveries,
             "successful_deliveries": successful_deliveries,
@@ -435,10 +459,12 @@ class NotificationRepository:
                 NotificationDelivery.scheduled_at <= datetime.utcnow(),
             )
         )
-        
-        query = query.order_by(NotificationDelivery.priority.desc(), NotificationDelivery.created_at)
+
+        query = query.order_by(
+            NotificationDelivery.priority.desc(), NotificationDelivery.created_at
+        )
         query = query.limit(limit)
-        
+
         result = await self.db_session.execute(query)
         return result.scalars().all()
 
@@ -452,10 +478,9 @@ class NotificationRepository:
                 NotificationDelivery.attempts < NotificationDelivery.max_attempts,
             )
         )
-        
+
         query = query.order_by(NotificationDelivery.created_at)
         query = query.limit(limit)
-        
+
         result = await self.db_session.execute(query)
         return result.scalars().all()
-

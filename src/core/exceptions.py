@@ -444,7 +444,7 @@ def get_exception_by_code(error_code: str) -> type[AppBaseException]:
 class DuplicateTaskError(AppBaseException):
     """
     Exception raised when attempting to create a duplicate queue task.
-    
+
     This ensures idempotency - tasks with the same correlation_id
     cannot be created multiple times.
     """
@@ -485,4 +485,3 @@ class TaskNotFoundError(AppBaseException):
             correlation_id=correlation_id,
             details=details,
         )
-

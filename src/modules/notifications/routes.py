@@ -12,12 +12,15 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.modules.notifications.enums import NotificationChannel, NotificationStatus, TemplateType
+from src.modules.notifications.enums import (
+    NotificationChannel,
+    NotificationStatus,
+    TemplateType,
+)
 from src.modules.notifications.repository import NotificationRepository
 from src.modules.notifications.schemas import (
     NotificationChannelConfigCreate,
     NotificationChannelConfigResponse,
-    NotificationDeliveryCreate,
     NotificationDeliveryListResponse,
     NotificationDeliveryResponse,
     NotificationSendRequest,
@@ -63,7 +66,7 @@ async def create_template(
 ) -> NotificationTemplateResponse:
     """
     Create a new notification template.
-    
+
     Templates define the structure and content of notifications sent
     through various channels when fraud is detected.
     """
@@ -83,8 +86,12 @@ async def create_template(
     summary="List notification templates",
 )
 async def list_templates(
-    template_type: Optional[TemplateType] = Query(None, description="Filter by template type"),
-    channel: Optional[NotificationChannel] = Query(None, description="Filter by notification channel"),
+    template_type: Optional[TemplateType] = Query(
+        None, description="Filter by template type"
+    ),
+    channel: Optional[NotificationChannel] = Query(
+        None, description="Filter by notification channel"
+    ),
     enabled_only: bool = Query(True, description="Only return enabled templates"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
@@ -93,7 +100,7 @@ async def list_templates(
     """List notification templates with filtering and pagination."""
     try:
         offset = (page - 1) * page_size
-        
+
         templates = await repository.get_templates(
             template_type=template_type,
             channel=channel,
@@ -101,12 +108,14 @@ async def list_templates(
             limit=page_size,
             offset=offset,
         )
-        
+
         # TODO: Implement total count query
         total = len(templates)  # This is not accurate for pagination
-        
+
         return NotificationTemplateListResponse(
-            templates=[NotificationTemplateResponse.model_validate(t) for t in templates],
+            templates=[
+                NotificationTemplateResponse.model_validate(t) for t in templates
+            ],
             total=total,
             page=page,
             page_size=page_size,
@@ -135,7 +144,7 @@ async def get_template(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found",
         )
-    
+
     return NotificationTemplateResponse.model_validate(template)
 
 
@@ -156,7 +165,7 @@ async def update_template(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found",
         )
-    
+
     return NotificationTemplateResponse.model_validate(template)
 
 
@@ -235,7 +244,7 @@ async def get_channel_config(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Channel configuration not found",
         )
-    
+
     return NotificationChannelConfigResponse.model_validate(config)
 
 
@@ -256,7 +265,7 @@ async def update_channel_config(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Channel configuration not found",
         )
-    
+
     return NotificationChannelConfigResponse.model_validate(config)
 
 
@@ -267,9 +276,15 @@ async def update_channel_config(
     summary="List notification deliveries",
 )
 async def list_deliveries(
-    transaction_id: Optional[UUID] = Query(None, description="Filter by transaction ID"),
-    status: Optional[NotificationStatus] = Query(None, description="Filter by delivery status"),
-    channel: Optional[NotificationChannel] = Query(None, description="Filter by notification channel"),
+    transaction_id: Optional[UUID] = Query(
+        None, description="Filter by transaction ID"
+    ),
+    status: Optional[NotificationStatus] = Query(
+        None, description="Filter by delivery status"
+    ),
+    channel: Optional[NotificationChannel] = Query(
+        None, description="Filter by notification channel"
+    ),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
     repository: NotificationRepository = Depends(get_notification_repository),
@@ -277,7 +292,7 @@ async def list_deliveries(
     """List notification deliveries with filtering and pagination."""
     try:
         offset = (page - 1) * page_size
-        
+
         deliveries = await repository.get_deliveries(
             transaction_id=transaction_id,
             status=status,
@@ -285,12 +300,14 @@ async def list_deliveries(
             limit=page_size,
             offset=offset,
         )
-        
+
         # TODO: Implement total count query
         total = len(deliveries)  # This is not accurate for pagination
-        
+
         return NotificationDeliveryListResponse(
-            deliveries=[NotificationDeliveryResponse.model_validate(d) for d in deliveries],
+            deliveries=[
+                NotificationDeliveryResponse.model_validate(d) for d in deliveries
+            ],
             total=total,
             page=page,
             page_size=page_size,
@@ -319,7 +336,7 @@ async def get_delivery(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Delivery not found",
         )
-    
+
     return NotificationDeliveryResponse.model_validate(delivery)
 
 
@@ -335,7 +352,7 @@ async def send_notifications(
 ) -> NotificationSendResponse:
     """
     Send notifications for a transaction.
-    
+
     This endpoint allows manual sending of notifications for specific
     transactions, useful for testing or manual alerts.
     """
@@ -362,14 +379,18 @@ async def send_notifications(
     summary="Get notification statistics",
 )
 async def get_notification_stats(
-    start_date: Optional[datetime] = Query(None, description="Start date for statistics"),
+    start_date: Optional[datetime] = Query(
+        None, description="Start date for statistics"
+    ),
     end_date: Optional[datetime] = Query(None, description="End date for statistics"),
     repository: NotificationRepository = Depends(get_notification_repository),
 ) -> NotificationStatsResponse:
     """Get notification delivery statistics."""
     try:
-        stats = await repository.get_delivery_stats(start_date=start_date, end_date=end_date)
-        
+        stats = await repository.get_delivery_stats(
+            start_date=start_date, end_date=end_date
+        )
+
         # Convert to response format
         return NotificationStatsResponse(
             total_deliveries=stats["total_deliveries"],
@@ -379,7 +400,7 @@ async def get_notification_stats(
             channel_stats=stats["channel_stats"],
             template_usage=stats["template_usage"],
             deliveries_last_24h=0,  # TODO: Implement time-based queries
-            deliveries_last_7d=0,   # TODO: Implement time-based queries
+            deliveries_last_7d=0,  # TODO: Implement time-based queries
             error_rate=stats["error_rate"],
             avg_delivery_time_seconds=None,  # TODO: Implement timing statistics
         )
@@ -402,7 +423,7 @@ async def health_check(
     try:
         # Check if we can access the database
         configs = await repository.get_all_channel_configs()
-        
+
         return {
             "status": "healthy",
             "timestamp": datetime.utcnow().isoformat(),
@@ -414,4 +435,3 @@ async def health_check(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Service unhealthy: {str(e)}",
         )
-

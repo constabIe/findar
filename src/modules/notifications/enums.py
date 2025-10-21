@@ -59,4 +59,3 @@ class DeliveryErrorType(str, Enum):
     AUTHENTICATION_ERROR = "authentication_error"
     CONFIGURATION_ERROR = "configuration_error"
     UNKNOWN_ERROR = "unknown_error"
-

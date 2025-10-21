@@ -90,7 +90,7 @@ errors_total = Counter(
 def increment_task_counter(status: str) -> None:
     """
     Increment task counter for specific status.
-    
+
     Args:
         status: Task status (pending, processing, completed, failed, retry)
     """
@@ -110,7 +110,7 @@ def increment_completed_counter() -> None:
 def increment_failed_counter(error_type: str) -> None:
     """
     Increment failed tasks counter.
-    
+
     Args:
         error_type: Type of error that caused failure
     """
@@ -125,7 +125,7 @@ def increment_retry_counter() -> None:
 def observe_processing_time(duration_seconds: float) -> None:
     """
     Record processing time observation.
-    
+
     Args:
         duration_seconds: Processing duration in seconds
     """
@@ -135,7 +135,7 @@ def observe_processing_time(duration_seconds: float) -> None:
 def observe_rule_engine_time(duration_seconds: float) -> None:
     """
     Record rule engine processing time.
-    
+
     Args:
         duration_seconds: Rule engine duration in seconds
     """
@@ -145,7 +145,7 @@ def observe_rule_engine_time(duration_seconds: float) -> None:
 def observe_db_write_time(duration_seconds: float) -> None:
     """
     Record database write time.
-    
+
     Args:
         duration_seconds: DB write duration in seconds
     """
@@ -155,7 +155,7 @@ def observe_db_write_time(duration_seconds: float) -> None:
 def observe_notification_time(duration_seconds: float) -> None:
     """
     Record notification send time.
-    
+
     Args:
         duration_seconds: Notification duration in seconds
     """
@@ -165,7 +165,7 @@ def observe_notification_time(duration_seconds: float) -> None:
 def set_queue_length(queue_name: str, length: int) -> None:
     """
     Set current queue length.
-    
+
     Args:
         queue_name: Name of the queue
         length: Current number of pending tasks
@@ -176,7 +176,7 @@ def set_queue_length(queue_name: str, length: int) -> None:
 def set_processing_count(count: int) -> None:
     """
     Set number of currently processing tasks.
-    
+
     Args:
         count: Number of tasks being processed
     """
@@ -186,7 +186,7 @@ def set_processing_count(count: int) -> None:
 def set_active_workers(count: int) -> None:
     """
     Set number of active workers.
-    
+
     Args:
         count: Number of active workers
     """
@@ -196,7 +196,7 @@ def set_active_workers(count: int) -> None:
 def increment_error_counter(error_type: str) -> None:
     """
     Increment error counter.
-    
+
     Args:
         error_type: Type of error encountered
     """

@@ -564,14 +564,14 @@ async def _send_notifications(
         try:
             from src.modules.notifications.service import NotificationService
             from src.storage.dependencies import get_db_session
-            
+
             # Get database session for notifications
             async with get_db_session() as db_session:
                 notification_service = NotificationService(db_session)
                 delivery_ids = await notification_service.send_fraud_alert(
                     transaction_data, evaluation_result, correlation_id
                 )
-                
+
                 logger.info(
                     f"Created {len(delivery_ids)} notification deliveries",
                     event="notifications_created",
