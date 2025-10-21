@@ -11,17 +11,19 @@ Features:
 - Docker-style colored logs (uses 'rich' if available).
 """
 
+import argparse
 import os
 import re
 import sys
-import argparse
 from pathlib import Path
 from typing import Dict, List, Tuple
 
 # --- Logging setup ---
 try:
     from rich.console import Console
+
     console = Console()
+
     def log(level, msg):
         styles = {
             "INFO": "bold blue",
@@ -33,6 +35,7 @@ try:
         console.print(f"[{level}] {msg}", style=styles.get(level, "white"))
 except ImportError:
     console = None
+
     def log(level, msg):
         colors = {
             "INFO": "\033[1;34m",
@@ -81,20 +84,14 @@ def substitute_variables(content: str, env: Dict[str, str]) -> Tuple[str, List[s
 def main():
     parser = argparse.ArgumentParser(description="Strict envsubst replacement tool.")
     parser.add_argument(
-        "-e", "--env-file",
-        dest="env_file",
-        help="Path to .env file (optional)"
+        "-e", "--env-file", dest="env_file", help="Path to .env file (optional)"
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Show what substitutions would be made, without modifying files."
+        help="Show what substitutions would be made, without modifying files.",
     )
-    parser.add_argument(
-        "files",
-        nargs="+",
-        help="One or more files to process."
-    )
+    parser.add_argument("files", nargs="+", help="One or more files to process.")
     args = parser.parse_args()
 
     # --- Validate file inputs ---
