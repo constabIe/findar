@@ -68,6 +68,11 @@ def create_app() -> FastAPI:
 
     app.include_router(routes.router, prefix="/api/v1", tags=["Transactions"])
 
+    # Register notifications router
+    from src.modules.notifications.routes import router as notifications_router
+
+    app.include_router(notifications_router, prefix="/api/v1", tags=["Notifications"])
+
     # TODO: Register additional routers
     # from src.api.routes import rules, statistics
     # app.include_router(rules.router, prefix="/api/v1", tags=["Rules"])

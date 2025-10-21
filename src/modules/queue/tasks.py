@@ -560,9 +560,36 @@ async def _send_notifications(
             matched_rules_count=len(triggered_rules),
         )
 
-        # Call notifications module (stub for now)
-        # TODO: Import and call actual notifications.send_fraud_alert() when implemented
-        _print_fraud_alert(str(transaction_id), triggered_rules, risk_level)
+        # Call notifications module
+        try:
+            from src.modules.notifications.service import NotificationService
+            from src.storage.dependencies import get_db_session
+            
+            # Get database session for notifications
+            async with get_db_session() as db_session:
+                notification_service = NotificationService(db_session)
+                delivery_ids = await notification_service.send_fraud_alert(
+                    transaction_data, evaluation_result, correlation_id
+                )
+                
+                logger.info(
+                    f"Created {len(delivery_ids)} notification deliveries",
+                    event="notifications_created",
+                    delivery_count=len(delivery_ids),
+                    correlation_id=correlation_id,
+                )
+        except ImportError:
+            logger.warning("Notifications module not available, using fallback")
+            # Fallback to console output
+            await _print_fraud_alert(transaction_data, evaluation_result)
+        except Exception as e:
+            logger.error(
+                f"Notification service error: {e}",
+                event="notification_service_error",
+                correlation_id=correlation_id,
+            )
+            # Fallback to console output
+            await _print_fraud_alert(transaction_data, evaluation_result)
 
     except Exception as e:
         logger.error(

@@ -124,7 +124,7 @@ class NotificationError(AppBaseException):
     """
     Exception raised when notification delivery fails.
 
-    Used for email, SMS, webhook, and other notification channel failures.
+    Used for email and telegram notification channel failures.
     """
 
     def __init__(
