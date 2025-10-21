@@ -154,9 +154,9 @@ services:
     image: grafana/loki:latest
     container_name: loki
     volumes:
-      - ./docker/loki-config.yaml:/etc/loki/loki-config.yaml
+      - ./docker/loki-config.yml:/etc/loki/loki-config.yml
       - loki_data:/loki
-    command: -config.file=/etc/loki/loki-config.yaml
+    command: -config.file=/etc/loki/loki-config.yml
     ports:
       - "${LOKI_PORT}:${LOKI_PORT}"
     restart: unless-stopped
@@ -165,15 +165,15 @@ services:
     image: grafana/promtail:latest
     container_name: promtail
     volumes:
-      - ./docker/promtail-config.yaml:/etc/promtail/promtail-config.yaml
+      - ./docker/promtail-config.yml:/etc/promtail/promtail-config.yml
       # - /var/log:/var/log   # если логируем хостовые логи
-    command: -config.file=/etc/promtail/promtail-config.yaml
+    command: -config.file=/etc/promtail/promtail-config.yml
     restart: unless-stopped
     depends_on:
       - loki
 
   alertmanager:
-    image: prom/alertmanager:v0.28.1
+    image: prom/alertmanager:v0.28.a1
     container_name: alertmanager
     volumes:
       - ./monitoring/alertmanager:/etc/alertmanager
