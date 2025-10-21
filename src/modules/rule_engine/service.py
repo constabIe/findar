@@ -138,12 +138,16 @@ async def get_cached_active_rules(redis_client: Redis) -> List[Dict[str, Any]]:
         for rule_id_bytes in rule_ids:
             rule_id = None
             try:
-                rule_id = rule_id_bytes.decode('utf-8') if isinstance(rule_id_bytes, bytes) else str(rule_id_bytes)
+                rule_id = (
+                    rule_id_bytes.decode("utf-8")
+                    if isinstance(rule_id_bytes, bytes)
+                    else str(rule_id_bytes)
+                )
                 rule_cache_key = f"{RULE_CACHE_KEY_PREFIX}{rule_id}"
-                
+
                 # Get rule data
                 rule_data = await redis_client.get(rule_cache_key)
-                
+
                 if rule_data:
                     rule_dict = json.loads(rule_data)
                     rules_list.append(rule_dict)
@@ -156,7 +160,7 @@ async def get_cached_active_rules(redis_client: Redis) -> List[Dict[str, Any]]:
             except Exception as e:
                 logger.error(
                     f"Failed to load rule from cache: {e}",
-                    rule_id=rule_id or 'unknown',
+                    rule_id=rule_id or "unknown",
                     error=str(e),
                 )
                 continue
@@ -167,7 +171,7 @@ async def get_cached_active_rules(redis_client: Redis) -> List[Dict[str, Any]]:
             count=len(rules_list),
             total_ids=len(rule_ids),
         )
-        
+
         return rules_list
 
     except Exception as e:
@@ -348,13 +352,15 @@ async def evaluate_threshold_rule(
 
     # DEBUG: Log all values for troubleshooting
     logger.debug(
-        f"THRESHOLD RULE EVALUATION DEBUG",
+        "THRESHOLD RULE EVALUATION DEBUG",
         rule_id=str(rule_id),
         rule_name=rule_name,
         transaction_amount=amount,
         transaction_amount_type=type(amount).__name__,
         rule_max_amount=params.max_amount,
-        rule_max_amount_type=type(params.max_amount).__name__ if params.max_amount else None,
+        rule_max_amount_type=type(params.max_amount).__name__
+        if params.max_amount
+        else None,
         rule_min_amount=params.min_amount,
         is_critical=is_critical,
         transaction_data_amount_raw=transaction_data.get("amount"),
@@ -369,9 +375,9 @@ async def evaluate_threshold_rule(
         matched = True
         match_reason = f"Amount {amount} exceeds maximum {params.max_amount}"
         risk_level = RiskLevel.HIGH if is_critical else RiskLevel.MEDIUM
-        
+
         logger.info(
-            f"THRESHOLD RULE MATCHED: Amount check",
+            "THRESHOLD RULE MATCHED: Amount check",
             rule_name=rule_name,
             amount=amount,
             max_amount=params.max_amount,

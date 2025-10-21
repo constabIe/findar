@@ -13,7 +13,6 @@ import asyncio
 import json
 import socket
 import traceback
-from datetime import datetime
 from time import time
 from typing import Any, Dict, List
 from uuid import UUID
@@ -21,17 +20,16 @@ from uuid import UUID
 from celery import Task
 from celery.exceptions import MaxRetriesExceededError
 from loguru import logger
-from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
 def get_or_create_event_loop():
     """
     Get existing event loop or create new one if needed.
-    
+
     This prevents "Event loop is closed" errors in Celery workers.
     Safe to use in solo pool or gevent pool workers.
-    
+
     Returns:
         Event loop instance
     """
@@ -44,40 +42,26 @@ def get_or_create_event_loop():
         # No event loop in current thread
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-    
+
     return loop
 
 
 def run_async(coro):
     """
     Run async coroutine safely in Celery task context.
-    
+
     Uses existing event loop when possible, creates new one if needed.
     This is more reliable than asyncio.run() which always creates new loop.
-    
+
     Args:
         coro: Coroutine to execute
-        
+
     Returns:
         Result of coroutine execution
     """
     loop = get_or_create_event_loop()
     return loop.run_until_complete(coro)
 
-
-from src.core.exceptions import DatabaseError, RuleEvaluationError
-
-import json
-import socket
-import traceback
-from time import time
-from typing import Any, Dict, List
-from uuid import UUID
-
-from celery import Task
-from celery.exceptions import MaxRetriesExceededError
-from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import DatabaseError, RuleEvaluationError
 from src.modules.reporting.metrics import (

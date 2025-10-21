@@ -289,7 +289,7 @@ class QueueRepository:
         stmt = (
             select(QueueTask)
             .where(QueueTask.status == status)  # type: ignore
-            .order_by(QueueTask.created_at.desc()) # type: ignore
+            .order_by(QueueTask.created_at.desc())  # type: ignore
             .limit(limit)
         )
         result = await self.session.execute(stmt)
@@ -304,8 +304,9 @@ class QueueRepository:
         """
         # Count tasks by status
         status_counts_stmt = select(
-            QueueTask.status, func.count(QueueTask.id).label("count") # type: ignore
-        ).group_by(QueueTask.status) # type: ignore
+            QueueTask.status,
+            func.count(QueueTask.id).label("count"),  # type: ignore
+        ).group_by(QueueTask.status)  # type: ignore
         status_result = await self.session.execute(status_counts_stmt)
         status_counts = {row[0]: row[1] for row in status_result}
 
