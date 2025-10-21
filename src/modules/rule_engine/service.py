@@ -187,6 +187,7 @@ async def evaluate_transaction(
     transaction_data: Dict[str, Any],
     rules: List[Dict[str, Any]],
     correlation_id: str,
+    redis_client: Optional[Redis] = None,
 ) -> TransactionEvaluationResult:
     """
     Evaluate a transaction against all active fraud detection rules.
@@ -195,6 +196,7 @@ async def evaluate_transaction(
         transaction_data: Transaction data dictionary
         rules: List of active rule dictionaries
         correlation_id: Correlation ID for tracking
+        redis_client: Optional async Redis client for frequency checks
 
     Returns:
         TransactionEvaluationResult with all evaluation results
@@ -235,7 +237,7 @@ async def evaluate_transaction(
             # Evaluate based on rule type
             if rule_type == RuleType.THRESHOLD:
                 result = await evaluate_threshold_rule(
-                    transaction_data, rule_dict, rule_id, rule_name
+                    transaction_data, rule_dict, rule_id, rule_name, redis_client
                 )
             elif rule_type == RuleType.PATTERN:
                 result = await evaluate_pattern_rule(
@@ -324,6 +326,7 @@ async def evaluate_threshold_rule(
     rule_dict: Dict[str, Any],
     rule_id: UUID,
     rule_name: str,
+    redis_client: Optional[Redis] = None,
 ) -> RuleEvaluationResult:
     """
     Evaluate a threshold-based rule against a transaction.
@@ -335,6 +338,7 @@ async def evaluate_threshold_rule(
         rule_dict: Rule configuration dictionary
         rule_id: Rule UUID
         rule_name: Rule name
+        redis_client: Optional async Redis client for frequency checks
 
     Returns:
         RuleEvaluationResult with evaluation outcome
@@ -370,24 +374,84 @@ async def evaluate_threshold_rule(
     match_reason = None
     risk_level = RiskLevel.LOW
 
-    # Check amount thresholds
-    if params.max_amount is not None and amount > params.max_amount:
-        matched = True
-        match_reason = f"Amount {amount} exceeds maximum {params.max_amount}"
-        risk_level = RiskLevel.HIGH if is_critical else RiskLevel.MEDIUM
-
-        logger.info(
-            "THRESHOLD RULE MATCHED: Amount check",
-            rule_name=rule_name,
-            amount=amount,
-            max_amount=params.max_amount,
-            match_reason=match_reason,
-        )
-
-    elif params.min_amount is not None and amount < params.min_amount:
-        matched = True
-        match_reason = f"Amount {amount} below minimum {params.min_amount}"
-        risk_level = RiskLevel.MEDIUM
+    # Check amount thresholds with operator support
+    if params.max_amount is not None or params.min_amount is not None:
+        from .enums import ThresholdOperator
+        
+        amount_matched = False
+        
+        # Apply operator logic
+        if params.operator == ThresholdOperator.GREATER_THAN:
+            # amount > max_amount
+            if params.max_amount is not None and amount > params.max_amount:
+                amount_matched = True
+                match_reason = f"Amount {amount} > {params.max_amount}"
+                
+        elif params.operator == ThresholdOperator.GREATER_EQUAL:
+            # amount >= max_amount
+            if params.max_amount is not None and amount >= params.max_amount:
+                amount_matched = True
+                match_reason = f"Amount {amount} >= {params.max_amount}"
+                
+        elif params.operator == ThresholdOperator.LESS_THAN:
+            # amount < min_amount (for detecting suspiciously small transactions)
+            if params.min_amount is not None and amount < params.min_amount:
+                amount_matched = True
+                match_reason = f"Amount {amount} < {params.min_amount}"
+            elif params.max_amount is not None and amount < params.max_amount:
+                amount_matched = True
+                match_reason = f"Amount {amount} < {params.max_amount}"
+                
+        elif params.operator == ThresholdOperator.LESS_EQUAL:
+            # amount <= min_amount
+            if params.min_amount is not None and amount <= params.min_amount:
+                amount_matched = True
+                match_reason = f"Amount {amount} <= {params.min_amount}"
+            elif params.max_amount is not None and amount <= params.max_amount:
+                amount_matched = True
+                match_reason = f"Amount {amount} <= {params.max_amount}"
+                
+        elif params.operator == ThresholdOperator.EQUAL:
+            # amount == target
+            target = params.max_amount if params.max_amount is not None else params.min_amount
+            if target is not None and amount == target:
+                amount_matched = True
+                match_reason = f"Amount {amount} == {target}"
+                
+        elif params.operator == ThresholdOperator.NOT_EQUAL:
+            # amount != target
+            target = params.max_amount if params.max_amount is not None else params.min_amount
+            if target is not None and amount != target:
+                amount_matched = True
+                match_reason = f"Amount {amount} != {target}"
+                
+        elif params.operator == ThresholdOperator.BETWEEN:
+            # min_amount <= amount <= max_amount
+            if params.min_amount is not None and params.max_amount is not None:
+                if params.min_amount <= amount <= params.max_amount:
+                    amount_matched = True
+                    match_reason = f"Amount {amount} in range [{params.min_amount}, {params.max_amount}]"
+                    
+        elif params.operator == ThresholdOperator.NOT_BETWEEN:
+            # amount < min_amount OR amount > max_amount
+            if params.min_amount is not None and params.max_amount is not None:
+                if amount < params.min_amount or amount > params.max_amount:
+                    amount_matched = True
+                    match_reason = f"Amount {amount} outside range [{params.min_amount}, {params.max_amount}]"
+        
+        if amount_matched:
+            matched = True
+            risk_level = RiskLevel.HIGH if is_critical else RiskLevel.MEDIUM
+            
+            logger.info(
+                "THRESHOLD RULE MATCHED: Amount check",
+                rule_name=rule_name,
+                amount=amount,
+                operator=params.operator.value,
+                max_amount=params.max_amount,
+                min_amount=params.min_amount,
+                match_reason=match_reason,
+            )
 
     # Check time window restrictions
     if params.allowed_hours_start is not None and params.allowed_hours_end is not None:
@@ -404,12 +468,173 @@ async def evaluate_threshold_rule(
             match_reason = f"Location '{location}' not in allowed list"
             risk_level = RiskLevel.HIGH if is_critical else RiskLevel.MEDIUM
 
-    # TODO: Implement frequency checks (requires historical data from Redis/DB)
-    # - max_transactions_per_account
-    # - max_transactions_to_account
-    # - max_velocity_amount
-    # - max_devices_per_account
-    # - max_ips_per_account
+    # 🆕 FREQUENCY CHECKS (using Redis)
+    # Note: We check frequency REGARDLESS of other matches to track violations
+    if redis_client:
+        from src.storage.redis.frequency import (
+            get_transaction_count,
+            get_to_account_count,
+            get_velocity,
+            get_unique_devices_count,
+            get_unique_ips_count,
+            get_unique_types_count,
+        )
+        
+        try:
+            # Check max_transactions_per_account
+            if not matched and params.max_transactions_per_account is not None:
+                current_count = await get_transaction_count(
+                    redis=redis_client,
+                    account_id=from_account,
+                    time_window=params.time_window,
+                )
+                
+                if current_count > params.max_transactions_per_account:
+                    matched = True
+                    match_reason = (
+                        f"Transaction count {current_count} exceeds limit "
+                        f"{params.max_transactions_per_account} in {params.time_window.value}"
+                    )
+                    risk_level = RiskLevel.HIGH if is_critical else RiskLevel.MEDIUM
+                    
+                    logger.warning(
+                        "FREQUENCY VIOLATION: max_transactions_per_account",
+                        rule_name=rule_name,
+                        from_account=from_account,
+                        current_count=current_count,
+                        limit=params.max_transactions_per_account,
+                        time_window=params.time_window.value,
+                    )
+            
+            # Check max_transactions_to_account
+            if not matched and params.max_transactions_to_account is not None:
+                to_account = transaction_data.get("to_account", "")
+                current_count = await get_to_account_count(
+                    redis=redis_client,
+                    to_account_id=to_account,
+                    time_window=params.time_window,
+                )
+                
+                if current_count > params.max_transactions_to_account:
+                    matched = True
+                    match_reason = (
+                        f"Transactions to account {current_count} exceeds limit "
+                        f"{params.max_transactions_to_account} in {params.time_window.value}"
+                    )
+                    risk_level = RiskLevel.MEDIUM
+                    
+                    logger.warning(
+                        "FREQUENCY VIOLATION: max_transactions_to_account",
+                        rule_name=rule_name,
+                        to_account=to_account,
+                        current_count=current_count,
+                        limit=params.max_transactions_to_account,
+                    )
+            
+            # Check max_velocity_amount (total amount in time window)
+            if not matched and params.max_velocity_amount is not None:
+                current_velocity = await get_velocity(
+                    redis=redis_client,
+                    account_id=from_account,
+                    time_window=params.time_window,
+                )
+                
+                if current_velocity > params.max_velocity_amount:
+                    matched = True
+                    match_reason = (
+                        f"Velocity ${current_velocity:.2f} exceeds limit "
+                        f"${params.max_velocity_amount:.2f} in {params.time_window.value}"
+                    )
+                    risk_level = RiskLevel.HIGH if is_critical else RiskLevel.MEDIUM
+                    
+                    logger.warning(
+                        "FREQUENCY VIOLATION: max_velocity_amount",
+                        rule_name=rule_name,
+                        from_account=from_account,
+                        current_velocity=current_velocity,
+                        limit=params.max_velocity_amount,
+                    )
+            
+            # Check max_devices_per_account
+            if not matched and params.max_devices_per_account is not None:
+                device_count = await get_unique_devices_count(
+                    redis=redis_client,
+                    account_id=from_account,
+                    time_window=params.time_window,
+                )
+                
+                if device_count > params.max_devices_per_account:
+                    matched = True
+                    match_reason = (
+                        f"Unique devices {device_count} exceeds limit "
+                        f"{params.max_devices_per_account} in {params.time_window.value}"
+                    )
+                    risk_level = RiskLevel.HIGH
+                    
+                    logger.warning(
+                        "FREQUENCY VIOLATION: max_devices_per_account",
+                        rule_name=rule_name,
+                        from_account=from_account,
+                        device_count=device_count,
+                        limit=params.max_devices_per_account,
+                    )
+            
+            # Check max_ips_per_account
+            if not matched and params.max_ips_per_account is not None:
+                ip_count = await get_unique_ips_count(
+                    redis=redis_client,
+                    account_id=from_account,
+                    time_window=params.time_window,
+                )
+                
+                if ip_count > params.max_ips_per_account:
+                    matched = True
+                    match_reason = (
+                        f"Unique IPs {ip_count} exceeds limit "
+                        f"{params.max_ips_per_account} in {params.time_window.value}"
+                    )
+                    risk_level = RiskLevel.HIGH
+                    
+                    logger.warning(
+                        "FREQUENCY VIOLATION: max_ips_per_account",
+                        rule_name=rule_name,
+                        from_account=from_account,
+                        ip_count=ip_count,
+                        limit=params.max_ips_per_account,
+                    )
+            
+            # Check max_transaction_types
+            if not matched and params.max_transaction_types is not None:
+                types_count = await get_unique_types_count(
+                    redis=redis_client,
+                    account_id=from_account,
+                    time_window=params.time_window,
+                )
+                
+                if types_count > params.max_transaction_types:
+                    matched = True
+                    match_reason = (
+                        f"Unique transaction types {types_count} exceeds limit "
+                        f"{params.max_transaction_types} in {params.time_window.value}"
+                    )
+                    risk_level = RiskLevel.MEDIUM
+                    
+                    logger.warning(
+                        "FREQUENCY VIOLATION: max_transaction_types",
+                        rule_name=rule_name,
+                        from_account=from_account,
+                        types_count=types_count,
+                        limit=params.max_transaction_types,
+                    )
+        
+        except Exception as e:
+            logger.error(
+                f"Error during frequency checks for rule {rule_name}: {e}",
+                event="frequency_check_error",
+                rule_name=rule_name,
+                error=str(e),
+            )
+            # Don't fail the rule evaluation if frequency checks fail
 
     confidence_score = 0.8 if matched else 0.0
 

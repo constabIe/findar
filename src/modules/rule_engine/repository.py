@@ -550,6 +550,16 @@ class RuleRepository:
             DatabaseError: If Redis operation fails
         """
         try:
+            # Safety check: don't cache disabled rules
+            if not rule.enabled:
+                logger.warning(
+                    "Attempted to cache disabled rule",
+                    rule_id=rule.id,
+                    rule_name=rule.name,
+                    event="cache_disabled_rule_blocked",
+                )
+                return False
+
             ttl = ttl or self.cache_ttl
             cache_key = f"{RULE_CACHE_KEY_PREFIX}{rule.id}"
 
@@ -574,8 +584,7 @@ class RuleRepository:
                 cache_key, ttl, json.dumps(rule_data, default=str)
             )
 
-            # Add to active rules list
-            # POSSIBLE BUG HERE
+            # Add to active rules list (only enabled rules)
             await self.async_redis.sadd(ACTIVE_RULES_KEY, str(rule.id))  # type: ignore
 
             # Add to type-specific set
@@ -762,16 +771,49 @@ class RuleRepository:
         try:
             start_time = time.time()
 
-            # Clear existing cache if forced
-            if force:
-                await self.clear_cache()
-
-            # Get all enabled rules
+            # Get all enabled rules from database
             active_rules, _ = await self.get_all_rules(
                 skip=0, limit=10000, enabled_only=True
             )
+            enabled_rule_ids = {str(rule.id) for rule in active_rules}
 
-            # Add to cache
+            if force:
+                # Full cache clear and reload
+                await self.clear_cache()
+            else:
+                # Remove disabled rules from cache (incremental sync)
+                try:
+                    cached_rule_ids = await self.async_redis.smembers(ACTIVE_RULES_KEY)  # type: ignore
+                    if cached_rule_ids:
+                        # Find rules that are cached but no longer enabled in DB
+                        disabled_rule_ids = cached_rule_ids - enabled_rule_ids
+                        
+                        if disabled_rule_ids:
+                            logger.info(
+                                "Removing disabled rules from cache",
+                                count=len(disabled_rule_ids),
+                                event="cache_cleanup_disabled",
+                            )
+                            
+                            for rule_id_str in disabled_rule_ids:
+                                try:
+                                    rule_id = UUID(rule_id_str)
+                                    await self.remove_from_cache(rule_id)
+                                except Exception as e:
+                                    logger.warning(
+                                        "Failed to remove disabled rule from cache",
+                                        rule_id=rule_id_str,
+                                        error=str(e),
+                                    )
+                except Exception as e:
+                    logger.warning(
+                        "Failed to cleanup disabled rules during refresh",
+                        error=str(e),
+                        event="cache_cleanup_failed",
+                    )
+                    # Continue with refresh even if cleanup fails
+
+            # Add/update enabled rules in cache
             cache_count = 0
             for rule in active_rules:
                 try:
