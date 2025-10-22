@@ -13,6 +13,12 @@ from uuid import UUID
 from loguru import logger
 from redis.asyncio import Redis
 
+from src.modules.reporting.metrics import (
+    increment_rule_evaluated_counter,
+    increment_rule_matched_counter,
+    observe_rule_execution_time,
+)
+
 from .enums import (
     RiskLevel,
     RuleMatchStatus,
@@ -232,6 +238,7 @@ async def evaluate_transaction(
                 rule_id=str(rule_id),
                 rule_type=rule_type.value,
                 critical=is_critical,
+                correlation_id=correlation_id,
             )
 
             # Evaluate based on rule type
@@ -259,27 +266,42 @@ async def evaluate_transaction(
             rule_end = datetime.utcnow()
             result.execution_time_ms = (rule_end - rule_start).total_seconds() * 1000
 
+            # Record Prometheus metrics
+            increment_rule_evaluated_counter(rule_type=rule_type.value)
+            observe_rule_execution_time(
+                rule_type=rule_type.value,
+                duration_seconds=result.execution_time_ms / 1000.0,
+            )
+
             # If rule matched, add to results
             if result.matched:
                 matched_rules.append(result)
+
+                # Record matched rule metric
+                increment_rule_matched_counter(
+                    rule_type=rule_type.value, rule_id=str(rule_id)
+                )
 
                 logger.info(
                     f"Rule MATCHED: {rule_name}",
                     event="rule_matched",
                     rule_id=str(rule_id),
                     rule_name=rule_name,
+                    rule_type=rule_type.value,
                     risk_level=result.risk_level.value,
                     critical=is_critical,
                     reason=result.match_reason,
+                    correlation_id=correlation_id,
                 )
 
                 # If critical rule matched, stop evaluation immediately
                 if is_critical:
                     logger.warning(
-                        f"CRITICAL rule matched: {rule_name} - stopping evaluation",
-                        event="critical_rule_matched",
-                        rule_id=str(rule_id),
-                    )
+                    f"CRITICAL rule matched: {rule_name} - stopping evaluation",
+                    event="critical_rule_matched",
+                    rule_id=str(rule_id),
+                    correlation_id=correlation_id,
+                )
                     break
 
         except Exception as e:
@@ -288,6 +310,7 @@ async def evaluate_transaction(
                 event="rule_evaluation_error",
                 error=str(e),
                 rule_id=rule_dict.get("id"),
+                correlation_id=correlation_id,
             )
             # Continue with other rules
             continue
@@ -303,6 +326,7 @@ async def evaluate_transaction(
         f"Transaction evaluation completed: {transaction_id}",
         event="evaluation_complete",
         transaction_id=str(transaction_id),
+        correlation_id=correlation_id,
         total_rules_evaluated=total_rules,
         matched_rules_count=len(matched_rules),
         final_status=final_status.value,
