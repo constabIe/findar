@@ -75,8 +75,8 @@ async def run_async_migrations() -> None:
     # url = settings.default.database.POSTGRES_ASYNC_URL
     # config.set_main_option("sqlalchemy.url", settings.database_uri)
     configuration = config.get_section(config.config_ini_section, {})
-    
-    configuration["sqlalchemy.url"] = settings.database.POSTGRES_ASYNC_URL # type: ignore
+
+    configuration["sqlalchemy.url"] = settings.database.POSTGRES_ASYNC_URL  # type: ignore
     print("Async Migration URL>>", configuration["sqlalchemy.url"])
 
     connectable = async_engine_from_config(

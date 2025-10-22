@@ -8,9 +8,8 @@ that reads from .env file in the project root.
 from pathlib import Path
 from typing import Optional
 
-from pydantic import Field, PostgresDsn, field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
 
 # Find project root (where .env is located)
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -32,7 +31,7 @@ class DatabaseSettings(BaseSettings):
         """Build PostgreSQL async URL if not provided."""
         if v:
             return v
-        
+
         # Access other fields from info.data
         data = info.data
         user = data.get("POSTGRES_USER", "")
@@ -40,7 +39,7 @@ class DatabaseSettings(BaseSettings):
         host = data.get("POSTGRES_HOST", "")
         port = data.get("POSTGRES_PORT", -1)
         db = data.get("POSTGRES_DB", "")
-        
+
         return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db}"
 
     model_config = SettingsConfigDict(

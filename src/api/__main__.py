@@ -5,14 +5,15 @@ Usage:
     uv run -m src.api
 """
 
-import uvicorn
 import os
+
 import dotenv
+import uvicorn
 
 
 def main():
     dotenv.load_dotenv()
-    
+
     """Run the API server with uvicorn."""
     uvicorn.run(
         "src.api.app:app",
