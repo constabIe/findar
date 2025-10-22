@@ -44,15 +44,15 @@ def get_redis_url() -> str:
 
         # Validate required Redis configuration
         try:
-            host = settings.default.redis.REDIS_HOST
-            port = settings.default.redis.REDIS_PORT
-            db = settings.default.redis.REDIS_DB
-            password = getattr(settings.default.redis, "REDIS_PASSWORD", "")
+            host = settings.redis.REDIS_HOST
+            port = settings.redis.REDIS_PORT
+            db = settings.redis.REDIS_DB
+            password = settings.redis.REDIS_PASSWORD
         except AttributeError as e:
             raise ConfigurationError(
                 "Missing required Redis configuration",
                 config_key=str(e),
-                details={"missing_config": "Redis settings in .secrets.toml"},
+                details={"missing_config": "Redis settings in .env"},
             )
 
         # Validate configuration values

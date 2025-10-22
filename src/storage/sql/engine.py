@@ -34,18 +34,22 @@ def get_database_url() -> str:
     try:
         from src.config import settings
 
+        # Use pre-built async URL or build from components
+        if settings.database.POSTGRES_ASYNC_URL:
+            return settings.database.POSTGRES_ASYNC_URL
+
         # Validate required database configuration
         try:
-            host = settings.default.database.POSTGRES_HOST
-            port = settings.default.database.POSTGRES_PORT
-            database = settings.default.database.POSTGRES_DB
-            user = settings.default.database.POSTGRES_USER
-            password = settings.default.database.POSTGRES_PASSWORD
+            host = settings.database.POSTGRES_HOST
+            port = settings.database.POSTGRES_PORT
+            database = settings.database.POSTGRES_DB
+            user = settings.database.POSTGRES_USER
+            password = settings.database.POSTGRES_PASSWORD
         except AttributeError as e:
             raise ConfigurationError(
                 "Missing required database configuration",
                 config_key=str(e),
-                details={"missing_config": "database settings in .secrets.toml"},
+                details={"missing_config": "database settings in .env"},
             )
 
         # Build async database URL from settings
@@ -77,13 +81,9 @@ def get_async_engine():
         try:
             _async_engine = create_async_engine(
                 database_url,
-                echo=getattr(settings.default, "database", {}).get("echo", False),
-                pool_size=getattr(settings.default, "database", {}).get(
-                    "pool_size", 10
-                ),
-                max_overflow=getattr(settings.default, "database", {}).get(
-                    "max_overflow", 20
-                ),
+                echo=False,  # Set to True for SQL debugging
+                pool_size=10,
+                max_overflow=20,
                 pool_pre_ping=True,
                 pool_recycle=3600,  # Recycle connections every hour
             )

@@ -281,8 +281,8 @@ def get_logger(name: str) -> LoggerAdapter:
             from src.config import settings
 
             configure_logging(
-                log_level=settings.get("default.logging.level", "INFO"),
-                json_format=settings.get("default.logging.json_format", True),
+                log_level=settings.logging.level,
+                json_format=settings.logging.json_format,
             )
         except (ImportError, AttributeError):
             # Fallback to default configuration if settings unavailable
@@ -570,11 +570,11 @@ def init_logging() -> None:
         from src.config import settings
 
         configure_logging(
-            log_level=settings.get("logging.level", "INFO"),
-            json_format=settings.get("logging.json_format", True),
-            enable_console=settings.get("logging.enable_console", True),
-            enable_file=settings.get("logging.enable_file", False),
-            file_path=settings.get("logging.file_path", "logs/findar.log"),
+            log_level=settings.logging.level,
+            json_format=settings.logging.json_format,
+            enable_console=settings.logging.enable_console,
+            enable_file=settings.logging.enable_file,
+            file_path=settings.logging.file_path,
         )
     except ImportError:
         # Fallback configuration if settings not available
