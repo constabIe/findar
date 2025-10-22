@@ -1,5 +1,5 @@
-import _ from './request'
-import type { DataProvider } from 'admiral'
+import _ from "./request"
+import type { DataProvider } from "admiral"
 
 /*
  *
@@ -16,57 +16,57 @@ import type { DataProvider } from 'admiral'
  */
 
 export default (apiUrl: string): DataProvider => ({
-    getList: (resource, params) => {
-        const { page, perPage } = params.pagination || { page: 1, perPage: 10 }
+  getList: (resource, params) => {
+    const { page, perPage } = params.pagination || { page: 1, perPage: 10 }
 
-        const query = {
-            page,
-            perPage,
-            sort: params.sort,
-            filter: params.filter,
-        }
+    const query = {
+      page,
+      perPage,
+      sort: params.sort,
+      filter: params.filter
+    }
 
-        const url = `${apiUrl}/${resource}`
-        return _.get(url)({ params: query })
-    },
+    const url = `${apiUrl}/${resource}`
+    return _.get(url)({ params: query })
+  },
 
-    getOne: (resource, params) => {
-        const url = `${apiUrl}/${resource}/${params.id}`
-        return _.get(url)({ params })
-    },
+  getOne: (resource, params) => {
+    const url = `${apiUrl}/${resource}/${params.id}`
+    return _.get(url)({ params })
+  },
 
-    getCreateFormData: (resource) => {
-        const url = `${apiUrl}/${resource}/create`
-        return _.get(url)({})
-    },
+  getCreateFormData: (resource) => {
+    const url = `${apiUrl}/${resource}/create`
+    return _.get(url)({})
+  },
 
-    getFiltersFormData: (resource) => {
-        const url = `${apiUrl}/${resource}/filters`
-        return _.get(url)({})
-    },
+  getFiltersFormData: (resource) => {
+    const url = `${apiUrl}/${resource}/filters`
+    return _.get(url)({})
+  },
 
-    create: (resource, params) => {
-        const url = `${apiUrl}/${resource}`
-        return _.post(url)({ data: params.data })
-    },
+  create: (resource, params) => {
+    const url = `${apiUrl}/${resource}`
+    return _.post(url)({ data: params.data })
+  },
 
-    getUpdateFormData: (resource, params) => {
-        const url = `${apiUrl}/${resource}/${params.id}/update`
-        return _.get(url)({ params })
-    },
+  getUpdateFormData: (resource, params) => {
+    const url = `${apiUrl}/${resource}/${params.id}/update`
+    return _.get(url)({ params })
+  },
 
-    update: (resource, params) => {
-        const url = `${apiUrl}/${resource}/${params.id}`
-        return _.post(url)({ data: params.data })
-    },
+  update: (resource, params) => {
+    const url = `${apiUrl}/${resource}/${params.id}`
+    return _.post(url)({ data: params.data })
+  },
 
-    deleteOne: (resource, params) => {
-        const url = `${apiUrl}/${resource}/${params.id}`
-        return _.delete(url)()
-    },
+  deleteOne: (resource, params) => {
+    const url = `${apiUrl}/${resource}/${params.id}`
+    return _.delete(url)()
+  },
 
-    reorderList: (resource, params) => {
-        const url = `${apiUrl}/${resource}/reorder`
-        return _.postFD(url)({ data: params.data })
-    },
+  reorderList: (resource, params) => {
+    const url = `${apiUrl}/${resource}/reorder`
+    return _.postFD(url)({ data: params.data })
+  }
 })

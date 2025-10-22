@@ -1,1 +1,1 @@
-export * as jwtManager from './jwt-manager';
+export * as jwtManager from "./jwt-manager"

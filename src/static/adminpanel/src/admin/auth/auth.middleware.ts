@@ -1,15 +1,15 @@
-import { Request, Response, NextFunction } from 'express';
-import { jwtManager } from '../../features';
-import authHttpContext from './auth.http.context';
+import { Request, Response, NextFunction } from "express"
+import { jwtManager } from "../../features"
+import authHttpContext from "./auth.http.context"
 
 const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
-    const [_, token] = (req.headers.authorization ?? '').split(' ');
+  const [_, token] = (req.headers.authorization ?? "").split(" ")
 
-    const context = jwtManager.validate(token);
+  const context = jwtManager.validate(token)
 
-    authHttpContext.bind(req, context);
+  authHttpContext.bind(req, context)
 
-    next();
-};
+  next()
+}
 
-export default authMiddleware;
+export default authMiddleware
