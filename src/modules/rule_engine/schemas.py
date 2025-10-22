@@ -90,9 +90,11 @@ class ThresholdRuleParams(BaseModel):
     )
 
     @field_validator("allowed_hours_end")
-    def validate_time_range(cls, v, values):
+    @classmethod
+    def validate_time_range(cls, v, info):
         """Validate that end hour is after start hour."""
-        start = values.get("allowed_hours_start")
+        # In Pydantic v2, use info.data to access other field values
+        start = info.data.get("allowed_hours_start")
         if start is not None and v is not None and v <= start:
             raise ValueError(
                 "allowed_hours_end must be greater than allowed_hours_start"
@@ -215,10 +217,10 @@ class CompositeRuleParams(BaseModel):
     )
 
     @field_validator("expression")
-    def validate_expression(cls, v, values):
+    def validate_expression(cls, v, info):
         """Validate boolean expression contains only referenced rule IDs."""
         if v is not None:
-            rule_ids = values.get("rule_ids", [])
+            rule_ids = info.data.get("rule_ids", [])
             # Basic validation - could be enhanced with actual parsing
             for rule_id in rule_ids:
                 if f"rule{rule_id}" not in v:
@@ -392,14 +394,18 @@ class RuleCreateRequest(BaseModel):
     enabled: bool = Field(True, description="Whether rule is enabled")
     priority: int = Field(0, description="Rule priority")
     critical: bool = Field(False, description="Whether rule is critical")
-    description: Optional[str] = Field(None, max_length=1000, description="Rule description")
+    description: Optional[str] = Field(
+        None, max_length=1000, description="Rule description"
+    )
 
-    @field_validator('params', mode='after')
+    @field_validator("params", mode="after")
     def validate_params_match_type(cls, params, info):
         """Validate that params match the rule type."""
-        rule_type = info.data.get('type')
+        rule_type = info.data.get("type")
 
-        if rule_type == RuleType.THRESHOLD and not isinstance(params, ThresholdRuleParams):
+        if rule_type == RuleType.THRESHOLD and not isinstance(
+            params, ThresholdRuleParams
+        ):
             raise ValueError("Threshold rules must use ThresholdRuleParams")
         elif rule_type == RuleType.PATTERN and not isinstance(
             params, PatternRuleParams
@@ -427,7 +433,9 @@ class RuleUpdateRequest(BaseModel):
     enabled: Optional[bool] = Field(None, description="Whether rule is enabled")
     priority: Optional[int] = Field(None, description="Rule priority")
     critical: Optional[bool] = Field(None, description="Whether rule is critical")
-    description: Optional[str] = Field(None, max_length=1000, description="Rule description")
+    description: Optional[str] = Field(
+        None, max_length=1000, description="Rule description"
+    )
 
 
 class RuleResponse(BaseModel):
@@ -450,6 +458,7 @@ class RuleResponse(BaseModel):
     # Timestamps
     created_at: datetime = Field(description="Creation timestamp")
     updated_at: datetime = Field(description="Last update timestamp")
+
     # last_executed_at: Optional[datetime] = Field(
     #     None, description="Last execution timestamp"
     # )
@@ -479,13 +488,17 @@ class CacheStatusResponse(BaseModel):
     hit_count: int = Field(description="Number of cache hits")
     cache_version: str = Field(description="Cached version")
 
+
 class CacheStatisticsResponse(BaseModel):
     """Schema for overall cache statistics."""
 
     active_rules_count: int = Field(description="Number of active rules in cache")
-    rule_types_count: int = Field(description="Number of different rule type sets in cache")
+    rule_types_count: int = Field(
+        description="Number of different rule type sets in cache"
+    )
     priority_index_size: int = Field(description="Size of priority index")
     timestamp: str = Field(description="Timestamp when statistics were retrieved")
+
 
 class HotReloadRequest(BaseModel):
     """Schema for hot reload requests."""

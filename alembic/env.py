@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 from src.config import settings
+from src.modules.queue.models import *
+from src.storage.models import *
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -73,7 +75,9 @@ async def run_async_migrations() -> None:
     # url = settings.default.database.POSTGRES_ASYNC_URL
     # config.set_main_option("sqlalchemy.url", settings.database_uri)
     configuration = config.get_section(config.config_ini_section, {})
-    configuration["sqlalchemy.url"] = settings.default.database.POSTGRES_ASYNC_URL
+
+    configuration["sqlalchemy.url"] = settings.database.POSTGRES_ASYNC_URL  # type: ignore
+    print("Async Migration URL>>", configuration["sqlalchemy.url"])
 
     connectable = async_engine_from_config(
         configuration,

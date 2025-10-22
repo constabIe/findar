@@ -18,8 +18,7 @@ from loguru import logger as loguru_logger
 correlation_id_var: ContextVar[Optional[str]] = ContextVar(
     "correlation_id", default=None
 )
-request_id_var: ContextVar[Optional[str]] = ContextVar(
-    "request_id", default=None)
+request_id_var: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
 user_id_var: ContextVar[Optional[str]] = ContextVar("user_id", default=None)
 
 # Global configuration flag
@@ -29,7 +28,7 @@ _logging_configured = False
 def configure_logging(
     log_level: str = "INFO",
     json_format: bool = True,
-    enable_console: bool = False,
+    enable_console: bool = True,
     enable_file: bool = True,
     file_path: str = "logs/findar.log",
     file_rotation: str = "100 MB",
@@ -65,6 +64,7 @@ def configure_logging(
             ts_str = ts.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         else:
             import datetime
+
             ts_str = datetime.datetime.utcnow().isoformat() + "Z"
 
         log_entry = {
@@ -93,9 +93,15 @@ def configure_logging(
         # Add exception info if present
         if record.get("exception"):
             log_entry["exception"] = {
-                "type": record["exception"].type.__name__ if record["exception"].type else None,
-                "value": str(record["exception"].value) if record["exception"].value else None,
-                "traceback": record["exception"].traceback if record["exception"].traceback else None
+                "type": record["exception"].type.__name__
+                if record["exception"].type
+                else None,
+                "value": str(record["exception"].value)
+                if record["exception"].value
+                else None,
+                "traceback": record["exception"].traceback
+                if record["exception"].traceback
+                else None,
             }
 
         return json.dumps(log_entry, ensure_ascii=False, default=str)
@@ -109,15 +115,20 @@ def configure_logging(
         message = record["message"]
 
         # Add correlation ID if available
-        correlation = f" [{correlation_id_var.get()}]" if correlation_id_var.get(
-        ) else ""
+        correlation = (
+            f" [{correlation_id_var.get()}]" if correlation_id_var.get() else ""
+        )
 
         # Add extra fields
         extra_str = ""
         if record.get("extra"):
             extra_items = []
             for key, value in record["extra"].items():
-                if key not in ["correlation_id", "request_id", "user_id"]:  # Skip context vars
+                if key not in [
+                    "correlation_id",
+                    "request_id",
+                    "user_id",
+                ]:  # Skip context vars
                     extra_items.append(f"{key}={value}")
             if extra_items:
                 extra_str = f" | {', '.join(extra_items)}"
@@ -270,8 +281,8 @@ def get_logger(name: str) -> LoggerAdapter:
             from src.config import settings
 
             configure_logging(
-                log_level=settings.get("default.logging.level", "INFO"),
-                json_format=settings.get("default.logging.json_format", True),
+                log_level=settings.logging.level,
+                json_format=settings.logging.json_format,
             )
         except (ImportError, AttributeError):
             # Fallback to default configuration if settings unavailable
@@ -340,8 +351,7 @@ def log_performance(
     def decorator(func):
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
-            logger = get_logger(
-                logger_name or f"{func.__module__}.{func.__name__}")
+            logger = get_logger(logger_name or f"{func.__module__}.{func.__name__}")
             start_time = time.time()
 
             # Log function start
@@ -391,8 +401,7 @@ def log_performance(
 
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
-            logger = get_logger(
-                logger_name or f"{func.__module__}.{func.__name__}")
+            logger = get_logger(logger_name or f"{func.__module__}.{func.__name__}")
             start_time = time.time()
 
             # Log function start
@@ -561,11 +570,11 @@ def init_logging() -> None:
         from src.config import settings
 
         configure_logging(
-            log_level=settings.get("logging.level", "INFO"),
-            json_format=settings.get("logging.json_format", True),
-            enable_console=settings.get("logging.enable_console", False),
-            enable_file=settings.get("logging.enable_file", False),
-            file_path=settings.get("logging.file_path", "logs/findar.log"),
+            log_level=settings.logging.level,
+            json_format=settings.logging.json_format,
+            enable_console=settings.logging.enable_console,
+            enable_file=settings.logging.enable_file,
+            file_path=settings.logging.file_path,
         )
     except ImportError:
         # Fallback configuration if settings not available

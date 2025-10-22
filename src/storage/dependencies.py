@@ -33,6 +33,7 @@ def get_db_session():
 
 DbSessionDep = Annotated[AsyncSession, Depends(get_db_session)]
 
+
 def get_async_redis_client():
     """
     FastAPI dependency for async Redis client.
@@ -43,6 +44,7 @@ def get_async_redis_client():
 
 
 AsyncRedisDep = Annotated[redis.Redis, get_async_redis_client()]
+
 
 def get_sync_redis_client():
     """

@@ -431,9 +431,58 @@ def get_exception_by_code(error_code: str) -> type[AppBaseException]:
         "SERVICE_UNAVAILABLE": ServiceUnavailableError,
         "CONFIGURATION_ERROR": ConfigurationError,
         "INSUFFICIENT_DATA": InsufficientDataError,
+        "DUPLICATE_TASK": DuplicateTaskError,
+        "TASK_NOT_FOUND": TaskNotFoundError,
     }
 
     if error_code not in exception_map:
         raise ValueError(f"Unknown error code: {error_code}")
 
     return exception_map[error_code]
+
+
+class DuplicateTaskError(AppBaseException):
+    """
+    Exception raised when attempting to create a duplicate queue task.
+    
+    This ensures idempotency - tasks with the same correlation_id
+    cannot be created multiple times.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        correlation_id: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(
+            message=message,
+            error_code="DUPLICATE_TASK",
+            correlation_id=correlation_id,
+            details=details,
+        )
+
+
+class TaskNotFoundError(AppBaseException):
+    """
+    Exception raised when a queue task is not found.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        task_id: Optional[str] = None,
+        correlation_id: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ):
+        details = details or {}
+        if task_id:
+            details["task_id"] = task_id
+
+        super().__init__(
+            message=message,
+            error_code="TASK_NOT_FOUND",
+            correlation_id=correlation_id,
+            details=details,
+        )
+
