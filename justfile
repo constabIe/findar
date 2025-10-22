@@ -10,24 +10,25 @@ env:
   cp docker/.env.example .env
   
 # Apply migrations
-migrate: env
+migrate:
   uv run alembic upgrade head
 
 # Start application
-run: env 
+run HOST PORT: 
   uv sync
-  uv run -m src.api
+  just migrate
+  uv run -m src.api --host {{HOST}} --port {{PORT}}
 
 # docker compose build 
-build *args: env
+build *args:
   docker compose build {{args}}
 
 # docker compose up
-up *args: env
+up *args:
   docker compose up {{args}} -d
 
 # docker compose restart
-restart *args: env
+restart *args:
   docker compose restart {{args}}
 
 # docker compose down
