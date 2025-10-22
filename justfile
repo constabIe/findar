@@ -6,18 +6,17 @@ default:
 
 # Initialize environment variables
 env: 
-  cp .example.secrets.toml .secrets.toml
   cp docker/.env.example .env
   
-# Apply migrations
-migrate:
-  uv run alembic upgrade head
+# # Apply migrations
+# migrate:
+#   uv run alembic upgrade head
 
-# Start application
-run HOST PORT: 
-  uv sync
-  just migrate
-  uv run -m src.api --host {{HOST}} --port {{PORT}}
+# # Start application
+# run HOST PORT: 
+#   uv sync
+#   just migrate
+#   uv run -m src.api --host {{HOST}} --port {{PORT}}
 
 # docker compose build 
 build *args:
