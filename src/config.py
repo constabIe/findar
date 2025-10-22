@@ -35,12 +35,11 @@ class DatabaseSettings(BaseSettings):
         
         # Access other fields from info.data
         data = info.data
-        user = data.get("POSTGRES_USER", "postgres")
-        password = data.get("POSTGRES_PASSWORD", "postgres")
-        host = data.get("POSTGRES_HOST", "db")
-        host = "postgres"
-        port = data.get("POSTGRES_PORT", 5432)
-        db = data.get("POSTGRES_DB", "findar")
+        user = data.get("POSTGRES_USER", "")
+        password = data.get("POSTGRES_PASSWORD", "")
+        host = data.get("POSTGRES_HOST", "")
+        port = data.get("POSTGRES_PORT", -1)
+        db = data.get("POSTGRES_DB", "")
         
         return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db}"
 
@@ -55,7 +54,7 @@ class DatabaseSettings(BaseSettings):
 class RedisSettings(BaseSettings):
     """Redis configuration settings."""
 
-    REDIS_HOST: str = Field(default="localhost")
+    REDIS_HOST: str = Field(default="redis")
     REDIS_PORT: int = Field(default=6379)
     REDIS_DB: int = Field(default=0)
     REDIS_PASSWORD: str = Field(default="")

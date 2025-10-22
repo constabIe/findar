@@ -21,8 +21,8 @@ COPY . .
 RUN uv sync
 
 # Run Alembic migrations (optional; do this only if you want DB ready at container start)
-RUN uv run alembic upgrade head
+# RUN uv run alembic upgrade head
 
 # Default command to run your app
 # Adjust this to your actual entrypoint (e.g., FastAPI, Flask, etc.)
-CMD ["uv", "run", "-m", "src.api", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["sh", "-c", "uv run alembic upgrade head && uv run -m src.api --host 0.0.0.0 --port 8001"]
