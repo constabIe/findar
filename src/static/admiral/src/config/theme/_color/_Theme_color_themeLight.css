@@ -172,7 +172,6 @@
     var(--color-base-base) h(+1) l(+8%) a(75%)
   ); /* Цвет акцентного текста */
 
-<<<<<<< HEAD
     /* Disable */
     --color-control-bg-disable: color-mod(
         var(--color-base-phantom) a(35%)
@@ -184,18 +183,5 @@
     --color-control-typo-disable: color-mod(
         var(--color-base-base) a(100%)
     ); /* Цвет основного текста неактивного контрола */
-=======
-  /* Disable */
-  --color-control-bg-disable: color-mod(
-    var(--color-base-phantom) a(7%)
-  ); /* Цвет фона неактивного контрола */
-  --color-control-bg-border-disable: color-mod(
-    var(--color-base-phantom) a(0%)
-  ); /* Цвет фона бордеров неактивного контрола */
-
-  --color-control-typo-disable: color-mod(
-    var(--color-base-base) a(26%)
-  ); /* Цвет основного текста неактивного контрола */
->>>>>>> origin/user_modula
 }
 /* stylelint-enable */
