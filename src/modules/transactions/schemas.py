@@ -78,15 +78,17 @@ class TransactionResponse(BaseModel):
     type: str = Field(..., description="Type of transaction")
     status: str = Field(..., description="Transaction processing status")
     correlation_id: str = Field(..., description="Correlation ID for request tracking")
-    
+
     # Additional fields
     currency: str = Field(..., description="Transaction currency")
-    description: Optional[str] = Field(default=None, description="Transaction description")
+    description: Optional[str] = Field(
+        default=None, description="Transaction description"
+    )
     merchant_id: Optional[str] = Field(default=None, description="Merchant identifier")
     location: Optional[str] = Field(default=None, description="Transaction location")
     device_id: Optional[str] = Field(default=None, description="Device identifier")
     ip_address: Optional[str] = Field(default=None, description="IP address of origin")
-    
+
     # Timestamps
     timestamp: datetime = Field(..., description="Transaction timestamp")
     created_at: datetime = Field(..., description="Record creation timestamp")
@@ -94,6 +96,7 @@ class TransactionResponse(BaseModel):
 
     class Config:
         """Pydantic configuration."""
+
         from_attributes = True  # Enable ORM mode for SQLModel compatibility
 
 

@@ -124,9 +124,9 @@ async def create_transaction(
 async def get_all_transactions(
     session: AsyncSessionDep,
     limit: Optional[int] = Query(
-        None, 
-        ge=1, 
-        description="Maximum number of transactions to return (default: all)"
+        None,
+        ge=1,
+        description="Maximum number of transactions to return (default: all)",
     ),
 ) -> TransactionListResponse:
     """

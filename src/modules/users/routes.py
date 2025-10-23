@@ -16,7 +16,13 @@ from src.core.logging import get_logger
 from src.modules.users.dependencies import get_user_repository
 
 from .dependencies import CurrentUser
-from .schemas import TokenResponse, UserCreate, UserLogin, UserResponse, UserTelegramUpdate
+from .schemas import (
+    TokenResponse,
+    UserCreate,
+    UserLogin,
+    UserResponse,
+    UserTelegramUpdate,
+)
 from .utils import create_access_token, hash_password, verify_password
 
 # Initialize logger
@@ -226,7 +232,7 @@ async def update_current_user_telegram(
 
         return UserResponse.model_validate(updated_user)
 
-    except IntegrityError as e:
+    except IntegrityError:
         logger.warning(
             f"Telegram alias update failed - duplicate alias: {telegram_update.telegram_alias}"
         )
