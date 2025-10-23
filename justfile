@@ -4,19 +4,18 @@
 default:
   @just --list
 
+# Confirm auto lint action
+confirm-lint:
+  git add .
+  git commit -m "chore: linting"
+
+# Delete files ignored by git
+clean:
+  git clean -Xdf
+
 # Initialize environment variables
 env:
-  cp docker/.env.example .env
-
-# # Apply migrations
-# migrate:
-#   uv run alembic upgrade head
-
-# # Start application
-# run HOST PORT:
-#   uv sync
-#   just migrate
-#   uv run -m src.api --host {{HOST}} --port {{PORT}}
+  cp .env.example .env
 
 # docker compose build
 build *args:
@@ -41,12 +40,3 @@ kill *args:
 # docker ps
 ps:
   docker ps
-
-# Confirm auto lint action
-confirm-lint:
-  git add .
-  git commit -m "chore: linting"
-
-# Delete files ignored by git
-clean:
-  git clean -Xdf

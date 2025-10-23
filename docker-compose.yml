@@ -1,23 +1,35 @@
 services:
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "${CADVISOR_PORT}:${CADVISOR_PORT}"
+    networks:
+      - monitoring
+    restart: unless-stopped
+    
   app:
     build: .
     container_name: app
-    ports:
-      - "${API_PORT}:${API_PORT}"
     environment:
       - HOST=${HOST}
-      - API_PORT=${API_PORT}
-    volumes:
-      - .:/app
-    working_dir: /app
+      - APP_PORT=${APP_PORT}
+    ports:
+      - "${APP_PORT}:${APP_PORT}"
+    networks:
+      - postgres
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_started
-    networks:
-      - postgres
-    restart: unless-stopped
 
   postgres:
     container_name: db
@@ -51,21 +63,6 @@ services:
           cpus: "1"
           memory: 10G
 
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    container_name: cadvisor
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:rw
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-    ports:
-      - "${CADVISOR_PORT}:${CADVISOR_PORT}"
-    networks:
-      - monitoring
-    restart: unless-stopped
-
   pgadmin:
     image: dpage/pgadmin4:9.9
     container_name: pgadmin
@@ -85,6 +82,9 @@ services:
     networks:
       - postgres
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy 
 
   redis:
     image: redis/redis-stack:7.4.0-v7
@@ -93,7 +93,7 @@ services:
       - ./docker/redis.conf:/usr/local/etc/redis/redis.conf
       - redis_data:/data
     command: >
-      redis-server /usr/local/etc/redis/redis.conf
+      redis-server /usr/local/etc/redis/redis.conf --requirepass ${REDIS_PASSWORD}
     ports:
       - "${REDIS_PORT}:${REDIS_PORT}"
     healthcheck:
@@ -150,9 +150,9 @@ services:
       - monitoring
     restart: unless-stopped
     depends_on:
-      - cadvisor
       - node-exporter
       - alertmanager
+      - postgres
 
   grafana:
     image: grafana/grafana:12.2.0
@@ -171,6 +171,10 @@ services:
       - monitoring
       - postgres
     restart: unless-stopped
+    depends_on:
+      - prometheus
+      - loki
+      - postgres
 
   loki:
     image: grafana/loki:latest
@@ -182,6 +186,8 @@ services:
     ports:
       - "${LOKI_PORT}:${LOKI_PORT}"
     restart: unless-stopped
+    depends_on:
+      - postgres
 
   promtail:
     image: grafana/promtail:latest
