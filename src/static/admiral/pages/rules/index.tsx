@@ -486,7 +486,57 @@ const Rules: React.FC = () => {
                                         <th style={{ padding: '12px 8px', textAlign: 'center' }}>Apply rule</th>
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>ID</th>
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>Name</th>
-                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Params</th>
+                                        
+                                        {/* THRESHOLD specific columns */}
+                                        {selectedType === 'THRESHOLD' && (
+                                            <>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Amount</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Min Amount</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Operator</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Time Window</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Allowed Hours Start</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Allowed Hours End</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Allowed Locations</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Devices/Account</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max IPs/Account</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Velocity Amount</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Transaction Types</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Transactions/Account</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Transactions to Account</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Transactions/IP</th>
+                                            </>
+                                        )}
+                                        
+                                        {/* PATTERN specific columns */}
+                                        {selectedType === 'PATTERN' && (
+                                            <>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Period*</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Count</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Amount Ceiling</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Same Recipient</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Unique Recipients</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Same Device</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Velocity Limit</th>
+                                            </>
+                                        )}
+                                        
+                                        {/* COMPOSITE specific columns */}
+                                        {selectedType === 'COMPOSITE' && (
+                                            <>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Operator</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Rules</th>
+                                            </>
+                                        )}
+                                        
+                                        {/* ML specific columns */}
+                                        {selectedType === 'ML' && (
+                                            <>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Model Version</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Threshold</th>
+                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Endpoint URL</th>
+                                            </>
+                                        )}
+                                        
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>Enabled</th>
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>Priority</th>
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>Critical</th>
@@ -550,18 +600,110 @@ const Rules: React.FC = () => {
                                         {rule.id.substring(0, 8)}...
                                     </td>
                                     <td style={{ padding: '12px 8px', fontWeight: 'bold' }}>{rule.name}</td>
-                                    <td style={{ padding: '12px 8px', fontSize: '11px', maxWidth: '150px' }}>
-                                        <pre
-                                            style={{
-                                                margin: 0,
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap',
-                                            }}
-                                        >
-                                            {JSON.stringify(rule.params)}
-                                        </pre>
-                                    </td>
+                                    
+                                    {/* THRESHOLD specific columns */}
+                                    {selectedType === 'THRESHOLD' && (
+                                        <>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.max_amount || '-'}</td>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.min_amount || '-'}</td>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.operator || '-'}</td>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.time_window || '-'}</td>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.allowed_hours_start || '-'}</td>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.allowed_hours_end || '-'}</td>
+                                            <td style={{ padding: '12px 8px', maxWidth: '150px' }}>
+                                                {rule.params.allowed_locations ? 
+                                                    (Array.isArray(rule.params.allowed_locations) ? 
+                                                        rule.params.allowed_locations.join(', ') : 
+                                                        rule.params.allowed_locations) : 
+                                                    '-'}
+                                            </td>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.max_devices_per_account || '-'}</td>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.max_ips_per_account || '-'}</td>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.max_velocity_amount || '-'}</td>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.max_transaction_types || '-'}</td>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.max_transactions_per_account || '-'}</td>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.max_transactions_to_account || '-'}</td>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.max_transactions_per_ip || '-'}</td>
+                                        </>
+                                    )}
+                                    
+                                    {/* PATTERN specific columns */}
+                                    {selectedType === 'PATTERN' && (
+                                        <>
+                                            <td style={{ padding: '12px 8px', fontWeight: 'bold' }}>{rule.params.period || '-'}</td>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.count || '-'}</td>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.amount_ceiling || '-'}</td>
+                                            <td style={{ padding: '12px 8px' }}>
+                                                <span
+                                                    style={{
+                                                        padding: '4px 8px',
+                                                        borderRadius: '4px',
+                                                        fontSize: '12px',
+                                                        backgroundColor: rule.params.same_recipient ? '#d4edda' : '#f8d7da',
+                                                        color: rule.params.same_recipient ? '#155724' : '#721c24',
+                                                    }}
+                                                >
+                                                    {rule.params.same_recipient ? 'Yes' : 'No'}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.unique_recipients || '-'}</td>
+                                            <td style={{ padding: '12px 8px' }}>
+                                                <span
+                                                    style={{
+                                                        padding: '4px 8px',
+                                                        borderRadius: '4px',
+                                                        fontSize: '12px',
+                                                        backgroundColor: rule.params.same_device ? '#d4edda' : '#f8d7da',
+                                                        color: rule.params.same_device ? '#155724' : '#721c24',
+                                                    }}
+                                                >
+                                                    {rule.params.same_device ? 'Yes' : 'No'}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.velocity_limit || '-'}</td>
+                                        </>
+                                    )}
+                                    
+                                    {/* COMPOSITE specific columns */}
+                                    {selectedType === 'COMPOSITE' && (
+                                        <>
+                                            <td style={{ padding: '12px 8px' }}>
+                                                <span
+                                                    style={{
+                                                        padding: '4px 8px',
+                                                        borderRadius: '4px',
+                                                        fontSize: '12px',
+                                                        fontWeight: 'bold',
+                                                        backgroundColor: rule.params.operator === 'AND' ? '#e3f2fd' : 
+                                                                        rule.params.operator === 'OR' ? '#fff3e0' : '#ffebee',
+                                                        color: rule.params.operator === 'AND' ? '#1565c0' : 
+                                                               rule.params.operator === 'OR' ? '#ef6c00' : '#c62828',
+                                                    }}
+                                                >
+                                                    {rule.params.operator || '-'}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '12px 8px', maxWidth: '200px' }}>
+                                                {rule.params.rules ? 
+                                                    (Array.isArray(rule.params.rules) ? 
+                                                        rule.params.rules.join(', ') : 
+                                                        rule.params.rules) : 
+                                                    '-'}
+                                            </td>
+                                        </>
+                                    )}
+                                    
+                                    {/* ML specific columns */}
+                                    {selectedType === 'ML' && (
+                                        <>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.model_version || '-'}</td>
+                                            <td style={{ padding: '12px 8px' }}>{rule.params.threshold || '-'}</td>
+                                            <td style={{ padding: '12px 8px', maxWidth: '200px', fontSize: '11px' }}>
+                                                {rule.params.endpoint_url || '-'}
+                                            </td>
+                                        </>
+                                    )}
+                                    
                                     <td style={{ padding: '12px 8px' }}>
                                         <span
                                             style={{
@@ -754,36 +896,50 @@ const Rules: React.FC = () => {
 
                             {newRuleType === 'THRESHOLD' && (
                                 <>
-                                    <Form.Item label="Amount Limit">
+                                    <Form.Item label="Max Amount">
                                         <Input
                                             type="number"
-                                            value={newRuleParams.amount_limit || ''}
+                                            value={newRuleParams.max_amount || ''}
                                             onChange={(e: any) =>
                                                 setNewRuleParams({
                                                     ...newRuleParams,
-                                                    amount_limit: parseFloat(e.target.value),
+                                                    max_amount: parseFloat(e.target.value),
                                                 })
                                             }
-                                            placeholder="e.g., 5000"
+                                            placeholder="Maximum amount"
                                         />
                                     </Form.Item>
-                                    <Form.Item label="Currency">
+                                    <Form.Item label="Min Amount">
                                         <Input
-                                            value={newRuleParams.currency || ''}
+                                            type="number"
+                                            value={newRuleParams.min_amount || ''}
                                             onChange={(e: any) =>
                                                 setNewRuleParams({
                                                     ...newRuleParams,
-                                                    currency: e.target.value,
+                                                    min_amount: parseFloat(e.target.value),
                                                 })
                                             }
-                                            placeholder="e.g., USD"
+                                            placeholder="Minimum amount"
                                         />
                                     </Form.Item>
-                                </>
-                            )}
-
-                            {newRuleType === 'PATTERN' && (
-                                <>
+                                    <Form.Item label="Operator">
+                                        <Select
+                                            value={newRuleParams.operator || ''}
+                                            onChange={(value: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    operator: value,
+                                                })
+                                            }
+                                            style={{ width: '100%' }}
+                                        >
+                                            <Select.Option value="GT">Greater Than</Select.Option>
+                                            <Select.Option value="LT">Less Than</Select.Option>
+                                            <Select.Option value="EQ">Equal</Select.Option>
+                                            <Select.Option value="GTE">Greater Than or Equal</Select.Option>
+                                            <Select.Option value="LTE">Less Than or Equal</Select.Option>
+                                        </Select>
+                                    </Form.Item>
                                     <Form.Item label="Time Window (seconds)">
                                         <Input
                                             type="number"
@@ -794,20 +950,234 @@ const Rules: React.FC = () => {
                                                     time_window: parseInt(e.target.value),
                                                 })
                                             }
-                                            placeholder="e.g., 300"
+                                            placeholder="e.g., 3600"
                                         />
                                     </Form.Item>
-                                    <Form.Item label="Minimum Transactions">
+                                    <Form.Item label="Allowed Hours Start">
                                         <Input
                                             type="number"
-                                            value={newRuleParams.min_transactions || ''}
+                                            value={newRuleParams.allowed_hours_start || ''}
                                             onChange={(e: any) =>
                                                 setNewRuleParams({
                                                     ...newRuleParams,
-                                                    min_transactions: parseInt(e.target.value),
+                                                    allowed_hours_start: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 9 (9 AM)"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Allowed Hours End">
+                                        <Input
+                                            type="number"
+                                            value={newRuleParams.allowed_hours_end || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    allowed_hours_end: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 17 (5 PM)"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Allowed Locations (comma-separated)">
+                                        <Input
+                                            value={newRuleParams.allowed_locations?.join(', ') || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    allowed_locations: e.target.value.split(',').map((loc: string) => loc.trim()).filter(Boolean),
+                                                })
+                                            }
+                                            placeholder="e.g., US, UK, CA"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max Devices per Account">
+                                        <Input
+                                            type="number"
+                                            value={newRuleParams.max_devices_per_account || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    max_devices_per_account: parseInt(e.target.value),
                                                 })
                                             }
                                             placeholder="e.g., 5"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max IPs per Account">
+                                        <Input
+                                            type="number"
+                                            value={newRuleParams.max_ips_per_account || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    max_ips_per_account: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 3"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max Velocity Amount">
+                                        <Input
+                                            type="number"
+                                            value={newRuleParams.max_velocity_amount || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    max_velocity_amount: parseFloat(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Limit of sum transfer in period"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max Transaction Types">
+                                        <Input
+                                            type="number"
+                                            value={newRuleParams.max_transaction_types || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    max_transaction_types: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 5"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max Transactions per Account">
+                                        <Input
+                                            type="number"
+                                            value={newRuleParams.max_transactions_per_account || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    max_transactions_per_account: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 100"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max Transactions to Account">
+                                        <Input
+                                            type="number"
+                                            value={newRuleParams.max_transactions_to_account || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    max_transactions_to_account: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 50"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max Transactions per IP">
+                                        <Input
+                                            type="number"
+                                            value={newRuleParams.max_transactions_per_ip || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    max_transactions_per_ip: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 10"
+                                        />
+                                    </Form.Item>
+                                </>
+                            )}
+
+                            {newRuleType === 'PATTERN' && (
+                                <>
+                                    <Form.Item label="Period (required)" required>
+                                        <Input
+                                            type="number"
+                                            value={newRuleParams.period || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    period: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Duration of time window in seconds"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Count">
+                                        <Input
+                                            type="number"
+                                            value={newRuleParams.count || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    count: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Number of transactions in the period"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Amount Ceiling">
+                                        <Input
+                                            type="number"
+                                            value={newRuleParams.amount_ceiling || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    amount_ceiling: parseFloat(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Maximum sum of transactions in period"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <Switch 
+                                                checked={newRuleParams.same_recipient || false} 
+                                                onChange={(checked: boolean) =>
+                                                    setNewRuleParams({
+                                                        ...newRuleParams,
+                                                        same_recipient: checked,
+                                                    })
+                                                } 
+                                            />
+                                            <span>Same Recipient (all transactions to one recipient)</span>
+                                        </div>
+                                    </Form.Item>
+                                    <Form.Item label="Unique Recipients">
+                                        <Input
+                                            type="number"
+                                            value={newRuleParams.unique_recipients || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    unique_recipients: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Max number of unique recipients in period"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <Switch 
+                                                checked={newRuleParams.same_device || false} 
+                                                onChange={(checked: boolean) =>
+                                                    setNewRuleParams({
+                                                        ...newRuleParams,
+                                                        same_device: checked,
+                                                    })
+                                                } 
+                                            />
+                                            <span>Same Device (all transactions from one device)</span>
+                                        </div>
+                                    </Form.Item>
+                                    <Form.Item label="Velocity Limit">
+                                        <Input
+                                            type="number"
+                                            value={newRuleParams.velocity_limit || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    velocity_limit: parseFloat(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Max sum of transactions from one device in period"
                                         />
                                     </Form.Item>
                                 </>
@@ -841,23 +1211,23 @@ const Rules: React.FC = () => {
                                             placeholder="e.g., 0.75"
                                         />
                                     </Form.Item>
+                                    <Form.Item label="Endpoint URL">
+                                        <Input
+                                            value={newRuleParams.endpoint_url || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    endpoint_url: e.target.value,
+                                                })
+                                            }
+                                            placeholder="https://api.example.com/ml/predict"
+                                        />
+                                    </Form.Item>
                                 </>
                             )}
 
                             {newRuleType === 'COMPOSITE' && (
                                 <>
-                                    <Form.Item label="Rule IDs (comma-separated)">
-                                        <Input
-                                            value={newRuleParams.rule_ids?.join(', ') || ''}
-                                            onChange={(e: any) =>
-                                                setNewRuleParams({
-                                                    ...newRuleParams,
-                                                    rule_ids: e.target.value.split(',').map((id: string) => id.trim()),
-                                                })
-                                            }
-                                            placeholder="e.g., a1b2c3d4, b2c3d4e5"
-                                        />
-                                    </Form.Item>
                                     <Form.Item label="Operator">
                                         <Select
                                             value={newRuleParams.operator || 'AND'}
@@ -871,7 +1241,20 @@ const Rules: React.FC = () => {
                                         >
                                             <Select.Option value="AND">AND</Select.Option>
                                             <Select.Option value="OR">OR</Select.Option>
+                                            <Select.Option value="NOT">NOT</Select.Option>
                                         </Select>
+                                    </Form.Item>
+                                    <Form.Item label="Rules (comma-separated IDs or Names)">
+                                        <Input
+                                            value={newRuleParams.rules?.join(', ') || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    rules: e.target.value.split(',').map((id: string) => id.trim()).filter(Boolean),
+                                                })
+                                            }
+                                            placeholder="e.g., rule1, rule2, rule3"
+                                        />
                                     </Form.Item>
                                 </>
                             )}
