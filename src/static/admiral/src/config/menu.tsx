@@ -1,7 +1,33 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Menu, MenuItemLink } from '@devfamily/admiral'
+import '../../assets/menu.scss'
 
 const CustomMenu = () => {
+    const [isDark, setIsDark] = useState(false)
+
+    useEffect(() => {
+        // Check theme on mount and listen for changes
+        const checkTheme = () => {
+            const htmlElement = document.documentElement
+            const bodyElement = document.body
+            const isDarkTheme = 
+                htmlElement.getAttribute('data-theme') === 'dark' ||
+                bodyElement.classList.contains('dark') ||
+                htmlElement.classList.contains('dark') ||
+                bodyElement.getAttribute('data-theme') === 'dark'
+            setIsDark(isDarkTheme)
+        }
+
+        checkTheme()
+
+        // Observer for theme changes
+        const observer = new MutationObserver(checkTheme)
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] })
+        observer.observe(document.body, { attributes: true, attributeFilter: ['data-theme', 'class'] })
+
+        return () => observer.disconnect()
+    }, [])
+
     const handleLogout = () => {
         // Demo mode - redirect to login page
         window.location.href = '/login'
@@ -14,39 +40,12 @@ const CustomMenu = () => {
             <MenuItemLink name="Profile" to="/profile" icon="FiUser" />
             <MenuItemLink name="Graphics" to="/graphics" icon="FiBarChart2" />
             
-            <div style={{ 
-                marginTop: 'auto', 
-                padding: '16px', 
-                borderTop: '1px solid rgba(0, 0, 0, 0.1)' 
-            }}>
-                <button 
-                    onClick={handleLogout}
-                    style={{
-                        width: '100%',
-                        padding: '12px',
-                        backgroundColor: 'rgba(0, 0, 0, 0.05)',
-                        border: 'none',
-                        borderRadius: '8px',
-                        color: '#333',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        transition: 'background-color 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.1)'
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.05)'
-                    }}
-                >
-                    <span>🚪</span>
-                    Logout
-                </button>
+            <div style={{ marginTop: 'auto' }} onClick={handleLogout}>
+                <MenuItemLink 
+                    name="Logout" 
+                    to="/login" 
+                    icon="FiLogOut"
+                />
             </div>
         </Menu>
     )
