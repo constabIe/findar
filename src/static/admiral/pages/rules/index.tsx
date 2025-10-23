@@ -17,10 +17,12 @@ interface Rule {
     match_count: number
     last_executed_at: string
     average_execution_time_ms: number
+    apply: boolean
 }
 
 const Rules: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1)
+    const [ruleStates, setRuleStates] = useState<Record<string, boolean>>({})
 
     const itemsPerPage = 10
 
@@ -41,6 +43,7 @@ const Rules: React.FC = () => {
             match_count: 87,
             last_executed_at: '2025-10-23 12:45:00',
             average_execution_time_ms: 45.2,
+            apply: true,
         },
         {
             id: 'b2c3d4e5-f6a7-8901-bcde-f23456789012',
@@ -58,6 +61,7 @@ const Rules: React.FC = () => {
             match_count: 134,
             last_executed_at: '2025-10-23 13:10:00',
             average_execution_time_ms: 67.8,
+            apply: true,
         },
         {
             id: 'c3d4e5f6-a7b8-9012-cdef-345678901234',
@@ -75,6 +79,7 @@ const Rules: React.FC = () => {
             match_count: 23,
             last_executed_at: '2025-10-23 11:20:00',
             average_execution_time_ms: 89.3,
+            apply: false,
         },
         {
             id: 'd4e5f6a7-b8c9-0123-def4-567890123456',
@@ -92,6 +97,7 @@ const Rules: React.FC = () => {
             match_count: 201,
             last_executed_at: '2025-10-23 13:45:00',
             average_execution_time_ms: 156.7,
+            apply: true,
         },
         {
             id: 'e5f6a7b8-c9d0-1234-ef56-789012345678',
@@ -109,6 +115,7 @@ const Rules: React.FC = () => {
             match_count: 56,
             last_executed_at: '2025-10-23 03:15:00',
             average_execution_time_ms: 34.5,
+            apply: true,
         },
         {
             id: 'f6a7b8c9-d0e1-2345-f678-90123456789a',
@@ -126,6 +133,7 @@ const Rules: React.FC = () => {
             match_count: 12,
             last_executed_at: '2025-10-23 12:00:00',
             average_execution_time_ms: 123.4,
+            apply: false,
         },
         {
             id: 'a1a1a1a1-b2b2-3c3c-d4d4-e5e5e5e5e5e5',
@@ -143,6 +151,7 @@ const Rules: React.FC = () => {
             match_count: 18,
             last_executed_at: '2025-10-15 14:30:00',
             average_execution_time_ms: 41.2,
+            apply: false,
         },
         {
             id: 'b2b2b2b2-c3c3-4d4d-e5e5-f6f6f6f6f6f6',
@@ -160,6 +169,7 @@ const Rules: React.FC = () => {
             match_count: 34,
             last_executed_at: '2025-10-23 10:40:00',
             average_execution_time_ms: 52.8,
+            apply: true,
         },
         {
             id: 'c3c3c3c3-d4d4-5e5e-f6f6-a7a7a7a7a7a7',
@@ -177,6 +187,7 @@ const Rules: React.FC = () => {
             match_count: 67,
             last_executed_at: '2025-10-23 13:20:00',
             average_execution_time_ms: 58.9,
+            apply: true,
         },
         {
             id: 'd4d4d4d4-e5e5-6f6f-a7a7-b8b8b8b8b8b8',
@@ -194,6 +205,7 @@ const Rules: React.FC = () => {
             match_count: 145,
             last_executed_at: '2025-10-23 13:50:00',
             average_execution_time_ms: 78.6,
+            apply: true,
         },
         {
             id: 'e5e5e5e5-f6f6-7a7a-b8b8-c9c9c9c9c9c9',
@@ -211,6 +223,7 @@ const Rules: React.FC = () => {
             match_count: 92,
             last_executed_at: '2025-10-23 12:30:00',
             average_execution_time_ms: 64.3,
+            apply: false,
         },
         {
             id: 'f6f6f6f6-a7a7-8b8b-c9c9-d0d0d0d0d0d0',
@@ -228,8 +241,20 @@ const Rules: React.FC = () => {
             match_count: 28,
             last_executed_at: '2025-10-10 16:20:00',
             average_execution_time_ms: 95.1,
+            apply: true,
         },
     ]
+
+    const handleToggleRule = (ruleId: string, currentValue: boolean) => {
+        setRuleStates((prev) => ({
+            ...prev,
+            [ruleId]: !currentValue,
+        }))
+    }
+
+    const getRuleApplyState = (ruleId: string, defaultValue: boolean) => {
+        return ruleStates[ruleId] !== undefined ? ruleStates[ruleId] : defaultValue
+    }
 
     const totalPages = Math.ceil(allRules.length / itemsPerPage)
     const paginatedRules = useMemo(() => {
@@ -297,6 +322,7 @@ const Rules: React.FC = () => {
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
                             <tr style={{ borderBottom: '2px solid #ddd' }}>
+                                <th style={{ padding: '12px 8px', textAlign: 'center' }}>Apply rule</th>
                                 <th style={{ padding: '12px 8px', textAlign: 'left' }}>ID</th>
                                 <th style={{ padding: '12px 8px', textAlign: 'left' }}>Name</th>
                                 <th style={{ padding: '12px 8px', textAlign: 'left' }}>Type</th>
@@ -322,16 +348,50 @@ const Rules: React.FC = () => {
                                         borderBottom: '1px solid #eee',
                                         backgroundColor: !rule.enabled
                                             ? 'rgba(158, 158, 158, 0.1)'
-                                            : rule.critical
-                                            ? 'rgba(244, 67, 54, 0.1)'
                                             : 'transparent',
-                                        borderLeft: rule.critical
-                                            ? '4px solid #f44336'
-                                            : !rule.enabled
+                                        borderLeft: !rule.enabled
                                             ? '4px solid #9e9e9e'
                                             : 'none',
                                     }}
                                 >
+                                    <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                                        <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={getRuleApplyState(rule.id, rule.apply)}
+                                                onChange={() => handleToggleRule(rule.id, getRuleApplyState(rule.id, rule.apply))}
+                                                style={{
+                                                    width: '40px',
+                                                    height: '20px',
+                                                    appearance: 'none',
+                                                    backgroundColor: getRuleApplyState(rule.id, rule.apply) ? '#4caf50' : '#ccc',
+                                                    borderRadius: '10px',
+                                                    position: 'relative',
+                                                    cursor: 'pointer',
+                                                    transition: 'background-color 0.3s',
+                                                    outline: 'none',
+                                                }}
+                                            />
+                                            <style>
+                                                {`
+                                                    input[type="checkbox"]::before {
+                                                        content: '';
+                                                        position: absolute;
+                                                        width: 16px;
+                                                        height: 16px;
+                                                        border-radius: 50%;
+                                                        background-color: white;
+                                                        top: 2px;
+                                                        left: 2px;
+                                                        transition: transform 0.3s;
+                                                    }
+                                                    input[type="checkbox"]:checked::before {
+                                                        transform: translateX(20px);
+                                                    }
+                                                `}
+                                            </style>
+                                        </label>
+                                    </td>
                                     <td style={{ padding: '12px 8px', fontSize: '12px' }}>
                                         {rule.id.substring(0, 8)}...
                                     </td>
