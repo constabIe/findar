@@ -74,8 +74,6 @@ def get_async_engine():
     global _async_engine
 
     if _async_engine is None:
-        from src.config import settings
-
         database_url = get_database_url()
 
         try:

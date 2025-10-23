@@ -297,11 +297,11 @@ async def evaluate_transaction(
                 # If critical rule matched, stop evaluation immediately
                 if is_critical:
                     logger.warning(
-                    f"CRITICAL rule matched: {rule_name} - stopping evaluation",
-                    event="critical_rule_matched",
-                    rule_id=str(rule_id),
-                    correlation_id=correlation_id,
-                )
+                        f"CRITICAL rule matched: {rule_name} - stopping evaluation",
+                        event="critical_rule_matched",
+                        rule_id=str(rule_id),
+                        correlation_id=correlation_id,
+                    )
                     break
 
         except Exception as e:

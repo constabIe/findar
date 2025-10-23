@@ -15,6 +15,41 @@ from sqlmodel import JSON, Field, SQLModel, String
 from src.modules.rule_engine.enums import RuleType, TransactionStatus, TransactionType
 
 
+class User(SQLModel, table=True):
+    """
+    User model for admin panel authentication.
+
+    Represents users who can access the admin panel, create rules,
+    and manage the fraud detection system.
+    """
+
+    __tablename__ = "users"  # type: ignore
+
+    id: UUID = Field(
+        default_factory=uuid4, primary_key=True, description="User unique identifier"
+    )
+    email: str = Field(
+        sa_column=Column(String, unique=True, index=True),
+        description="User email (used for login)",
+    )
+    hashed_password: str = Field(description="Bcrypt hashed password")
+    telegram_alias: str = Field(
+        sa_column=Column(String, unique=True, index=True),
+        description="Telegram username/alias (without @)",
+    )
+    telegram_id: Optional[int] = Field(
+        default=None, description="Telegram user ID (filled when user starts bot)"
+    )
+
+    # Timestamps
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow, description="User registration timestamp"
+    )
+    updated_at: datetime = Field(
+        default_factory=datetime.utcnow, description="User data update timestamp"
+    )
+
+
 class Transaction(SQLModel, table=True):
     """
     Basic transaction model for rule engine evaluation.
@@ -95,7 +130,11 @@ class Rule(SQLModel, table=True):
     description: Optional[str] = Field(default=None, description="Rule description")
 
     # Metadata and tracking
-    created_by: Optional[str] = Field(default=None, description="Rule creator")
+    created_by_user_id: Optional[UUID] = Field(
+        default=None,
+        foreign_key="users.id",
+        description="ID of user who created this rule",
+    )
 
     # Timestamps
     created_at: datetime = Field(

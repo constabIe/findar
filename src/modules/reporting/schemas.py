@@ -6,7 +6,7 @@ and CSV export functionality.
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -39,10 +39,8 @@ class RuleReportRequest(BaseModel):
     date_to: Optional[datetime] = Field(
         None, description="End date for filtering rule executions"
     )
-    rule_type: Optional[RuleType] = Field(
-        None, description="Filter by rule type")
-    rule_id: Optional[str] = Field(
-        None, description="Filter by specific rule ID")
+    rule_type: Optional[RuleType] = Field(None, description="Filter by rule type")
+    rule_id: Optional[str] = Field(None, description="Filter by specific rule ID")
 
 
 class ExportCSVRequest(BaseModel):
@@ -56,8 +54,7 @@ class ExportCSVRequest(BaseModel):
     date_from: Optional[datetime] = Field(
         None, description="Start date for filtering data"
     )
-    date_to: Optional[datetime] = Field(
-        None, description="End date for filtering data")
+    date_to: Optional[datetime] = Field(None, description="End date for filtering data")
     status: Optional[TransactionStatus] = Field(
         None, description="Filter by status (for transactions)"
     )
@@ -112,11 +109,9 @@ class RuleTypeStatistics(BaseModel):
     """Statistics for a specific rule type."""
 
     rule_type: str = Field(..., description="Type of rule")
-    total_evaluations: int = Field(
-        0, description="Total number of evaluations")
+    total_evaluations: int = Field(0, description="Total number of evaluations")
     total_matches: int = Field(0, description="Total number of matches")
-    match_rate: float = Field(
-        0.0, description="Match rate (matches/evaluations)")
+    match_rate: float = Field(0.0, description="Match rate (matches/evaluations)")
     average_execution_time_ms: float = Field(
         0.0, description="Average execution time in milliseconds"
     )
@@ -139,14 +134,11 @@ class RulePerformance(BaseModel):
 class TransactionStatistics(BaseModel):
     """Aggregated statistics about transactions."""
 
-    total_transactions: int = Field(
-        0, description="Total number of transactions")
+    total_transactions: int = Field(0, description="Total number of transactions")
     by_status: Optional[StatusBreakdown] = Field(
         None, description="Breakdown by status"
     )
-    by_type: Optional[TypeBreakdown] = Field(
-        None, description="Breakdown by type"
-    )
+    by_type: Optional[TypeBreakdown] = Field(None, description="Breakdown by type")
     processing_metrics: Optional[ProcessingMetrics] = Field(
         None, description="Processing time metrics"
     )
@@ -154,14 +146,14 @@ class TransactionStatistics(BaseModel):
         None, description="Start date of the report period"
     )
     date_to: Optional[datetime] = Field(
-        None, description="End date of the report period")
+        None, description="End date of the report period"
+    )
 
 
 class RuleStatistics(BaseModel):
     """Aggregated statistics about rule evaluations."""
 
-    total_evaluations: int = Field(
-        0, description="Total number of rule evaluations")
+    total_evaluations: int = Field(0, description="Total number of rule evaluations")
     total_matches: int = Field(0, description="Total number of rule matches")
     overall_match_rate: float = Field(
         0.0, description="Overall match rate across all rules"
@@ -176,26 +168,27 @@ class RuleStatistics(BaseModel):
         None, description="Start date of the report period"
     )
     date_to: Optional[datetime] = Field(
-        None, description="End date of the report period")
+        None, description="End date of the report period"
+    )
 
 
 class TransactionReportResponse(BaseModel):
     """Complete response for transaction report request."""
 
     report_generated_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Timestamp when report was generated"
+        default_factory=datetime.utcnow,
+        description="Timestamp when report was generated",
     )
     request_id: str = Field(..., description="Request tracking ID")
-    statistics: TransactionStatistics = Field(
-        ..., description="Transaction statistics"
-    )
+    statistics: TransactionStatistics = Field(..., description="Transaction statistics")
 
 
 class RuleReportResponse(BaseModel):
     """Complete response for rule report request."""
 
     report_generated_at: datetime = Field(
-        default_factory=datetime.utcnow, description="Timestamp when report was generated"
+        default_factory=datetime.utcnow,
+        description="Timestamp when report was generated",
     )
     request_id: str = Field(..., description="Request tracking ID")
     statistics: RuleStatistics = Field(..., description="Rule statistics")

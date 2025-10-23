@@ -7,10 +7,7 @@ middleware, and exception handlers.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
-
-from src.storage.dependencies import get_db_session
 
 
 def create_app() -> FastAPI:
@@ -32,34 +29,15 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Health check endpoint
-    @app.get("/health", tags=["Health"])
-    async def health_check(get_db_session=get_db_session):
-        """Health check endpoint for monitoring and load balancers."""
-        return JSONResponse(
-            content={
-                "status": "ok",
-                "service": "findar",
-                "version": "0.1.0",
-            }
-        )
-
-    @app.get("/", tags=["Root"])
-    async def root():
-        """Root endpoint with API information."""
-        return JSONResponse(
-            content={
-                "service": "Findar - Fraud Detection Service",
-                "version": "0.1.0",
-                "docs": "/docs",
-                "health": "/health",
-            }
-        )
-
     # Register API routers
     from src.modules.rule_engine.routes import router as rule_engine_router
 
     app.include_router(rule_engine_router, prefix="/api/v1", tags=["Rule Engine"])
+
+    # Register users router
+    from src.modules.users.routes import router as users_router
+
+    app.include_router(users_router, prefix="/api/v1", tags=["Users"])
 
     # TODO: Register additional API routers as they are implemented
     # from src.api.routes import transactions, statistics

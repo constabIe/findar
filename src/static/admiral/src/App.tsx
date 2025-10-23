@@ -9,8 +9,8 @@ import themeDark from './config/theme/themeDark'
 import Login from '../pages/login'
 import SignUp from '../pages/signup'
 
-const apiUrl = import.meta.env.VITE_API_URL || '/api'
-const Routes = createRoutesFrom(import.meta.globEager('../pages/**/*'))
+const apiUrl = import.meta.env.VITE_API_URL || "/api"
+const Routes = createRoutesFrom(import.meta.globEager("../pages/**/*"))
 
 function App() {
     const [currentPath, setCurrentPath] = useState(window.location.pathname)

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React from 'react'
 import { Page, Card } from '@devfamily/admiral'
 
@@ -10,6 +11,20 @@ const Home: React.FC = () => {
             </Card>
         </Page>
     )
+=======
+import { Page, Card } from "@devfamily/admiral"
+import React from "react"
+
+const Home: React.FC = () => {
+  return (
+    <Page title="Main">
+      <Card>
+        <h2>Example Card</h2>
+        <p>This is an example card. You can use it to display information.</p>
+      </Card>
+    </Page>
+  )
+>>>>>>> origin/user_modula
 }
 
 export default Home

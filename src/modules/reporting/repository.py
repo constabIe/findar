@@ -79,7 +79,7 @@ class ReportingRepository:
             filters.append(Transaction.type == transaction_type)
 
         # Get total count
-        count_query = select(func.count(Transaction.id)) # type: ignore
+        count_query = select(func.count(Transaction.id))  # type: ignore
         if filters:
             count_query = count_query.where(and_(*filters))
 
@@ -88,8 +88,9 @@ class ReportingRepository:
 
         # Get counts by status
         status_query = select(
-            Transaction.status, func.count(Transaction.id).label("count") # type: ignore
-        ).group_by(Transaction.status) # type: ignore
+            Transaction.status,
+            func.count(Transaction.id).label("count"),  # type: ignore
+        ).group_by(Transaction.status)  # type: ignore
         if filters:
             status_query = status_query.where(and_(*filters))
 
@@ -98,8 +99,9 @@ class ReportingRepository:
 
         # Get counts by type
         type_query = select(
-            Transaction.type, func.count(Transaction.id).label("count") # type: ignore
-        ).group_by(Transaction.type) # type: ignore
+            Transaction.type,
+            func.count(Transaction.id).label("count"),  # type: ignore
+        ).group_by(Transaction.type)  # type: ignore
         if filters:
             type_query = type_query.where(and_(*filters))
 
@@ -161,14 +163,20 @@ class ReportingRepository:
             (func.avg(QueueTask.processing_time_ms) / 1000.0).label("avg_time"),  # type: ignore
             (func.min(QueueTask.processing_time_ms) / 1000.0).label("min_time"),  # type: ignore
             (func.max(QueueTask.processing_time_ms) / 1000.0).label("max_time"),  # type: ignore
-            (func.percentile_cont(0.5)
-            .within_group(QueueTask.processing_time_ms) / 1000.0)  # type: ignore
+            (
+                func.percentile_cont(0.5).within_group(QueueTask.processing_time_ms)
+                / 1000.0
+            )  # type: ignore
             .label("median_time"),
-            (func.percentile_cont(0.95)
-            .within_group(QueueTask.processing_time_ms) / 1000.0)  # type: ignore
+            (
+                func.percentile_cont(0.95).within_group(QueueTask.processing_time_ms)
+                / 1000.0
+            )  # type: ignore
             .label("p95_time"),
-            (func.percentile_cont(0.99)
-            .within_group(QueueTask.processing_time_ms) / 1000.0)  # type: ignore
+            (
+                func.percentile_cont(0.99).within_group(QueueTask.processing_time_ms)
+                / 1000.0
+            )  # type: ignore
             .label("p99_time"),
         ).where(and_(*filters))
 
@@ -246,8 +254,10 @@ class ReportingRepository:
 
         # Get total counts
         total_query = select(
-            func.count(RuleExecution.id).label("total"), # type: ignore
-            func.count(RuleExecution.id).filter(RuleExecution.matched == True).label("matched"), # type: ignore
+            func.count(RuleExecution.id).label("total"),  # type: ignore
+            func.count(RuleExecution.id)
+            .filter(RuleExecution.matched == True)
+            .label("matched"),  # type: ignore
         )
         if filters:
             total_query = total_query.where(and_(*filters))
@@ -307,7 +317,11 @@ class ReportingRepository:
             )
             .join(Rule, RuleExecution.rule_id == Rule.id)
             .group_by(Rule.id, Rule.name, Rule.type)
-            .order_by(func.count(RuleExecution.id).filter(RuleExecution.matched == True).desc())
+            .order_by(
+                func.count(RuleExecution.id)
+                .filter(RuleExecution.matched == True)
+                .desc()
+            )
             .limit(10)
         )
 

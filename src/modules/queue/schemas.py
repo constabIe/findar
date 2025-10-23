@@ -21,30 +21,25 @@ class TaskCreate(BaseModel):
         ...,
         description="Unique correlation ID for idempotency",
         min_length=1,
-        max_length=255
+        max_length=255,
     )
 
     transaction_id: Optional[UUID] = Field(
-        default=None,
-        description="Transaction ID to process"
+        default=None, description="Transaction ID to process"
     )
 
     priority: TaskPriority = Field(
-        default=TaskPriority.NORMAL,
-        description="Task priority level"
+        default=TaskPriority.NORMAL, description="Task priority level"
     )
 
     max_retries: int = Field(
-        default=3,
-        ge=0,
-        le=10,
-        description="Maximum retry attempts"
+        default=3, ge=0, le=10, description="Maximum retry attempts"
     )
 
     metadata: Dict[str, Any] = Field(
         default_factory=dict,
         description="Additional task metadata",
-        alias="task_metadata"
+        alias="task_metadata",
     )
 
 
@@ -120,56 +115,39 @@ class QueueMetrics(BaseModel):
     retry_tasks: int = Field(description="Tasks scheduled for retry")
 
     avg_processing_time_ms: Optional[float] = Field(
-        default=None,
-        description="Average processing time"
+        default=None, description="Average processing time"
     )
 
     avg_rule_engine_time_ms: Optional[float] = Field(
-        default=None,
-        description="Average rule engine time"
+        default=None, description="Average rule engine time"
     )
 
     p95_processing_time_ms: Optional[float] = Field(
-        default=None,
-        description="95th percentile processing time"
+        default=None, description="95th percentile processing time"
     )
 
     p99_processing_time_ms: Optional[float] = Field(
-        default=None,
-        description="99th percentile processing time"
+        default=None, description="99th percentile processing time"
     )
 
-    total_retries: int = Field(
-        default=0,
-        description="Total number of retry attempts"
-    )
+    total_retries: int = Field(default=0, description="Total number of retry attempts")
 
     error_rate: float = Field(
-        default=0.0,
-        ge=0.0,
-        le=1.0,
-        description="Error rate (failed / total)"
+        default=0.0, ge=0.0, le=1.0, description="Error rate (failed / total)"
     )
 
 
 class TaskSubmitRequest(BaseModel):
     """Request to submit a transaction for processing."""
 
-    transaction_id: UUID = Field(
-        ...,
-        description="Transaction ID to process"
-    )
+    transaction_id: UUID = Field(..., description="Transaction ID to process")
 
     correlation_id: str = Field(
-        ...,
-        description="Correlation ID for tracking",
-        min_length=1,
-        max_length=255
+        ..., description="Correlation ID for tracking", min_length=1, max_length=255
     )
 
     priority: TaskPriority = Field(
-        default=TaskPriority.NORMAL,
-        description="Processing priority"
+        default=TaskPriority.NORMAL, description="Processing priority"
     )
 
 
