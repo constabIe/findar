@@ -17,6 +17,7 @@ services:
         condition: service_started
     networks:
       - postgres
+      - monitoring  
     restart: unless-stopped
 
   postgres:
