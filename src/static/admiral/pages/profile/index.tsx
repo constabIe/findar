@@ -9,7 +9,7 @@ interface ProfileData {
 
 const Profile: React.FC = () => {
     const [formData, setFormData] = useState<ProfileData>({
-        email: 'user@example.com', // This should come from authentication
+        email: 'user@example.com',
         tgAccount: '@username',
         name: 'John Doe',
     })
@@ -23,9 +23,7 @@ const Profile: React.FC = () => {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        // Handle form submission here
         console.log('Profile updated:', formData)
-        // You can call your API here to update the profile
     }
 
     return (
@@ -33,7 +31,6 @@ const Profile: React.FC = () => {
             <Card>
                 <form onSubmit={handleSubmit}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        {/* Name Input */}
                         <TextInput
                             label="Name"
                             name="name"
@@ -44,7 +41,6 @@ const Profile: React.FC = () => {
                             }
                         />
 
-                        {/* Email Input (Disabled) */}
                         <TextInput
                             label="Email"
                             name="email"
@@ -53,7 +49,6 @@ const Profile: React.FC = () => {
                             disabled
                         />
 
-                        {/* Telegram Account Input */}
                         <TextInput
                             label="Telegram Account"
                             name="tgAccount"
@@ -64,7 +59,6 @@ const Profile: React.FC = () => {
                             }
                         />
 
-                        {/* Submit Button */}
                         <div style={{ marginTop: '16px' }}>
                             <Button type="submit">Save Changes</Button>
                         </div>
