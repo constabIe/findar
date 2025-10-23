@@ -56,50 +56,50 @@ def downgrade() -> None:
     )
     op.drop_constraint(None, "rules", type_="foreignkey")
     op.drop_column("rules", "created_by_user_id")
-    # op.create_table(
-        "celery_taskmeta",
-        sa.Column("id", sa.INTEGER(), autoincrement=False, nullable=False),
-        sa.Column(
-            "task_id", sa.VARCHAR(length=155), autoincrement=False, nullable=True
-        ),
-        sa.Column("status", sa.VARCHAR(length=50), autoincrement=False, nullable=True),
-        sa.Column("result", postgresql.BYTEA(), autoincrement=False, nullable=True),
-        sa.Column(
-            "date_done", postgresql.TIMESTAMP(), autoincrement=False, nullable=True
-        ),
-        sa.Column("traceback", sa.TEXT(), autoincrement=False, nullable=True),
-        sa.Column("name", sa.VARCHAR(length=155), autoincrement=False, nullable=True),
-        sa.Column("args", postgresql.BYTEA(), autoincrement=False, nullable=True),
-        sa.Column("kwargs", postgresql.BYTEA(), autoincrement=False, nullable=True),
-        sa.Column("worker", sa.VARCHAR(length=155), autoincrement=False, nullable=True),
-        sa.Column("retries", sa.INTEGER(), autoincrement=False, nullable=True),
-        sa.Column("queue", sa.VARCHAR(length=155), autoincrement=False, nullable=True),
-        sa.PrimaryKeyConstraint("id", name=op.f("celery_taskmeta_pkey")),
-        sa.UniqueConstraint(
-            "task_id",
-            name=op.f("celery_taskmeta_task_id_key"),
-            postgresql_include=[],
-            postgresql_nulls_not_distinct=False,
-        ),
-    )
-    # op.create_table(
-        "celery_tasksetmeta",
-        sa.Column("id", sa.INTEGER(), autoincrement=False, nullable=False),
-        sa.Column(
-            "taskset_id", sa.VARCHAR(length=155), autoincrement=False, nullable=True
-        ),
-        sa.Column("result", postgresql.BYTEA(), autoincrement=False, nullable=True),
-        sa.Column(
-            "date_done", postgresql.TIMESTAMP(), autoincrement=False, nullable=True
-        ),
-        sa.PrimaryKeyConstraint("id", name=op.f("celery_tasksetmeta_pkey")),
-        sa.UniqueConstraint(
-            "taskset_id",
-            name=op.f("celery_tasksetmeta_taskset_id_key"),
-            postgresql_include=[],
-            postgresql_nulls_not_distinct=False,
-        ),
-    )
+    # # op.create_table(
+    #     "celery_taskmeta",
+    #     sa.Column("id", sa.INTEGER(), autoincrement=False, nullable=False),
+    #     sa.Column(
+    #         "task_id", sa.VARCHAR(length=155), autoincrement=False, nullable=True
+    #     ),
+    #     sa.Column("status", sa.VARCHAR(length=50), autoincrement=False, nullable=True),
+    #     sa.Column("result", postgresql.BYTEA(), autoincrement=False, nullable=True),
+    #     sa.Column(
+    #         "date_done", postgresql.TIMESTAMP(), autoincrement=False, nullable=True
+    #     ),
+    #     sa.Column("traceback", sa.TEXT(), autoincrement=False, nullable=True),
+    #     sa.Column("name", sa.VARCHAR(length=155), autoincrement=False, nullable=True),
+    #     sa.Column("args", postgresql.BYTEA(), autoincrement=False, nullable=True),
+    #     sa.Column("kwargs", postgresql.BYTEA(), autoincrement=False, nullable=True),
+    #     sa.Column("worker", sa.VARCHAR(length=155), autoincrement=False, nullable=True),
+    #     sa.Column("retries", sa.INTEGER(), autoincrement=False, nullable=True),
+    #     sa.Column("queue", sa.VARCHAR(length=155), autoincrement=False, nullable=True),
+    #     sa.PrimaryKeyConstraint("id", name=op.f("celery_taskmeta_pkey")),
+    #     sa.UniqueConstraint(
+    #         "task_id",
+    #         name=op.f("celery_taskmeta_task_id_key"),
+    #         postgresql_include=[],
+    #         postgresql_nulls_not_distinct=False,
+    #     ),
+    # )
+    # # op.create_table(
+    #     "celery_tasksetmeta",
+    #     sa.Column("id", sa.INTEGER(), autoincrement=False, nullable=False),
+    #     sa.Column(
+    #         "taskset_id", sa.VARCHAR(length=155), autoincrement=False, nullable=True
+    #     ),
+    #     sa.Column("result", postgresql.BYTEA(), autoincrement=False, nullable=True),
+    #     sa.Column(
+    #         "date_done", postgresql.TIMESTAMP(), autoincrement=False, nullable=True
+    #     ),
+    #     sa.PrimaryKeyConstraint("id", name=op.f("celery_tasksetmeta_pkey")),
+    #     sa.UniqueConstraint(
+    #         "taskset_id",
+    #         name=op.f("celery_tasksetmeta_taskset_id_key"),
+    #         postgresql_include=[],
+    #         postgresql_nulls_not_distinct=False,
+    #     ),
+    # )
     op.drop_index(op.f("ix_users_telegram_alias"), table_name="users")
     op.drop_index(op.f("ix_users_email"), table_name="users")
     op.drop_table("users")
