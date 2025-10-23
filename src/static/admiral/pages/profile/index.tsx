@@ -29,6 +29,10 @@ const Profile: React.FC = () => {
         fetchProfile()
     }, [])
 
+    useEffect(() => {
+        console.log('Form data updated:', formData)
+    }, [formData])
+
     const fetchProfile = async () => {
         try {
             setLoading(true)
@@ -42,16 +46,22 @@ const Profile: React.FC = () => {
                 return
             }
 
+            console.log('Fetching profile from:', `${API_URL}/users/me`)
             const response = await axios.get<UserResponse>(`${API_URL}/users/me`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             })
 
-            setFormData({
-                email: response.data.email,
-                tgAccount: response.data.telegram_alias,
-            })
+            console.log('Profile data received:', response.data)
+            
+            const newFormData = {
+                email: response.data.email || '',
+                tgAccount: response.data.telegram_alias || '',
+            }
+            
+            console.log('Setting form data to:', newFormData)
+            setFormData(newFormData)
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Failed to load profile data.')
             console.error('Error fetching profile:', err)
@@ -72,6 +82,8 @@ const Profile: React.FC = () => {
         console.log('Profile updated:', formData)
     }
 
+    console.log('Rendering with formData:', formData)
+    
     return (
         <Page title="Profile">
             <Card>
@@ -82,23 +94,48 @@ const Profile: React.FC = () => {
                 ) : (
                     <form onSubmit={handleSubmit}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                            <TextInput
-                                label="Email"
-                                name="email"
-                                placeholder="Email address"
-                                value={formData.email}
-                                disabled
-                            />
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '8px', color: '#e5e7eb' }}>Email</label>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    placeholder="Email address"
+                                    value={formData.email}
+                                    onChange={(e) => handleInputChange('email', e.target.value)}
+                                    disabled
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 12px',
+                                        backgroundColor: '#374151',
+                                        border: '1px solid #4b5563',
+                                        borderRadius: '6px',
+                                        color: '#e5e7eb',
+                                        fontSize: '14px',
+                                        outline: 'none',
+                                    }}
+                                />
+                            </div>
 
-                            <TextInput
-                                label="Telegram Account"
-                                name="tgAccount"
-                                placeholder="@username"
-                                value={formData.tgAccount}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                    handleInputChange('tgAccount', e.target.value)
-                                }
-                            />
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '8px', color: '#e5e7eb' }}>Telegram Account</label>
+                                <input
+                                    type="text"
+                                    name="tgAccount"
+                                    placeholder="@username"
+                                    value={formData.tgAccount}
+                                    onChange={(e) => handleInputChange('tgAccount', e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 12px',
+                                        backgroundColor: '#374151',
+                                        border: '1px solid #4b5563',
+                                        borderRadius: '6px',
+                                        color: '#e5e7eb',
+                                        fontSize: '14px',
+                                        outline: 'none',
+                                    }}
+                                />
+                            </div>
 
                             <div style={{ marginTop: '16px' }}>
                                 <Button type="submit">Save Changes</Button>
