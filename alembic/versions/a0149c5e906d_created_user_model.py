@@ -10,7 +10,6 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 import sqlmodel
-from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
