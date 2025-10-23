@@ -13,7 +13,7 @@ services:
     networks:
       - monitoring
     restart: unless-stopped
-    
+
   app:
     build: .
     container_name: app
@@ -84,7 +84,7 @@ services:
     restart: unless-stopped
     depends_on:
       postgres:
-        condition: service_healthy 
+        condition: service_healthy
 
   redis:
     image: redis/redis-stack:7.4.0-v7
