@@ -5,6 +5,7 @@ Provides CRUD operations for user management including
 registration, authentication, and user data retrieval.
 """
 
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
@@ -132,5 +133,33 @@ class UserRepository:
             await self.db.commit()
             await self.db.refresh(user)
             logger.info(f"User {user.id} Telegram ID updated: {telegram_id}")
+
+        return user
+
+    async def update_user_telegram_alias(
+        self, user_id: UUID, telegram_alias: str
+    ) -> Optional[User]:
+        """
+        Update user's Telegram alias.
+
+        Args:
+            user_id: User's unique identifier
+            telegram_alias: New Telegram username (without @, lowercase)
+
+        Returns:
+            Updated User object if found, None otherwise
+
+        Raises:
+            IntegrityError: If telegram_alias already exists for another user
+        """
+        user = await self.get_user_by_id(user_id)
+
+        if user:
+            user.telegram_alias = telegram_alias.lower()
+            user.updated_at = datetime.utcnow()
+            self.db.add(user)
+            await self.db.commit()
+            await self.db.refresh(user)
+            logger.info(f"User {user.id} Telegram alias updated: @{telegram_alias}")
 
         return user

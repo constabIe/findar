@@ -6,12 +6,19 @@ including transaction creation, status checking, and batch operations.
 """
 
 from datetime import datetime
+from typing import Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 
 from src.core.logging import get_logger
 from src.modules.transactions.dependencies import AsyncSessionDep
-from src.modules.transactions.schemas import TransactionCreate, TransactionQueued
+from src.modules.transactions.repository import TransactionRepository
+from src.modules.transactions.schemas import (
+    TransactionCreate,
+    TransactionListResponse,
+    TransactionQueued,
+    TransactionResponse,
+)
 from src.modules.transactions.service import enqueue_transaction
 from src.storage.dependencies import AsyncRedisDep
 
@@ -104,4 +111,88 @@ async def create_transaction(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create transaction: {str(e)}",
+        )
+
+
+@router.get(
+    "/transactions",
+    response_model=TransactionListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get All Transactions",
+    description="Retrieve all transactions from database with optional limit",
+)
+async def get_all_transactions(
+    session: AsyncSessionDep,
+    limit: Optional[int] = Query(
+        None, 
+        ge=1, 
+        description="Maximum number of transactions to return (default: all)"
+    ),
+) -> TransactionListResponse:
+    """
+    Get all transactions from the database.
+
+    This endpoint:
+    1. Retrieves transactions from PostgreSQL
+    2. Supports optional limit parameter for pagination
+    3. Returns transactions ordered by timestamp (newest first)
+    4. Returns empty list if no transactions found (not an error)
+
+    Args:
+        session: Async database session dependency
+        limit: Optional maximum number of transactions to return.
+               If not specified, returns all transactions.
+
+    Returns:
+        TransactionListResponse: List of transactions with metadata
+
+    Raises:
+        HTTPException 500: If database query fails
+
+    Example:
+        GET /api/v1/transactions
+        GET /api/v1/transactions?limit=10
+    """
+    logger.info(
+        "Retrieving transactions",
+        event="get_transactions_request",
+        limit=limit,
+    )
+
+    try:
+        # Create repository instance
+        repo = TransactionRepository(session)
+
+        # Get transactions from database
+        transactions = await repo.get_all_transactions(limit=limit)
+
+        # Convert to response models
+        transaction_responses = [
+            TransactionResponse.model_validate(t) for t in transactions
+        ]
+
+        logger.info(
+            "Transactions retrieved successfully",
+            event="get_transactions_success",
+            count=len(transactions),
+            limit=limit,
+        )
+
+        return TransactionListResponse(
+            transactions=transaction_responses,
+            count=len(transaction_responses),
+            limit=limit,
+        )
+
+    except Exception as e:
+        logger.error(
+            "Failed to retrieve transactions",
+            event="get_transactions_error",
+            error=str(e),
+            limit=limit,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve transactions: {str(e)}",
         )
