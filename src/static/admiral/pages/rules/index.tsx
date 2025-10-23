@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Page, Card, Button } from '@devfamily/admiral'
+import { Page, Card, Button, Form, Input, Select, Switch } from '@devfamily/admiral'
 
 interface Rule {
     id: string
@@ -24,6 +24,15 @@ const Rules: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1)
     const [ruleStates, setRuleStates] = useState<Record<string, boolean>>({})
     const [selectedType, setSelectedType] = useState<string | null>('THRESHOLD')
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [newRuleType, setNewRuleType] = useState('THRESHOLD')
+    const [newRuleName, setNewRuleName] = useState('')
+    const [newRuleDescription, setNewRuleDescription] = useState('')
+    const [newRuleEnabled, setNewRuleEnabled] = useState(true)
+    const [newRulePriority, setNewRulePriority] = useState(5)
+    const [newRuleCritical, setNewRuleCritical] = useState(false)
+    const [newRuleCreatedBy, setNewRuleCreatedBy] = useState('admin')
+    const [newRuleParams, setNewRuleParams] = useState<Record<string, any>>({})
 
     const itemsPerPage = 10
 
@@ -273,6 +282,41 @@ const Rules: React.FC = () => {
         setCurrentPage(1)
     }
 
+    const handleOpenModal = () => {
+        setIsModalOpen(true)
+        setNewRuleType('THRESHOLD')
+        setNewRuleName('')
+        setNewRuleDescription('')
+        setNewRuleEnabled(true)
+        setNewRulePriority(5)
+        setNewRuleCritical(false)
+        setNewRuleCreatedBy('admin')
+        setNewRuleParams({})
+    }
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false)
+    }
+
+    const handleRuleTypeChange = (value: string) => {
+        setNewRuleType(value)
+        setNewRuleParams({})
+    }
+
+    const handleSaveRule = () => {
+        console.log('Saving rule:', {
+            name: newRuleName,
+            type: newRuleType,
+            description: newRuleDescription,
+            enabled: newRuleEnabled,
+            priority: newRulePriority,
+            critical: newRuleCritical,
+            created_by: newRuleCreatedBy,
+            params: newRuleParams,
+        })
+        handleCloseModal()
+    }
+
     const exportToCSV = () => {
         const headers = [
             'ID',
@@ -329,6 +373,21 @@ const Rules: React.FC = () => {
     return (
         <Page title="Rules">
             <Card>
+                <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button
+                        onClick={handleOpenModal}
+                        style={{
+                            backgroundColor: '#1565c0',
+                            color: '#ffffff',
+                            padding: '10px 20px',
+                            fontWeight: 'bold',
+                            border: 'none',
+                        }}
+                    >
+                        ADD RULE
+                    </Button>
+                </div>
+
                 <div style={{ marginBottom: '24px' }}>
                     <div
                         style={{
@@ -605,6 +664,242 @@ const Rules: React.FC = () => {
                     </>
                 )}
             </Card>
+
+            {isModalOpen && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                    }}
+                    onClick={handleCloseModal}
+                >
+                    <div
+                        style={{
+                            backgroundColor: '#ffffff',
+                            padding: '32px',
+                            borderRadius: '8px',
+                            maxWidth: '600px',
+                            width: '90%',
+                            maxHeight: '90vh',
+                            overflowY: 'auto',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 style={{ marginTop: 0, marginBottom: '24px' }}>Add New Rule</h2>
+
+                        <Form>
+                            <Form.Item label="Rule Name" required>
+                                <Input
+                                    value={newRuleName}
+                                    onChange={(e: any) => setNewRuleName(e.target.value)}
+                                    placeholder="Enter rule name"
+                                />
+                            </Form.Item>
+
+                            <Form.Item label="Rule Type" required>
+                                <Select
+                                    value={newRuleType}
+                                    onChange={handleRuleTypeChange}
+                                    style={{ width: '100%' }}
+                                >
+                                    <Select.Option value="THRESHOLD">Threshold</Select.Option>
+                                    <Select.Option value="PATTERN">Pattern</Select.Option>
+                                    <Select.Option value="ML">ML</Select.Option>
+                                    <Select.Option value="COMPOSITE">Composite</Select.Option>
+                                </Select>
+                            </Form.Item>
+
+                            <Form.Item label="Description">
+                                <Input
+                                    value={newRuleDescription}
+                                    onChange={(e: any) => setNewRuleDescription(e.target.value)}
+                                    placeholder="Enter rule description"
+                                />
+                            </Form.Item>
+
+                            {newRuleType === 'THRESHOLD' && (
+                                <>
+                                    <Form.Item label="Amount Limit">
+                                        <Input
+                                            type="number"
+                                            value={newRuleParams.amount_limit || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    amount_limit: parseFloat(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 5000"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Currency">
+                                        <Input
+                                            value={newRuleParams.currency || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    currency: e.target.value,
+                                                })
+                                            }
+                                            placeholder="e.g., USD"
+                                        />
+                                    </Form.Item>
+                                </>
+                            )}
+
+                            {newRuleType === 'PATTERN' && (
+                                <>
+                                    <Form.Item label="Time Window (seconds)">
+                                        <Input
+                                            type="number"
+                                            value={newRuleParams.time_window || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    time_window: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 300"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Minimum Transactions">
+                                        <Input
+                                            type="number"
+                                            value={newRuleParams.min_transactions || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    min_transactions: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 5"
+                                        />
+                                    </Form.Item>
+                                </>
+                            )}
+
+                            {newRuleType === 'ML' && (
+                                <>
+                                    <Form.Item label="Model Version">
+                                        <Input
+                                            value={newRuleParams.model_version || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    model_version: e.target.value,
+                                                })
+                                            }
+                                            placeholder="e.g., v2.1"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Threshold (0.0 - 1.0)">
+                                        <Input
+                                            type="number"
+                                            step="0.01"
+                                            value={newRuleParams.threshold || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    threshold: parseFloat(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 0.75"
+                                        />
+                                    </Form.Item>
+                                </>
+                            )}
+
+                            {newRuleType === 'COMPOSITE' && (
+                                <>
+                                    <Form.Item label="Rule IDs (comma-separated)">
+                                        <Input
+                                            value={newRuleParams.rule_ids?.join(', ') || ''}
+                                            onChange={(e: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    rule_ids: e.target.value.split(',').map((id: string) => id.trim()),
+                                                })
+                                            }
+                                            placeholder="e.g., a1b2c3d4, b2c3d4e5"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Operator">
+                                        <Select
+                                            value={newRuleParams.operator || 'AND'}
+                                            onChange={(value: any) =>
+                                                setNewRuleParams({
+                                                    ...newRuleParams,
+                                                    operator: value,
+                                                })
+                                            }
+                                            style={{ width: '100%' }}
+                                        >
+                                            <Select.Option value="AND">AND</Select.Option>
+                                            <Select.Option value="OR">OR</Select.Option>
+                                        </Select>
+                                    </Form.Item>
+                                </>
+                            )}
+
+                            <Form.Item label="Priority">
+                                <Input
+                                    type="number"
+                                    value={newRulePriority}
+                                    onChange={(e: any) => setNewRulePriority(parseInt(e.target.value))}
+                                    placeholder="e.g., 5"
+                                />
+                            </Form.Item>
+
+                            <Form.Item label="Created By">
+                                <Input
+                                    value={newRuleCreatedBy}
+                                    onChange={(e: any) => setNewRuleCreatedBy(e.target.value)}
+                                    placeholder="Enter creator name"
+                                />
+                            </Form.Item>
+
+                            <Form.Item>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Switch checked={newRuleEnabled} onChange={setNewRuleEnabled} />
+                                    <span>Enabled</span>
+                                </div>
+                            </Form.Item>
+
+                            <Form.Item>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Switch checked={newRuleCritical} onChange={setNewRuleCritical} />
+                                    <span>Critical</span>
+                                </div>
+                            </Form.Item>
+
+                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                                <Button onClick={handleCloseModal} style={{ padding: '8px 16px' }}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    onClick={handleSaveRule}
+                                    style={{
+                                        backgroundColor: '#1565c0',
+                                        color: '#ffffff',
+                                        padding: '8px 16px',
+                                        border: 'none',
+                                    }}
+                                >
+                                    Save Rule
+                                </Button>
+                            </div>
+                        </Form>
+                    </div>
+                </div>
+            )}
         </Page>
     )
 }
