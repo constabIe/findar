@@ -14,7 +14,7 @@ function App() {
     return (
         <Admin
             dataProvider={dataProvider(apiUrl)}
-            authProvider={authProvider(apiUrl)}
+            // authProvider={authProvider(apiUrl)}
             menu={menu}
             // themePresets={{ light: themeLight, dark: themeDark }}
         >
