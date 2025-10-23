@@ -18,7 +18,7 @@ from src.modules.rule_engine.enums import RuleType, TransactionStatus, Transacti
 from src.storage.dependencies import get_db_session
 
 from .schemas import RuleReportResponse, TransactionReportResponse
-from .service import ReportingService, get_reporting_service
+from .service import get_reporting_service
 
 logger = get_logger("reporting.routes")
 
@@ -112,7 +112,9 @@ async def get_rule_report(
         None, description="End date for filtering (ISO format)"
     ),
     rule_type: Optional[RuleType] = Query(None, description="Filter by rule type"),
-    rule_id: Optional[str] = Query(None, description="Filter by specific rule ID (UUID)"),
+    rule_id: Optional[str] = Query(
+        None, description="Filter by specific rule ID (UUID)"
+    ),
     session: AsyncSession = Depends(get_db_session),
 ) -> RuleReportResponse:
     """
@@ -237,7 +239,9 @@ async def export_to_csv(
             date_to=date_to,
             status=status,
         )
-        filename = f"transactions_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+        filename = (
+            f"transactions_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+        )
     else:  # entity_type == "rules"
         csv_content = await service.export_rule_executions_to_csv(
             request_id=request_id,
@@ -245,7 +249,9 @@ async def export_to_csv(
             date_to=date_to,
             rule_type=rule_type,
         )
-        filename = f"rule_executions_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+        filename = (
+            f"rule_executions_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+        )
 
     logger.info(
         "CSV export completed",

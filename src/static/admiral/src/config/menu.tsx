@@ -1,12 +1,12 @@
-import React from 'react'
-import { Menu, MenuItemLink } from '@devfamily/admiral'
+import React from "react"
+import { Menu, MenuItemLink } from "@devfamily/admiral"
 
 const CustomMenu = () => {
-    return (
-        <Menu>
-            <MenuItemLink name="Users" to="/users" icon="FiUser" />
-        </Menu>
-    )
+  return (
+    <Menu>
+      <MenuItemLink name="Users" to="/users" icon="FiUser" />
+    </Menu>
+  )
 }
 
 export default CustomMenu

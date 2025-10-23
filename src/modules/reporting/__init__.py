@@ -30,10 +30,10 @@ Usage:
         increment_transaction_counter,
         increment_rule_matched_counter,
     )
-    
+
     # Import service for generating reports
     from src.modules.reporting.service import ReportingService
-    
+
     # Import router for FastAPI registration
     from src.modules.reporting.routes import router
 """
