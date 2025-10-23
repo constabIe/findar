@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import '../assets/auth.scss'
+import axios from 'axios'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001/api/v1'
 
 const SignUp: React.FC = () => {
     const [name, setName] = useState('')
@@ -7,6 +10,8 @@ const SignUp: React.FC = () => {
     const [tgAlias, setTgAlias] = useState('')
     const [password, setPassword] = useState('')
     const [success, setSuccess] = useState(false)
+    const [error, setError] = useState('')
+    const [loading, setLoading] = useState(false)
     const [theme, setTheme] = useState<'light' | 'dark'>('light')
 
     useEffect(() => {
@@ -25,13 +30,27 @@ const SignUp: React.FC = () => {
         document.documentElement.setAttribute('data-theme', newTheme)
     }
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        // Demo mode - show success message and redirect to login
-        setSuccess(true)
-        setTimeout(() => {
-            window.location.href = '/login'
-        }, 1500)
+        setError('')
+        setLoading(true)
+
+        try {
+            await axios.post(`${API_URL}/users/register`, {
+                email,
+                password,
+                telegram_alias: tgAlias
+            })
+
+            // Show success message and redirect to login
+            setSuccess(true)
+            setTimeout(() => {
+                window.location.href = '/login'
+            }, 1500)
+        } catch (err: any) {
+            setError(err.response?.data?.detail || 'Registration failed. Please try again.')
+            setLoading(false)
+        }
     }
 
     return (
@@ -47,6 +66,7 @@ const SignUp: React.FC = () => {
                 <h1 className="auth-title">Sign Up</h1>
                 <form onSubmit={handleSubmit} className="auth-form">
                     {success && <div className="auth-success">Account created successfully! Redirecting to login...</div>}
+                    {error && <div className="auth-error" style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
                     
                     <div className="auth-input-group">
                         <label htmlFor="name" className="auth-label">
@@ -60,6 +80,7 @@ const SignUp: React.FC = () => {
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             required
+                            disabled={loading || success}
                         />
                     </div>
 
@@ -75,6 +96,7 @@ const SignUp: React.FC = () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
+                            disabled={loading || success}
                         />
                     </div>
 
@@ -90,6 +112,7 @@ const SignUp: React.FC = () => {
                             value={tgAlias}
                             onChange={(e) => setTgAlias(e.target.value)}
                             required
+                            disabled={loading || success}
                         />
                     </div>
 
@@ -105,11 +128,12 @@ const SignUp: React.FC = () => {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
+                            disabled={loading || success}
                         />
                     </div>
 
-                    <button type="submit" className="auth-button auth-button-primary" disabled={success}>
-                        Sign Up
+                    <button type="submit" className="auth-button auth-button-primary" disabled={loading || success}>
+                        {loading ? 'Signing Up...' : 'Sign Up'}
                     </button>
 
                     <div className="auth-footer">
