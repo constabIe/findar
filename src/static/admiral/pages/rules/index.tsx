@@ -373,14 +373,40 @@ const Rules: React.FC = () => {
     return (
         <Page title="Rules">
             <Card>
+                <style>
+                    {`
+                        .modal-content {
+                            background-color: var(--color-bg-default);
+                            color: var(--color-typo-primary);
+                        }
+                        
+                        .modal-content h2 {
+                            color: var(--color-typo-primary);
+                        }
+                        
+                        .nav-panel {
+                            background-color: var(--color-bg-secondary);
+                        }
+                        
+                        .nav-btn-active {
+                            background-color: var(--color-control-bg-primary) !important;
+                            color: var(--color-control-typo-primary) !important;
+                        }
+                        
+                        .nav-btn-inactive {
+                            background-color: var(--color-control-bg-ghost) !important;
+                            color: var(--color-control-typo-ghost) !important;
+                        }
+                    `}
+                </style>
                 <div style={{ marginBottom: '24px' }}>
                     <div
+                        className="nav-panel"
                         style={{
                             display: 'flex',
                             justifyContent: 'space-between',
                             gap: '12px',
                             padding: '16px',
-                            backgroundColor: '#2d3748',
                             borderRadius: '8px',
                             flexWrap: 'wrap',
                         }}
@@ -392,9 +418,8 @@ const Rules: React.FC = () => {
                         }}>
                         <Button
                             onClick={() => handleTypeSelect('THRESHOLD')}
+                            className={selectedType === 'THRESHOLD' ? 'nav-btn-active' : 'nav-btn-inactive'}
                             style={{
-                                backgroundColor: selectedType === 'THRESHOLD' ? '#1565c0' : '#4a5568',
-                                color: '#ffffff',
                                 border: 'none',
                                 padding: '10px 20px',
                                 fontWeight: selectedType === 'THRESHOLD' ? 'bold' : 'normal',
@@ -404,9 +429,8 @@ const Rules: React.FC = () => {
                         </Button>
                         <Button
                             onClick={() => handleTypeSelect('PATTERN')}
+                            className={selectedType === 'PATTERN' ? 'nav-btn-active' : 'nav-btn-inactive'}
                             style={{
-                                backgroundColor: selectedType === 'PATTERN' ? '#1565c0' : '#4a5568',
-                                color: '#ffffff',
                                 border: 'none',
                                 padding: '10px 20px',
                                 fontWeight: selectedType === 'PATTERN' ? 'bold' : 'normal',
@@ -416,9 +440,8 @@ const Rules: React.FC = () => {
                         </Button>
                         <Button
                             onClick={() => handleTypeSelect('ML')}
+                            className={selectedType === 'ML' ? 'nav-btn-active' : 'nav-btn-inactive'}
                             style={{
-                                backgroundColor: selectedType === 'ML' ? '#1565c0' : '#4a5568',
-                                color: '#ffffff',
                                 border: 'none',
                                 padding: '10px 20px',
                                 fontWeight: selectedType === 'ML' ? 'bold' : 'normal',
@@ -428,9 +451,8 @@ const Rules: React.FC = () => {
                         </Button>
                         <Button
                             onClick={() => handleTypeSelect('COMPOSITE')}
+                            className={selectedType === 'COMPOSITE' ? 'nav-btn-active' : 'nav-btn-inactive'}
                             style={{
-                                backgroundColor: selectedType === 'COMPOSITE' ? '#1565c0' : '#4a5568',
-                                color: '#ffffff',
                                 border: 'none',
                                 padding: '10px 20px',
                                 fontWeight: selectedType === 'COMPOSITE' ? 'bold' : 'normal',
@@ -443,7 +465,6 @@ const Rules: React.FC = () => {
                     <Button
                         onClick={handleOpenModal}
                         style={{
-                            backgroundColor: '#1565c0',
                             color: '#ffffff',
                             padding: '10px 20px',
                             fontWeight: 'bold',
@@ -688,8 +709,8 @@ const Rules: React.FC = () => {
                     onClick={handleCloseModal}
                 >
                     <div
+                        className="modal-content"
                         style={{
-                            backgroundColor: '#ffffff',
                             padding: '32px',
                             borderRadius: '8px',
                             maxWidth: '600px',
