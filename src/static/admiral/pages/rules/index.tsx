@@ -335,7 +335,7 @@ const Rules: React.FC = () => {
                             display: 'flex',
                             gap: '12px',
                             padding: '16px',
-                            backgroundColor: '#f5f5f5',
+                            backgroundColor: '#2d3748',
                             borderRadius: '8px',
                             flexWrap: 'wrap',
                         }}
@@ -343,9 +343,9 @@ const Rules: React.FC = () => {
                         <Button
                             onClick={() => handleTypeSelect('THRESHOLD')}
                             style={{
-                                backgroundColor: selectedType === 'THRESHOLD' ? '#1565c0' : '#ffffff',
-                                color: selectedType === 'THRESHOLD' ? '#ffffff' : '#333333',
-                                border: selectedType === 'THRESHOLD' ? 'none' : '1px solid #ddd',
+                                backgroundColor: selectedType === 'THRESHOLD' ? '#1565c0' : '#4a5568',
+                                color: '#ffffff',
+                                border: 'none',
                                 padding: '10px 20px',
                                 fontWeight: selectedType === 'THRESHOLD' ? 'bold' : 'normal',
                             }}
@@ -355,9 +355,9 @@ const Rules: React.FC = () => {
                         <Button
                             onClick={() => handleTypeSelect('PATTERN')}
                             style={{
-                                backgroundColor: selectedType === 'PATTERN' ? '#6a1b9a' : '#ffffff',
-                                color: selectedType === 'PATTERN' ? '#ffffff' : '#333333',
-                                border: selectedType === 'PATTERN' ? 'none' : '1px solid #ddd',
+                                backgroundColor: selectedType === 'PATTERN' ? '#1565c0' : '#4a5568',
+                                color: '#ffffff',
+                                border: 'none',
                                 padding: '10px 20px',
                                 fontWeight: selectedType === 'PATTERN' ? 'bold' : 'normal',
                             }}
@@ -367,9 +367,9 @@ const Rules: React.FC = () => {
                         <Button
                             onClick={() => handleTypeSelect('ML')}
                             style={{
-                                backgroundColor: selectedType === 'ML' ? '#2e7d32' : '#ffffff',
-                                color: selectedType === 'ML' ? '#ffffff' : '#333333',
-                                border: selectedType === 'ML' ? 'none' : '1px solid #ddd',
+                                backgroundColor: selectedType === 'ML' ? '#1565c0' : '#4a5568',
+                                color: '#ffffff',
+                                border: 'none',
                                 padding: '10px 20px',
                                 fontWeight: selectedType === 'ML' ? 'bold' : 'normal',
                             }}
@@ -379,9 +379,9 @@ const Rules: React.FC = () => {
                         <Button
                             onClick={() => handleTypeSelect('COMPOSITE')}
                             style={{
-                                backgroundColor: selectedType === 'COMPOSITE' ? '#e65100' : '#ffffff',
-                                color: selectedType === 'COMPOSITE' ? '#ffffff' : '#333333',
-                                border: selectedType === 'COMPOSITE' ? 'none' : '1px solid #ddd',
+                                backgroundColor: selectedType === 'COMPOSITE' ? '#1565c0' : '#4a5568',
+                                color: '#ffffff',
+                                border: 'none',
                                 padding: '10px 20px',
                                 fontWeight: selectedType === 'COMPOSITE' ? 'bold' : 'normal',
                             }}
@@ -420,12 +420,6 @@ const Rules: React.FC = () => {
                                     key={rule.id}
                                     style={{
                                         borderBottom: '1px solid #eee',
-                                        backgroundColor: !rule.enabled
-                                            ? 'rgba(158, 158, 158, 0.1)'
-                                            : 'transparent',
-                                        borderLeft: !rule.enabled
-                                            ? '4px solid #9e9e9e'
-                                            : 'none',
                                     }}
                                 >
                                     <td style={{ padding: '12px 8px', textAlign: 'center' }}>
