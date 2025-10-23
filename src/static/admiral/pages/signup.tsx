@@ -5,7 +5,6 @@ import axios from 'axios'
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001/api/v1'
 
 const SignUp: React.FC = () => {
-    const [name, setName] = useState('')
     const [email, setEmail] = useState('')
     const [tgAlias, setTgAlias] = useState('')
     const [password, setPassword] = useState('')
@@ -67,23 +66,6 @@ const SignUp: React.FC = () => {
                 <form onSubmit={handleSubmit} className="auth-form">
                     {success && <div className="auth-success">Account created successfully! Redirecting to login...</div>}
                     {error && <div className="auth-error" style={{ color: 'red', marginBottom: '1rem' }}>{error}</div>}
-                    
-                    <div className="auth-input-group">
-                        <label htmlFor="name" className="auth-label">
-                            Name
-                        </label>
-                        <input
-                            type="text"
-                            id="name"
-                            className="auth-input"
-                            placeholder="Enter your name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                            disabled={loading || success}
-                        />
-                    </div>
-
                     <div className="auth-input-group">
                         <label htmlFor="email" className="auth-label">
                             Email
