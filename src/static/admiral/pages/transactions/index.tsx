@@ -392,7 +392,7 @@ const Transactions: React.FC = () => {
                         <span style={{ marginRight: '12px' }}>
                             Total: {allTransactions.length} transactions
                         </span>
-                        <Button onClick={exportToCSV}>Export to CSV</Button>
+                        <Button style={{marginTop: '12px'}} onClick={exportToCSV}>Export to CSV</Button>
                     </div>
                 </div>
             </Card>
