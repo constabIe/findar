@@ -8,6 +8,7 @@ middleware, and exception handlers.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from prometheus_client import make_asgi_app
 
 from src.storage.dependencies import get_db_session
 
@@ -68,10 +69,14 @@ def create_app() -> FastAPI:
 
     app.include_router(routes.router, prefix="/api/v1", tags=["Transactions"])
 
-    # Register notifications router
-    from src.modules.notifications.routes import router as notifications_router
+    # Register reporting router
+    from src.modules.reporting.routes import router as reporting_router
 
-    app.include_router(notifications_router, prefix="/api/v1", tags=["Notifications"])
+    app.include_router(reporting_router, prefix="/api/v1", tags=["Reporting"])
+
+    # Mount Prometheus metrics endpoint
+    metrics_app = make_asgi_app()
+    app.mount("/metrics", metrics_app)
 
     # TODO: Register additional routers
     # from src.api.routes import rules, statistics

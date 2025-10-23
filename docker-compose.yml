@@ -1,17 +1,22 @@
 services:
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    container_name: cadvisor
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:rw
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
+  app:
+    build: .
+    container_name: app
     ports:
-      - "${CADVISOR_PORT}:${CADVISOR_PORT}"
+      - "${API_PORT}:${API_PORT}"
+    environment:
+      - HOST=${HOST}
+      - API_PORT=${API_PORT}
+    volumes:
+      - .:/app
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
-      - monitoring
+      - postgres
     restart: unless-stopped
 
   postgres:
@@ -46,6 +51,21 @@ services:
           cpus: "1"
           memory: 10G
 
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "${CADVISOR_PORT}:${CADVISOR_PORT}"
+    networks:
+      - monitoring
+    restart: unless-stopped
+
   pgadmin:
     image: dpage/pgadmin4:9.9
     container_name: pgadmin
@@ -73,7 +93,7 @@ services:
       - ./docker/redis.conf:/usr/local/etc/redis/redis.conf
       - redis_data:/data
     command: >
-      redis-server /usr/local/etc/redis/redis.conf --requirepass ${REDIS_PASSWORD}
+      redis-server /usr/local/etc/redis/redis.conf
     ports:
       - "${REDIS_PORT}:${REDIS_PORT}"
     healthcheck:
@@ -92,6 +112,8 @@ services:
     restart: unless-stopped
     tty: true
     stdin_open: true
+    networks:
+      - postgres
 
   node-exporter:
     image: prom/node-exporter:latest
@@ -193,6 +215,7 @@ volumes:
   grafana_data:
   redis_data:
   loki_data:
+  uv_cache:
 
 networks:
   postgres:

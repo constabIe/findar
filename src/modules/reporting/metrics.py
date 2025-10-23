@@ -201,3 +201,131 @@ def increment_error_counter(error_type: str) -> None:
         error_type: Type of error encountered
     """
     errors_total.labels(error_type=error_type).inc()
+
+
+# Transaction counters by status
+transactions_total = Counter(
+    "transactions_total",
+    "Total number of transactions by status",
+    ["status"],  # Labels: pending, processed, alerted, reviewed, rejected
+)
+
+# Transaction counters by type
+transactions_by_type = Counter(
+    "transactions_by_type_total",
+    "Total number of transactions by type",
+    ["type"],  # Labels: transfer, payment, withdrawal, deposit
+)
+
+# Transaction processing time
+transaction_processing_duration = Histogram(
+    "transaction_processing_duration_seconds",
+    "Time spent processing a single transaction end-to-end",
+    buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),  # seconds
+)
+
+
+# Rule evaluation counters
+rules_evaluated_total = Counter(
+    "rules_evaluated_total",
+    "Total number of rule evaluations",
+    ["rule_type"],  # Labels: threshold, pattern, composite, ml
+)
+
+# Rule match counters
+rules_matched_total = Counter(
+    "rules_matched_total",
+    "Total number of rule matches (when rule fired)",
+    ["rule_type", "rule_id"],  # Labels: rule_type, rule_id
+)
+
+# Rule execution time by type
+rule_execution_duration = Histogram(
+    "rule_execution_duration_seconds",
+    "Time spent executing a single rule",
+    ["rule_type"],  # Labels: threshold, pattern, composite, ml
+    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0),  # seconds
+)
+
+# Rule match rate gauge (for monitoring dashboard)
+rule_match_rate = Gauge(
+    "rule_match_rate",
+    "Current match rate for each rule (matches/evaluations)",
+    ["rule_id", "rule_type"],
+)
+
+
+def increment_transaction_counter(status: str) -> None:
+    """
+    Increment transaction counter for specific status.
+
+    Args:
+        status: Transaction status (pending, processed, alerted, reviewed, rejected)
+    """
+    transactions_total.labels(status=status).inc()
+
+
+def increment_transaction_by_type_counter(transaction_type: str) -> None:
+    """
+    Increment transaction counter by type.
+
+    Args:
+        transaction_type: Type of transaction (transfer, payment, withdrawal, deposit)
+    """
+    transactions_by_type.labels(type=transaction_type).inc()
+
+
+def observe_transaction_processing_time(duration_seconds: float) -> None:
+    """
+    Record transaction processing time observation.
+
+    Args:
+        duration_seconds: Total processing duration in seconds
+    """
+    transaction_processing_duration.observe(duration_seconds)
+
+
+def increment_rule_evaluated_counter(rule_type: str) -> None:
+    """
+    Increment counter when a rule is evaluated.
+
+    Args:
+        rule_type: Type of rule (threshold, pattern, composite, ml)
+    """
+    rules_evaluated_total.labels(rule_type=rule_type).inc()
+
+
+def increment_rule_matched_counter(rule_type: str, rule_id: str) -> None:
+    """
+    Increment counter when a rule matches (fires).
+
+    Args:
+        rule_type: Type of rule (threshold, pattern, composite, ml)
+        rule_id: Unique identifier of the rule
+    """
+    rules_matched_total.labels(rule_type=rule_type, rule_id=rule_id).inc()
+
+
+def observe_rule_execution_time(rule_type: str, duration_seconds: float) -> None:
+    """
+    Record rule execution time observation.
+
+    Args:
+        rule_type: Type of rule (threshold, pattern, composite, ml)
+        duration_seconds: Rule execution duration in seconds
+    """
+    rule_execution_duration.labels(
+        rule_type=rule_type).observe(duration_seconds)
+
+
+def update_rule_match_rate(rule_id: str, rule_type: str, match_rate: float) -> None:
+    """
+    Update rule match rate gauge.
+
+    Args:
+        rule_id: Unique identifier of the rule
+        rule_type: Type of rule (threshold, pattern, composite, ml)
+        match_rate: Match rate as a float (0.0 to 1.0)
+    """
+    rule_match_rate.labels(
+        rule_id=rule_id, rule_type=rule_type).set(match_rate)

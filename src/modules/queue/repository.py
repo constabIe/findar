@@ -304,7 +304,7 @@ class QueueRepository:
         """
         # Count tasks by status
         status_counts_stmt = select(
-            QueueTask.status,
+            QueueTask.status,  # type: ignore
             func.count(QueueTask.id).label("count"),  # type: ignore
         ).group_by(QueueTask.status)  # type: ignore
         status_result = await self.session.execute(status_counts_stmt)

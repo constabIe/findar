@@ -16,6 +16,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.logging import get_logger
 from src.modules.queue.repository import QueueRepository
 from src.modules.queue.schemas import TaskCreate
+from src.modules.reporting.metrics import (
+    increment_transaction_by_type_counter,
+    increment_transaction_counter,
+)
 from src.modules.rule_engine.enums import TransactionType
 from src.modules.transactions.repository import TransactionRepository
 
@@ -58,6 +62,7 @@ async def enqueue_transaction(
         amount=data.get("amount"),
         from_account=data.get("from_account"),
         to_account=data.get("to_account"),
+        # correlation_id will be generated below
     )
 
     try:
@@ -102,6 +107,10 @@ async def enqueue_transaction(
             transaction_id=str(txn_id),
             correlation_id=correlation_id,
         )
+
+        # Increment Prometheus metrics
+        increment_transaction_counter(status="pending")
+        increment_transaction_by_type_counter(transaction_type=transaction_type.value)
 
         # 2. Create QueueTask for tracking
         queue_task = await queue_repo.create_task(
