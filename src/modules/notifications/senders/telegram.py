@@ -105,7 +105,7 @@ class TelegramSender(BaseSender):
                         chat_id=chat_id,
                         error=str(e),
                     )
-                except Exception as e:
+                except Exception:
                     failed_chats.append(chat_id)
                     logger.exception(
                         "Unexpected error sending Telegram message",
@@ -176,7 +176,11 @@ class TelegramSender(BaseSender):
         # Validate parse_mode if provided
         if "parse_mode" in config:
             parse_mode = config["parse_mode"]
-            if parse_mode and parse_mode.upper() not in ["HTML", "MARKDOWN", "MARKDOWNV2"]:
+            if parse_mode and parse_mode.upper() not in [
+                "HTML",
+                "MARKDOWN",
+                "MARKDOWNV2",
+            ]:
                 return False, f"Invalid parse_mode: {parse_mode}"
 
         return True, None

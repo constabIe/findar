@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.logging import get_logger
 from src.modules.rule_engine.enums import RuleType, TransactionStatus, TransactionType
-from src.storage.dependencies import get_db_session
+from src.storage.dependencies import AsyncDbSessionDep
 
 from .schemas import RuleReportResponse, TransactionReportResponse
 from .service import get_reporting_service
@@ -32,6 +32,7 @@ router = APIRouter()
     description="Generate aggregated statistics report for transactions with optional filters",
 )
 async def get_transaction_report(
+    session: AsyncDbSessionDep,
     date_from: Optional[datetime] = Query(
         None, description="Start date for filtering (ISO format)"
     ),
@@ -44,7 +45,6 @@ async def get_transaction_report(
     transaction_type: Optional[TransactionType] = Query(
         None, description="Filter by transaction type", alias="type"
     ),
-    session: AsyncSession = Depends(get_db_session),
 ) -> TransactionReportResponse:
     """
     Generate transaction statistics report.
@@ -105,6 +105,7 @@ async def get_transaction_report(
     description="Generate aggregated statistics report for rule evaluations and performance",
 )
 async def get_rule_report(
+    session: AsyncDbSessionDep,
     date_from: Optional[datetime] = Query(
         None, description="Start date for filtering (ISO format)"
     ),
@@ -115,7 +116,7 @@ async def get_rule_report(
     rule_id: Optional[str] = Query(
         None, description="Filter by specific rule ID (UUID)"
     ),
-    session: AsyncSession = Depends(get_db_session),
+    # session: AsyncSession = Depends(get_db_session),
 ) -> RuleReportResponse:
     """
     Generate rule statistics report.
@@ -177,6 +178,7 @@ async def get_rule_report(
     description="Export transactions or rule executions data in CSV format",
 )
 async def export_to_csv(
+    session: AsyncDbSessionDep,
     entity_type: str = Query(
         ...,
         description="Type of entity to export: 'transactions' or 'rules'",
@@ -194,7 +196,7 @@ async def export_to_csv(
     rule_type: Optional[RuleType] = Query(
         None, description="Filter by rule type (for rules)"
     ),
-    session: AsyncSession = Depends(get_db_session),
+    # session: AsyncSession = Depends(get_db_session),
 ) -> StreamingResponse:
     """
     Export data to CSV format.

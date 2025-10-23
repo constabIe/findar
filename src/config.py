@@ -126,6 +126,30 @@ class NotificationSettings(BaseSettings):
     )
 
 
+class JWTSettings(BaseSettings):
+    """JWT authentication configuration."""
+
+    SECRET_KEY: str = Field(
+        default="your-secret-key-please-change-in-production-at-least-32-characters-long",
+        description="Secret key for JWT token signing"
+    )
+    ALGORITHM: str = Field(
+        default="HS256",
+        description="JWT encoding algorithm"
+    )
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
+        default=60 * 24,  # 24 hours
+        description="Access token expiration time in minutes"
+    )
+
+    model_config = SettingsConfigDict(
+        env_file=str(PROJECT_ROOT / ".env"),
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra="ignore",
+    )
+
+
 class Settings(BaseSettings):
     """Main application settings."""
 
@@ -136,6 +160,7 @@ class Settings(BaseSettings):
     backend: BackendSettings = Field(default_factory=BackendSettings)
     grafana: GrafanaSettings = Field(default_factory=GrafanaSettings)
     notifications: NotificationSettings = Field(default_factory=NotificationSettings)
+    jwt: JWTSettings = Field(default_factory=JWTSettings)
 
     model_config = SettingsConfigDict(
         env_file=str(PROJECT_ROOT / ".env"),
