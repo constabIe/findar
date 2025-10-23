@@ -13,19 +13,17 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 
 from src.core.logging import get_logger
+from src.modules.users.dependencies import get_user_repository
 
 from .dependencies import CurrentUser
-from .repository import UserRepository
 from .schemas import TokenResponse, UserCreate, UserLogin, UserResponse
 from .utils import create_access_token, hash_password, verify_password
-from src.modules.users.repository import UserRepository
-from src.modules.users.dependencies import get_user_repository
+
 # Initialize logger
 logger = get_logger("users.routes")
 
 # Create router
 router = APIRouter(prefix="/users", tags=["Users"])
-
 
 
 @router.post(
@@ -37,7 +35,7 @@ router = APIRouter(prefix="/users", tags=["Users"])
 )
 async def register_user(
     user_data: UserCreate,
-    repo = Depends(get_user_repository),
+    repo=Depends(get_user_repository),
 ) -> UserResponse:
     """
     Register a new user in the system.
@@ -107,7 +105,7 @@ async def register_user(
 )
 async def login_user(
     credentials: UserLogin,
-    repo = Depends(get_user_repository),
+    repo=Depends(get_user_repository),
 ) -> TokenResponse:
     """
     Authenticate user and return JWT access token.

@@ -77,7 +77,7 @@ class UserRepository:
             User object if found, None otherwise
         """
         result = await self.db.execute(
-            select(User).where(User.email == email) # type: ignore
+            select(User).where(User.email == email)  # type: ignore
         )
         return result.scalar_one_or_none()
 
@@ -92,13 +92,11 @@ class UserRepository:
             User object if found, None otherwise
         """
         result = await self.db.execute(
-        select(User).where(User.id == user_id) # type: ignore
+            select(User).where(User.id == user_id)  # type: ignore
         )
         return result.scalar_one_or_none()
 
-    async def get_user_by_telegram_alias(
-        self, telegram_alias: str
-    ) -> Optional[User]:
+    async def get_user_by_telegram_alias(self, telegram_alias: str) -> Optional[User]:
         """
         Get user by Telegram alias.
 
@@ -109,7 +107,7 @@ class UserRepository:
             User object if found, None otherwise
         """
         result = await self.db.execute(
-            select(User).where(User.telegram_alias == telegram_alias.lower()) # type: ignore
+            select(User).where(User.telegram_alias == telegram_alias.lower())  # type: ignore
         )
         return result.scalar_one_or_none()
 

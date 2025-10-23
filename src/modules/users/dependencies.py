@@ -10,11 +10,11 @@ from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.storage.dependencies import DbSessionDep, AsyncDbSessionDep
+from src.storage.dependencies import AsyncDbSessionDep
 from src.storage.models import User
 from src.storage.sql.engine import get_async_session
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from .repository import UserRepository
 from .utils import decode_access_token
@@ -91,6 +91,7 @@ async def get_current_user(
         )
 
     return user
+
 
 async def get_transaction_db_session() -> AsyncGenerator[AsyncSession, None]:
     """

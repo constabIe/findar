@@ -449,9 +449,11 @@ class RuleResponse(BaseModel):
     priority: int = Field(description="Rule priority")
     critical: bool = Field(description="Whether rule is critical")
     description: Optional[str] = Field(description="Rule description")
-    
+
     # User tracking
-    created_by_user_id: Optional[UUID] = Field(None, description="ID of user who created this rule")
+    created_by_user_id: Optional[UUID] = Field(
+        None, description="ID of user who created this rule"
+    )
 
     # Statistics
     execution_count: int = Field(description="Total executions")

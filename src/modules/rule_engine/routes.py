@@ -22,9 +22,9 @@ from src.core.exceptions import (
     ValidationError,
 )
 from src.core.logging import get_logger
+from src.modules.users.dependencies import CurrentUser
 from src.storage.dependencies import AsyncDbSessionDep
 from src.storage.redis.client import get_async_redis_dependency
-from src.modules.users.dependencies import CurrentUser
 
 from .enums import RuleType
 from .repository import RuleRepository
@@ -110,8 +110,7 @@ async def create_rule(
 
         # Create rule in repository with user ID
         created_rule = await repository.create_rule(
-            rule_data, 
-            created_by_user_id=current_user.id
+            rule_data, created_by_user_id=current_user.id
         )
 
         logger.info(

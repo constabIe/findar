@@ -65,7 +65,9 @@ class RuleRepository:
         self.cache_ttl = 3600  # 1 hour default TTL
 
     async def create_rule(
-        self, create_request: RuleCreateRequest, created_by_user_id: Optional[UUID] = None
+        self,
+        create_request: RuleCreateRequest,
+        created_by_user_id: Optional[UUID] = None,
     ) -> Rule:
         """
         Create a new fraud detection rule.

@@ -131,15 +131,12 @@ class JWTSettings(BaseSettings):
 
     SECRET_KEY: str = Field(
         default="your-secret-key-please-change-in-production-at-least-32-characters-long",
-        description="Secret key for JWT token signing"
+        description="Secret key for JWT token signing",
     )
-    ALGORITHM: str = Field(
-        default="HS256",
-        description="JWT encoding algorithm"
-    )
+    ALGORITHM: str = Field(default="HS256", description="JWT encoding algorithm")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
         default=60 * 24,  # 24 hours
-        description="Access token expiration time in minutes"
+        description="Access token expiration time in minutes",
     )
 
     model_config = SettingsConfigDict(

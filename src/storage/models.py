@@ -26,34 +26,27 @@ class User(SQLModel, table=True):
     __tablename__ = "users"  # type: ignore
 
     id: UUID = Field(
-        default_factory=uuid4,
-        primary_key=True,
-        description="User unique identifier"
+        default_factory=uuid4, primary_key=True, description="User unique identifier"
     )
     email: str = Field(
         sa_column=Column(String, unique=True, index=True),
-        description="User email (used for login)"
+        description="User email (used for login)",
     )
-    hashed_password: str = Field(
-        description="Bcrypt hashed password"
-    )
+    hashed_password: str = Field(description="Bcrypt hashed password")
     telegram_alias: str = Field(
         sa_column=Column(String, unique=True, index=True),
-        description="Telegram username/alias (without @)"
+        description="Telegram username/alias (without @)",
     )
     telegram_id: Optional[int] = Field(
-        default=None,
-        description="Telegram user ID (filled when user starts bot)"
+        default=None, description="Telegram user ID (filled when user starts bot)"
     )
 
     # Timestamps
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
-        description="User registration timestamp"
+        default_factory=datetime.utcnow, description="User registration timestamp"
     )
     updated_at: datetime = Field(
-        default_factory=datetime.utcnow,
-        description="User data update timestamp"
+        default_factory=datetime.utcnow, description="User data update timestamp"
     )
 
 
@@ -140,7 +133,7 @@ class Rule(SQLModel, table=True):
     created_by_user_id: Optional[UUID] = Field(
         default=None,
         foreign_key="users.id",
-        description="ID of user who created this rule"
+        description="ID of user who created this rule",
     )
 
     # Timestamps

@@ -7,10 +7,7 @@ middleware, and exception handlers.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
-
-from src.storage.dependencies import get_db_session
 
 
 def create_app() -> FastAPI:

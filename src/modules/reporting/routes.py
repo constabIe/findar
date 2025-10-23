@@ -9,9 +9,8 @@ from datetime import datetime
 from typing import Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.logging import get_logger
 from src.modules.rule_engine.enums import RuleType, TransactionStatus, TransactionType

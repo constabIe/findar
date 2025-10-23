@@ -25,14 +25,14 @@ def hash_password(password: str) -> str:
         Hashed password string
     """
     # Convert password to bytes
-    password_bytes = password.encode('utf-8')
-    
+    password_bytes = password.encode("utf-8")
+
     # Generate salt and hash password
     salt = bcrypt.gensalt()
     hashed = bcrypt.hashpw(password_bytes, salt)
-    
+
     # Return as string
-    return hashed.decode('utf-8')
+    return hashed.decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -47,9 +47,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         True if password matches, False otherwise
     """
     # Convert to bytes
-    password_bytes = plain_password.encode('utf-8')
-    hashed_bytes = hashed_password.encode('utf-8')
-    
+    password_bytes = plain_password.encode("utf-8")
+    hashed_bytes = hashed_password.encode("utf-8")
+
     # Verify password
     return bcrypt.checkpw(password_bytes, hashed_bytes)
 
@@ -77,9 +77,7 @@ def create_access_token(user_id: UUID, email: str) -> str:
     }
 
     encoded_jwt = jwt.encode(
-        to_encode,
-        settings.jwt.SECRET_KEY,
-        algorithm=settings.jwt.ALGORITHM
+        to_encode, settings.jwt.SECRET_KEY, algorithm=settings.jwt.ALGORITHM
     )
 
     return encoded_jwt
@@ -97,9 +95,7 @@ def decode_access_token(token: str) -> Optional[dict]:
     """
     try:
         payload = jwt.decode(
-            token,
-            settings.jwt.SECRET_KEY,
-            algorithms=[settings.jwt.ALGORITHM]
+            token, settings.jwt.SECRET_KEY, algorithms=[settings.jwt.ALGORITHM]
         )
         return payload
     except jwt.InvalidTokenError:
