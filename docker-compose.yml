@@ -20,6 +20,39 @@ services:
       - monitoring
     restart: unless-stopped
 
+  celery:
+    build: .
+    container_name: celery
+    command: >
+      sh -c "
+        echo '⏳ Waiting for dependencies...' &&
+        sleep 5 &&
+        uv run celery -A src.modules.queue.celery_config:celery_app worker
+          --loglevel=info
+          --queues=transactions,rule_executions,celery
+          --pool=solo
+      "
+    volumes:
+      - .:/app
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - HOST=${HOST}
+      - API_PORT=${API_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=postgres
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:${REDIS_PORT}/0
+    networks:
+      - postgres
+      - monitoring
+    restart: unless-stopped
+
   postgres:
     container_name: db
     image: postgres:16.10-alpine3.22

@@ -10,6 +10,7 @@ from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.storage.dependencies import AsyncDbSessionDep
@@ -69,6 +70,7 @@ async def get_current_user(
             detail="Invalid token payload",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    logger.info(f"Token payload sub: {user_id_str}")
 
     # Convert string ID to UUID
     try:
