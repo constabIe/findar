@@ -23,6 +23,7 @@ interface Rule {
 const Rules: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1)
     const [ruleStates, setRuleStates] = useState<Record<string, boolean>>({})
+    const [selectedType, setSelectedType] = useState<string | null>('THRESHOLD')
 
     const itemsPerPage = 10
 
@@ -256,11 +257,21 @@ const Rules: React.FC = () => {
         return ruleStates[ruleId] !== undefined ? ruleStates[ruleId] : defaultValue
     }
 
-    const totalPages = Math.ceil(allRules.length / itemsPerPage)
+    const filteredRules = useMemo(() => {
+        if (!selectedType) return []
+        return allRules.filter((rule) => rule.type === selectedType)
+    }, [selectedType])
+
+    const totalPages = Math.ceil(filteredRules.length / itemsPerPage)
     const paginatedRules = useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage
-        return allRules.slice(startIndex, startIndex + itemsPerPage)
-    }, [currentPage])
+        return filteredRules.slice(startIndex, startIndex + itemsPerPage)
+    }, [currentPage, filteredRules])
+
+    const handleTypeSelect = (type: string) => {
+        setSelectedType(type)
+        setCurrentPage(1)
+    }
 
     const exportToCSV = () => {
         const headers = [
@@ -318,28 +329,91 @@ const Rules: React.FC = () => {
     return (
         <Page title="Rules">
             <Card>
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <thead>
-                            <tr style={{ borderBottom: '2px solid #ddd' }}>
-                                <th style={{ padding: '12px 8px', textAlign: 'center' }}>Apply rule</th>
-                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>ID</th>
-                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Name</th>
-                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Type</th>
-                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Params</th>
-                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Enabled</th>
-                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Priority</th>
-                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Critical</th>
-                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Description</th>
-                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Created By</th>
-                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Created At</th>
-                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Updated At</th>
-                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Execution Count</th>
-                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Match Count</th>
-                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Last Executed</th>
-                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Avg Time (ms)</th>
-                            </tr>
-                        </thead>
+                <div style={{ marginBottom: '24px' }}>
+                    <div
+                        style={{
+                            display: 'flex',
+                            gap: '12px',
+                            padding: '16px',
+                            backgroundColor: '#f5f5f5',
+                            borderRadius: '8px',
+                            flexWrap: 'wrap',
+                        }}
+                    >
+                        <Button
+                            onClick={() => handleTypeSelect('THRESHOLD')}
+                            style={{
+                                backgroundColor: selectedType === 'THRESHOLD' ? '#1565c0' : '#ffffff',
+                                color: selectedType === 'THRESHOLD' ? '#ffffff' : '#333333',
+                                border: selectedType === 'THRESHOLD' ? 'none' : '1px solid #ddd',
+                                padding: '10px 20px',
+                                fontWeight: selectedType === 'THRESHOLD' ? 'bold' : 'normal',
+                            }}
+                        >
+                            Threshold
+                        </Button>
+                        <Button
+                            onClick={() => handleTypeSelect('PATTERN')}
+                            style={{
+                                backgroundColor: selectedType === 'PATTERN' ? '#6a1b9a' : '#ffffff',
+                                color: selectedType === 'PATTERN' ? '#ffffff' : '#333333',
+                                border: selectedType === 'PATTERN' ? 'none' : '1px solid #ddd',
+                                padding: '10px 20px',
+                                fontWeight: selectedType === 'PATTERN' ? 'bold' : 'normal',
+                            }}
+                        >
+                            Pattern
+                        </Button>
+                        <Button
+                            onClick={() => handleTypeSelect('ML')}
+                            style={{
+                                backgroundColor: selectedType === 'ML' ? '#2e7d32' : '#ffffff',
+                                color: selectedType === 'ML' ? '#ffffff' : '#333333',
+                                border: selectedType === 'ML' ? 'none' : '1px solid #ddd',
+                                padding: '10px 20px',
+                                fontWeight: selectedType === 'ML' ? 'bold' : 'normal',
+                            }}
+                        >
+                            ML
+                        </Button>
+                        <Button
+                            onClick={() => handleTypeSelect('COMPOSITE')}
+                            style={{
+                                backgroundColor: selectedType === 'COMPOSITE' ? '#e65100' : '#ffffff',
+                                color: selectedType === 'COMPOSITE' ? '#ffffff' : '#333333',
+                                border: selectedType === 'COMPOSITE' ? 'none' : '1px solid #ddd',
+                                padding: '10px 20px',
+                                fontWeight: selectedType === 'COMPOSITE' ? 'bold' : 'normal',
+                            }}
+                        >
+                            Composite
+                        </Button>
+                    </div>
+                </div>
+
+                {selectedType && (
+                    <>
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '2px solid #ddd' }}>
+                                        <th style={{ padding: '12px 8px', textAlign: 'center' }}>Apply rule</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>ID</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Name</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Params</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Enabled</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Priority</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Critical</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Description</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Created By</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Created At</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Updated At</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Execution Count</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Match Count</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Last Executed</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Avg Time (ms)</th>
+                                    </tr>
+                                </thead>
                         <tbody>
                             {paginatedRules.map((rule) => (
                                 <tr
@@ -396,33 +470,6 @@ const Rules: React.FC = () => {
                                         {rule.id.substring(0, 8)}...
                                     </td>
                                     <td style={{ padding: '12px 8px', fontWeight: 'bold' }}>{rule.name}</td>
-                                    <td style={{ padding: '12px 8px' }}>
-                                        <span
-                                            style={{
-                                                padding: '4px 8px',
-                                                borderRadius: '4px',
-                                                fontSize: '12px',
-                                                backgroundColor:
-                                                    rule.type === 'THRESHOLD'
-                                                        ? '#e3f2fd'
-                                                        : rule.type === 'PATTERN'
-                                                        ? '#f3e5f5'
-                                                        : rule.type === 'ML'
-                                                        ? '#e8f5e9'
-                                                        : '#fff3e0',
-                                                color:
-                                                    rule.type === 'THRESHOLD'
-                                                        ? '#1565c0'
-                                                        : rule.type === 'PATTERN'
-                                                        ? '#6a1b9a'
-                                                        : rule.type === 'ML'
-                                                        ? '#2e7d32'
-                                                        : '#e65100',
-                                            }}
-                                        >
-                                            {rule.type}
-                                        </span>
-                                    </td>
                                     <td style={{ padding: '12px 8px', fontSize: '11px', maxWidth: '150px' }}>
                                         <pre
                                             style={{
@@ -556,9 +603,13 @@ const Rules: React.FC = () => {
                         </Button>
                     </div>
                     <div>
-                        <span style={{ marginRight: '12px' }}>Total: {allRules.length} rules</span>
+                        <span style={{ marginRight: '12px' }}>
+                            Total: {filteredRules.length} rules
+                        </span>
                     </div>
                 </div>
+                    </>
+                )}
             </Card>
         </Page>
     )
