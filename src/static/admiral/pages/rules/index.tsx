@@ -373,25 +373,11 @@ const Rules: React.FC = () => {
     return (
         <Page title="Rules">
             <Card>
-                <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button
-                        onClick={handleOpenModal}
-                        style={{
-                            backgroundColor: '#1565c0',
-                            color: '#ffffff',
-                            padding: '10px 20px',
-                            fontWeight: 'bold',
-                            border: 'none',
-                        }}
-                    >
-                        ADD RULE
-                    </Button>
-                </div>
-
                 <div style={{ marginBottom: '24px' }}>
                     <div
                         style={{
                             display: 'flex',
+                            justifyContent: 'space-between',
                             gap: '12px',
                             padding: '16px',
                             backgroundColor: '#2d3748',
@@ -399,6 +385,11 @@ const Rules: React.FC = () => {
                             flexWrap: 'wrap',
                         }}
                     >
+                        <div style={{
+                            display: 'flex',
+                            gap: '12px',
+                            flexWrap: 'wrap',
+                        }}>
                         <Button
                             onClick={() => handleTypeSelect('THRESHOLD')}
                             style={{
@@ -447,6 +438,21 @@ const Rules: React.FC = () => {
                         >
                             Composite
                         </Button>
+                        </div>
+                    <div>
+                    <Button
+                        onClick={handleOpenModal}
+                        style={{
+                            backgroundColor: '#1565c0',
+                            color: '#ffffff',
+                            padding: '10px 20px',
+                            fontWeight: 'bold',
+                            border: 'none',
+                        }}
+                    >
+                        ADD RULE
+                    </Button>
+                    </div>
                     </div>
                 </div>
 

@@ -173,14 +173,14 @@
 
     /* Disable */
     --color-control-bg-disable: color-mod(
-        var(--color-base-phantom) a(7%)
+        var(--color-base-phantom) a(35%)
     ); /* Цвет фона неактивного контрола */
     --color-control-bg-border-disable: color-mod(
-        var(--color-base-phantom) a(0%)
+        var(--color-base-phantom) a(35%)
     ); /* Цвет фона бордеров неактивного контрола */
 
     --color-control-typo-disable: color-mod(
-        var(--color-base-base) a(26%)
+        var(--color-base-base) a(100%)
     ); /* Цвет основного текста неактивного контрола */
 }
 /* stylelint-enable */
