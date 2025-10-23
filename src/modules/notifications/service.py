@@ -6,22 +6,16 @@ persists deliveries and attempts via the repository and logs all actions.
 
 Notes:
 - Metrics hooks are present as function calls; integrate Prometheus in reporting later.
-- All network calls use httpx (async). Email uses smtplib executed in a threadpool to avoid blocking.
+- Uses dedicated sender classes (EmailSender, TelegramSender) for channel-specific logic.
 - Errors use core.exceptions.NotificationError where appropriate.
 """
 
 from __future__ import annotations
 
 import asyncio
-import smtplib
-import ssl
 from datetime import datetime
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 from uuid import UUID
-
-import httpx
 
 if TYPE_CHECKING:
     # Imported for type checking only; runtime uses a session from the app
@@ -41,6 +35,7 @@ from src.modules.notifications.models import (
 )
 from src.modules.notifications.repository import NotificationRepository
 from src.modules.notifications.schemas import NotificationDeliveryCreate
+from src.modules.notifications.senders import EmailSender, TelegramSender
 from src.modules.reporting.metrics import (
     increment_error_counter,
     observe_notification_time,
@@ -70,6 +65,10 @@ class NotificationService:
         """
         self.db_session = db_session
         self.repo = NotificationRepository(db_session)
+
+        # Initialize channel senders
+        self.email_sender = EmailSender()
+        self.telegram_sender = TelegramSender()
 
     async def send_fraud_alert(
         self,
@@ -378,13 +377,18 @@ class NotificationService:
             try:
                 if delivery.channel == NotificationChannel.EMAIL:
                     cfg = channel_cfg.config or {}
-                    send_ok, send_err = await self.send_email(
-                        delivery.recipients, delivery.subject or "", delivery.body, cfg
+                    send_ok, send_err = await self.email_sender.send(
+                        recipients=delivery.recipients,
+                        message=delivery.body,
+                        config=cfg,
+                        subject=delivery.subject,
                     )
                 elif delivery.channel == NotificationChannel.TELEGRAM:
                     cfg = channel_cfg.config or {}
-                    send_ok, send_err = await self.send_telegram(
-                        delivery.recipients, delivery.body, cfg
+                    send_ok, send_err = await self.telegram_sender.send(
+                        recipients=delivery.recipients,
+                        message=delivery.body,
+                        config=cfg,
                     )
                 else:
                     send_ok = False
@@ -411,6 +415,13 @@ class NotificationService:
             # update status based on result and attempts
             try:
                 updated = await self.repo.get_delivery(delivery_id)
+                if not updated:
+                    logger.error(
+                        "Delivery not found after send",
+                        delivery_id=str(delivery_id),
+                    )
+                    return
+
                 attempts_now = updated.attempts or attempt_no
                 max_attempts = updated.max_attempts or 1
 
@@ -454,95 +465,3 @@ class NotificationService:
                 delivery_id=str(delivery_id),
             )
             increment_error_counter("notification_unexpected_error")
-
-    async def send_email(
-        self,
-        recipients: List[str],
-        subject: str,
-        body: str,
-        config: Dict[str, Any],
-    ) -> Tuple[bool, Optional[str]]:
-        """
-        Send email using smtplib executed in a threadpool to avoid blocking the event loop.
-
-        Returns (success, error_message).
-        """
-        try:
-            message = MIMEMultipart()
-            message["From"] = config.get("username", "noreply@company.com")
-            message["To"] = ", ".join(recipients)
-            message["Subject"] = subject or ""
-            message.attach(MIMEText(body or "", "plain"))
-
-            loop = asyncio.get_running_loop()
-
-            def _smtp_send() -> None:
-                context = ssl.create_default_context()
-                smtp_server = config["smtp_server"]
-                smtp_port = config["smtp_port"]
-                with smtplib.SMTP(smtp_server, smtp_port) as server:
-                    if config.get("use_tls", True):
-                        server.starttls(context=context)
-                    if config.get("username") and config.get("password"):
-                        server.login(config["username"], config["password"])
-                    server.send_message(message)
-
-            await loop.run_in_executor(None, _smtp_send)
-            logger.info(
-                "Email sent", component="notifications", recipients=len(recipients)
-            )
-            return True, None
-        except Exception as exc:
-            logger.exception("Email sending failed", component="notifications")
-            return False, str(exc)
-
-    async def send_telegram(
-        self,
-        recipients: List[str],
-        message: str,
-        config: Dict[str, Any],
-    ) -> Tuple[bool, Optional[str]]:
-        """
-        Send messages to Telegram chats using httpx AsyncClient.
-
-        Returns (success, error_message). Partial failures are considered failures but recorded.
-        """
-        try:
-            bot_token = config.get("bot_token")
-            if not bot_token:
-                return False, "bot_token_missing"
-
-            success_count = 0
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                for chat_id in recipients:
-                    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-                    payload = {
-                        "chat_id": chat_id,
-                        "text": message,
-                        "parse_mode": "HTML",
-                    }
-                    resp = await client.post(url, json=payload)
-                    if resp.status_code == 200:
-                        success_count += 1
-                    else:
-                        logger.warning(
-                            "Telegram API returned non-200",
-                            component="notifications",
-                            chat_id=chat_id,
-                            status_code=resp.status_code,
-                            response=resp.text,
-                        )
-
-            if success_count == len(recipients):
-                logger.info(
-                    "Telegram messages sent",
-                    component="notifications",
-                    recipients=success_count,
-                )
-                return True, None
-            err = f"telegram_partial:{success_count}/{len(recipients)}"
-            logger.warning(err, component="notifications")
-            return False, err
-        except Exception as exc:
-            logger.exception("Telegram sending failed", component="notifications")
-            return False, str(exc)

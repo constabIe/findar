@@ -44,6 +44,7 @@ from .schemas import (
     NotificationTemplateResponse,
     NotificationTemplateUpdate,
 )
+from .senders import BaseSender, EmailSender, TelegramSender
 from .service import NotificationService
 
 __all__ = [
@@ -71,6 +72,10 @@ __all__ = [
     "NotificationSendRequest",
     "NotificationSendResponse",
     "NotificationStatsResponse",
+    # Senders
+    "BaseSender",
+    "EmailSender",
+    "TelegramSender",
     # Services
     "NotificationService",
     "NotificationRepository",
