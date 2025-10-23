@@ -39,8 +39,8 @@ def upgrade() -> None:
     op.create_index(
         op.f("ix_users_telegram_alias"), "users", ["telegram_alias"], unique=True
     )
-    op.drop_table("celery_tasksetmeta")
-    op.drop_table("celery_taskmeta")
+    # op.drop_table("celery_tasksetmeta")
+    # op.drop_table("celery_taskmeta")
     op.add_column("rules", sa.Column("created_by_user_id", sa.Uuid(), nullable=True))
     op.create_foreign_key(None, "rules", "users", ["created_by_user_id"], ["id"])
     op.drop_column("rules", "created_by")
@@ -56,7 +56,7 @@ def downgrade() -> None:
     )
     op.drop_constraint(None, "rules", type_="foreignkey")
     op.drop_column("rules", "created_by_user_id")
-    op.create_table(
+    # op.create_table(
         "celery_taskmeta",
         sa.Column("id", sa.INTEGER(), autoincrement=False, nullable=False),
         sa.Column(
@@ -82,7 +82,7 @@ def downgrade() -> None:
             postgresql_nulls_not_distinct=False,
         ),
     )
-    op.create_table(
+    # op.create_table(
         "celery_tasksetmeta",
         sa.Column("id", sa.INTEGER(), autoincrement=False, nullable=False),
         sa.Column(
