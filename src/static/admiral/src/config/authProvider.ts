@@ -45,7 +45,11 @@ const authProvider = (apiUrl: string): AuthProvider => ({
                 return Promise.reject(new Error('Your session has expired. Please login again.'))
             })
             .then(({ user }) => {
-                return { ...user, fullName: user.name }
+                return { 
+                    ...user, 
+                    fullName: user.name,
+                    tg_alias: user.tg_alias || user.tgAlias
+                }
             })
     },
 })

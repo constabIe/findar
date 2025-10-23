@@ -8,6 +8,7 @@ interface ProfileData {
 }
 
 const Profile: React.FC = () => {
+    // Demo mode - use example data
     const [formData, setFormData] = useState<ProfileData>({
         email: 'user@example.com',
         tgAccount: '@username',
