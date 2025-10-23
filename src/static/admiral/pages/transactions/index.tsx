@@ -1,5 +1,5 @@
-import React from 'react'
-import { Page, Card } from '@devfamily/admiral'
+import React, { useState, useMemo } from 'react'
+import { Page, Card, Button } from '@devfamily/admiral'
 
 interface Transaction {
     id: string
@@ -19,7 +19,11 @@ interface Transaction {
 }
 
 const Transactions: React.FC = () => {
-    const mockTransactions: Transaction[] = [
+    const [currentPage, setCurrentPage] = useState(1)
+
+    const itemsPerPage = 10
+
+    const allTransactions: Transaction[] = [
         {
             id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
             amount: 1250.50,
@@ -116,7 +120,158 @@ const Transactions: React.FC = () => {
             device_id: 'DEV-006',
             ip_address: '192.168.1.6',
         },
+        {
+            id: 'a1a1a1a1-b2b2-3c3c-d4d4-e5e5e5e5e5e5',
+            amount: 450.00,
+            from_account: 'ACC-1007',
+            to_account: 'ACC-2051',
+            timestamp: '2025-10-23 20:15:30',
+            type: 'PAYMENT',
+            correlation_id: 'COR-2025-007',
+            status: 'COMPLETED',
+            currency: 'USD',
+            description: 'Hotel booking',
+            merchant_id: 'MERCH-5007',
+            location: 'Boston, USA',
+            device_id: 'DEV-007',
+            ip_address: '192.168.1.7',
+        },
+        {
+            id: 'b2b2b2b2-c3c3-4d4d-e5e5-f6f6f6f6f6f6',
+            amount: 825.50,
+            from_account: 'ACC-1008',
+            to_account: 'ACC-2052',
+            timestamp: '2025-10-23 21:30:45',
+            type: 'TRANSFER',
+            correlation_id: 'COR-2025-008',
+            status: 'PENDING',
+            currency: 'EUR',
+            description: 'Rent payment',
+            merchant_id: 'MERCH-5008',
+            location: 'Berlin, Germany',
+            device_id: 'DEV-008',
+            ip_address: '192.168.1.8',
+        },
+        {
+            id: 'c3c3c3c3-d4d4-5e5e-f6f6-a7a7a7a7a7a7',
+            amount: 125.25,
+            from_account: 'ACC-1009',
+            to_account: 'ACC-2053',
+            timestamp: '2025-10-23 22:45:00',
+            type: 'PAYMENT',
+            correlation_id: 'COR-2025-009',
+            status: 'COMPLETED',
+            currency: 'USD',
+            description: 'Grocery shopping',
+            merchant_id: 'MERCH-5009',
+            location: 'Seattle, USA',
+            device_id: 'DEV-009',
+            ip_address: '192.168.1.9',
+        },
+        {
+            id: 'd4d4d4d4-e5e5-6f6f-a7a7-b8b8b8b8b8b8',
+            amount: 5600.00,
+            from_account: 'ACC-1010',
+            to_account: 'ACC-2054',
+            timestamp: '2025-10-24 08:00:15',
+            type: 'WITHDRAWAL',
+            correlation_id: 'COR-2025-010',
+            status: 'FLAGGED',
+            currency: 'USD',
+            description: 'Large ATM withdrawal',
+            merchant_id: 'MERCH-5010',
+            location: 'Las Vegas, USA',
+            device_id: 'DEV-010',
+            ip_address: '192.168.1.10',
+        },
+        {
+            id: 'e5e5e5e5-f6f6-7a7a-b8b8-c9c9c9c9c9c9',
+            amount: 299.99,
+            from_account: 'ACC-1011',
+            to_account: 'ACC-2055',
+            timestamp: '2025-10-24 09:20:30',
+            type: 'PAYMENT',
+            correlation_id: 'COR-2025-011',
+            status: 'COMPLETED',
+            currency: 'GBP',
+            description: 'Electronics purchase',
+            merchant_id: 'MERCH-5011',
+            location: 'Manchester, UK',
+            device_id: 'DEV-011',
+            ip_address: '192.168.1.11',
+        },
+        {
+            id: 'f6f6f6f6-a7a7-8b8b-c9c9-d0d0d0d0d0d0',
+            amount: 1750.00,
+            from_account: 'ACC-1012',
+            to_account: 'ACC-2056',
+            timestamp: '2025-10-24 10:45:45',
+            type: 'TRANSFER',
+            correlation_id: 'COR-2025-012',
+            status: 'FAILED',
+            currency: 'EUR',
+            description: 'Investment transfer',
+            merchant_id: 'MERCH-5012',
+            location: 'Amsterdam, Netherlands',
+            device_id: 'DEV-012',
+            ip_address: '192.168.1.12',
+        },
     ]
+
+    const totalPages = Math.ceil(allTransactions.length / itemsPerPage)
+    const paginatedTransactions = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage
+        return allTransactions.slice(startIndex, startIndex + itemsPerPage)
+    }, [currentPage])
+
+    const exportToCSV = () => {
+        const headers = [
+            'ID',
+            'Amount',
+            'From Account',
+            'To Account',
+            'Timestamp',
+            'Type',
+            'Status',
+            'Currency',
+            'Description',
+            'Merchant ID',
+            'Location',
+            'Device ID',
+            'IP Address',
+        ]
+
+        const csvContent = [
+            headers.join(','),
+            ...allTransactions.map((t) =>
+                [
+                    t.id,
+                    t.amount,
+                    t.from_account,
+                    t.to_account,
+                    t.timestamp,
+                    t.type,
+                    t.status,
+                    t.currency,
+                    `"${t.description}"`,
+                    t.merchant_id,
+                    `"${t.location}"`,
+                    t.device_id,
+                    t.ip_address,
+                ].join(',')
+            ),
+        ].join('\n')
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        const url = URL.createObjectURL(blob)
+        link.setAttribute('href', url)
+        link.setAttribute('download', `transactions_${new Date().toISOString()}.csv`)
+        link.style.visibility = 'hidden'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
 
     return (
         <Page title="Transactions">
@@ -141,7 +296,7 @@ const Transactions: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {mockTransactions.map((transaction) => (
+                            {paginatedTransactions.map((transaction) => (
                                 <tr
                                     key={transaction.id}
                                     style={{
@@ -205,6 +360,40 @@ const Transactions: React.FC = () => {
                             ))}
                         </tbody>
                     </table>
+                </div>
+                <div
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginTop: '20px',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                    }}
+                >
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <Button
+                            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                        >
+                            Previous
+                        </Button>
+                        <span style={{ padding: '0 12px' }}>
+                            Page {currentPage} of {totalPages || 1}
+                        </span>
+                        <Button
+                            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages || totalPages === 0}
+                        >
+                            Next
+                        </Button>
+                    </div>
+                    <div>
+                        <span style={{ marginRight: '12px' }}>
+                            Total: {allTransactions.length} transactions
+                        </span>
+                        <Button onClick={exportToCSV}>Export to CSV</Button>
+                    </div>
                 </div>
             </Card>
         </Page>
