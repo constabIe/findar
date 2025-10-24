@@ -58,19 +58,19 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=postgres
+      - POSTGRES_HOST=${POSTGRES_HOST}
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:${REDIS_PORT}/0
     networks:
       - postgres
       - monitoring
 
   frontend:
-    container_name: frontend
-    build:
-      context: ./src/static/admiral
-    ports:
-      - "8080:80" # локально открываем http://localhost:8080
-    restart: unless-stopped
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - ./src/static/admiral:/app
+      - frontend_dist:/app/dist
+    command: sh -c "npm ci --legacy-peer-deps && npm run build"
 
   postgres:
     container_name: db
@@ -252,6 +252,25 @@ services:
     networks:
       - monitoring
     restart: unless-stopped
+    
+  nginx-proxy:
+    image: nginx:1.29.2-alpine
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - frontend
+    volumes:
+      - frontend_dist:/usr/share/nginx/html:ro
+      - ./docker/confs/nginx:/etc/nginx/conf.d:ro
+
+      # - ./nginx/certs:/etc/nginx/certs:ro
+    # networks:
+    #   - postgres
+    #   - monitoring
+    restart: unless-stopped
+
 
 volumes:
   db_data:
@@ -260,6 +279,7 @@ volumes:
   grafana_data:
   redis_data:
   loki_data:
+  frontend_dist:
 
 networks:
   postgres:
