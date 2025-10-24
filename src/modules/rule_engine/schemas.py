@@ -152,6 +152,11 @@ class CompositeRuleParams(BaseModel):
     Parameters for composite rules that combine multiple rules with logical operators.
 
     Composite rules allow complex logic by combining other rules with AND, OR, NOT operations.
+
+    Note: For NOT operator, the logic is applied to all rules using OR:
+    NOT(rule1 OR rule2 OR ...) - returns True if NONE of the rules match.
+
+    Rules are referenced by their unique names (not UUIDs).
     """
 
     # Logical operator
@@ -159,17 +164,21 @@ class CompositeRuleParams(BaseModel):
         CompositeOperator.AND, description="Logical operator (AND/OR/NOT)"
     )
 
-    # Rule references (can be IDs or names)
-    rules: List[Union[int, UUID, str]] = Field(
-        min_length=1, description="List of rule IDs or names to combine"
-    )
+    # Rule references (must be rule names)
+    rules: List[str] = Field(min_length=1, description="List of rule names to combine")
 
     @field_validator("rules")
     @classmethod
     def validate_rules_list(cls, v):
-        """Validate that rules list is not empty."""
+        """Validate that rules list is not empty and all items are non-empty strings."""
         if not v or len(v) == 0:
             raise ValueError("Rules list cannot be empty")
+
+        # Check that all items are non-empty strings
+        for rule_name in v:
+            if not rule_name or not isinstance(rule_name, str) or not rule_name.strip():
+                raise ValueError("All rule names must be non-empty strings")
+
         return v
 
 
