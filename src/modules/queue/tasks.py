@@ -186,7 +186,7 @@ def process_transaction(
 
     # Extract transaction_id from data
     transaction_id = transaction_data.get("id")
-    
+
     # Extract max_composite_depth (default to 5 if not provided)
     max_composite_depth = int(transaction_data.get("max_composite_depth", 5))
 

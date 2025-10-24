@@ -233,7 +233,7 @@ async def get_rule_by_name(
 
                 if rule_data:
                     rule_dict = json.loads(rule_data)
-                    
+
                     # Check if name matches
                     if rule_dict.get("name") == rule_name:
                         logger.debug(
@@ -1007,7 +1007,7 @@ async def evaluate_composite_rule(
     """
     Evaluate a composite rule (combination of other rules with AND/OR/NOT logic).
 
-    This function recursively evaluates sub-rules (referenced by name) and applies 
+    This function recursively evaluates sub-rules (referenced by name) and applies
     logical operators:
     - AND: all sub-rules must match
     - OR: at least one sub-rule must match
@@ -1038,8 +1038,8 @@ async def evaluate_composite_rule(
     Returns:
         RuleEvaluationResult with evaluation outcome
     """
-    from .schemas import CompositeRuleParams
     from .enums import CompositeOperator
+    from .schemas import CompositeRuleParams
 
     is_critical = rule_dict.get("critical", False)
 
@@ -1104,7 +1104,7 @@ async def evaluate_composite_rule(
             sub_rule_type = RuleType(sub_rule_dict.get("rule_type"))
             actual_sub_rule_name = sub_rule_dict.get("name", sub_rule_name)
             is_active = sub_rule_dict.get("is_active", False)
-            
+
             logger.debug(
                 f"Evaluating sub-rule '{sub_rule_name}'",
                 event="sub_rule_evaluation",
