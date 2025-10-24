@@ -213,9 +213,7 @@ class NotificationService:
                             },
                         )
 
-                        delivery = await self.repo.create_delivery(payload)
-                        created_ids.append(delivery.id)
-                        asyncio.create_task(self._send_notification_async(delivery.id))
+                        await self._create_and_schedule_delivery(payload, created_ids)
                     except Exception:
                         logger.exception(
                             "Failed to create/send email delivery for rule author",
@@ -265,9 +263,7 @@ class NotificationService:
                             },
                         )
 
-                        delivery = await self.repo.create_delivery(payload)
-                        created_ids.append(delivery.id)
-                        asyncio.create_task(self._send_notification_async(delivery.id))
+                        await self._create_and_schedule_delivery(payload, created_ids)
 
                 except Exception:
                     logger.exception(
@@ -299,380 +295,7 @@ class NotificationService:
         )
 
         return created_ids
-
-    async def send_fraud_alert_to_user(
-        self,
-        user_id: UUID,
-        transaction_data: Dict[str, Any],
-        evaluation_result: Dict[str, Any],
-        correlation_id: str,
-    ) -> List[UUID]:
-        """
-        Send fraud alert notifications targeted to a specific user.
-
-        Behavior:
-        - Fetch the user by `user_id`.
-        - If the user has no `telegram_alias`, send an email asking them to
-          register with the Telegram bot so they can receive Telegram alerts.
-        - If the user has a `telegram_alias` (or `telegram_id`), send the
-          FRAUD_ALERT templates to the user via both Telegram and Email (when
-          corresponding templates are enabled).
-
-        Returns list of created delivery IDs.
-        """
-        start = datetime.utcnow()
-        created_ids: List[UUID] = []
-
-        user_repo = UserRepository(self.db_session)
-        try:
-            user = await user_repo.get_user_by_id(user_id)
-        except Exception:
-            logger.exception(
-                "Failed to load user for notification",
-                component="notifications",
-                correlation_id=correlation_id,
-                user_id=str(user_id),
-            )
-            increment_error_counter("user_load_error")
-            return []
-
-        if not user:
-            # User record missing. We cannot address the user directly, so
-            # notify admins and send a registration request to the admin
-            # fallback addresses. Also record the attempt.
-            logger.warning(
-                "User not found for notification - will notify admins for registration",
-                component="notifications",
-                correlation_id=correlation_id,
-                user_id=str(user_id),
-            )
-
-            # Build admin-facing email about missing user and ask to register
-            subject = "Rule author missing - please register user for Telegram alerts"
-            body = (
-                f"Rule author with id {user_id} was not found in the users DB.\n"
-                f"Transaction: {transaction_data.get('id')}\n"
-                "Please register the user in the admin panel and ask them to start the Telegram bot "
-                "so we can deliver real-time alerts."
-            )
-
-            # Create admin email delivery
-            try:
-                payload = NotificationDeliveryCreate(
-                    transaction_id=UUID(transaction_data["id"]),
-                    template_id=None,
-                    channel=NotificationChannel.EMAIL,
-                    subject=subject,
-                    body=body,
-                    recipients=self._get_default_recipients(NotificationChannel.EMAIL),
-                    priority=1,
-                    scheduled_at=None,
-                    metadata={
-                        "correlation_id": correlation_id,
-                        "reason": "author_missing_registration_request",
-                    },
-                )
-
-                delivery = await self.repo.create_delivery(payload)
-                created_ids.append(delivery.id)
-                asyncio.create_task(self._send_notification_async(delivery.id))
-            except Exception:
-                logger.exception(
-                    "Failed to create admin registration email delivery",
-                    component="notifications",
-                    correlation_id=correlation_id,
-                    user_id=str(user_id),
-                )
-                increment_error_counter("delivery_create_error")
-
-            # Also send a Telegram alert to admin channel to prompt manual action
-            try:
-                tg_body = (
-                    f"⚠️ Rule author missing for id {user_id}. Transaction {transaction_data.get('id')} flagged. "
-                    "Please register the user and/or ask them to start the Telegram bot."
-                )
-                payload = NotificationDeliveryCreate(
-                    transaction_id=UUID(transaction_data["id"]),
-                    template_id=None,
-                    channel=NotificationChannel.TELEGRAM,
-                    subject=None,
-                    body=tg_body,
-                    recipients=self._get_default_recipients(NotificationChannel.TELEGRAM),
-                    priority=1,
-                    scheduled_at=None,
-                    metadata={
-                        "correlation_id": correlation_id,
-                        "reason": "author_missing_admin_tg_alert",
-                    },
-                )
-
-                delivery = await self.repo.create_delivery(payload)
-                created_ids.append(delivery.id)
-                asyncio.create_task(self._send_notification_async(delivery.id))
-            except Exception:
-                logger.exception(
-                    "Failed to create admin telegram delivery",
-                    component="notifications",
-                    correlation_id=correlation_id,
-                    user_id=str(user_id),
-                )
-                increment_error_counter("delivery_create_error")
-
-            duration = (datetime.utcnow() - start).total_seconds()
-            observe_notification_time(duration)
-            return created_ids
-
-        # Load enabled FRAUD_ALERT templates
-        try:
-            templates = await self.repo.get_templates(
-                template_type=TemplateType.FRAUD_ALERT, enabled_only=True
-            )
-        except Exception:
-            logger.exception(
-                "Failed to load templates",
-                component="notifications",
-                correlation_id=correlation_id,
-            )
-            increment_error_counter("templates_load_error")
-            return []
-
-        # According to spec: users always have telegram_id and email. We need to
-        # check whether telegram_alias is registered. If alias exists -> send
-        # telegram notifications. If alias is missing -> send a registration
-        # request to the user's existing telegram_id. In all cases always send
-        # an email notification to the user's email.
-        has_telegram_alias = bool(getattr(user, "telegram_alias", None))
-        # track if we created at least one email delivery for the user
-        email_created = False
-
-        # User has telegram alias (or possibly telegram_id): send available templates
-        for template in templates:
-            try:
-
-                if template.channel == NotificationChannel.EMAIL:
-                    # Create email delivery for the user (always preferred)
-                    if not getattr(user, "email", None):
-                        logger.debug(
-                            "Skipping email template because user has no email",
-                            template_id=str(template.id),
-                            user_id=str(user_id),
-                        )
-                        continue
-
-                    rendered = await self._render_template(
-                        template, transaction_data, evaluation_result
-                    )
-
-                    payload = NotificationDeliveryCreate(
-                        transaction_id=UUID(transaction_data["id"]),
-                        template_id=template.id,
-                        channel=NotificationChannel.EMAIL,
-                        subject=rendered.get("subject"),
-                        body=rendered["body"],
-                        recipients=[user.email],
-                        priority=template.priority,
-                        scheduled_at=None,
-                        metadata={
-                            "correlation_id": correlation_id,
-                            "template_name": template.name,
-                            "rendered_at": datetime.utcnow().isoformat(),
-                        },
-                    )
-
-                    delivery = await self.repo.create_delivery(payload)
-                    created_ids.append(delivery.id)
-                    email_created = True
-                    asyncio.create_task(self._send_notification_async(delivery.id))
-
-                elif template.channel == NotificationChannel.TELEGRAM:
-                    # Per clarified spec: users always have telegram_id; check
-                    # whether telegram_alias is registered. If alias exists ->
-                    # send the template notification via Telegram. If alias is
-                    # missing -> send a registration request message to the
-                    # user's telegram_id so they register with the bot.
-
-                    tg_id = getattr(user, "telegram_id", None)
-                    alias = getattr(user, "telegram_alias", None)
-
-                    if alias:
-                        # alias present -> send the actual telegram template
-                        recipient = [str(tg_id)] if tg_id else []
-                        if not recipient:
-                            logger.debug(
-                                "No telegram_id for user despite alias present",
-                                user_id=str(user_id),
-                            )
-                            continue
-
-                        rendered = await self._render_template(
-                            template, transaction_data, evaluation_result
-                        )
-
-                        payload = NotificationDeliveryCreate(
-                            transaction_id=UUID(transaction_data["id"]),
-                            template_id=template.id,
-                            channel=NotificationChannel.TELEGRAM,
-                            subject=None,
-                            body=rendered["body"],
-                            recipients=recipient,
-                            priority=template.priority,
-                            scheduled_at=None,
-                            metadata={
-                                "correlation_id": correlation_id,
-                                "template_name": template.name,
-                                "rendered_at": datetime.utcnow().isoformat(),
-                            },
-                        )
-
-                        delivery = await self.repo.create_delivery(payload)
-                        created_ids.append(delivery.id)
-                        asyncio.create_task(self._send_notification_async(delivery.id))
-
-                    else:
-                        # alias missing -> send registration request to user's tg id
-                        if not tg_id:
-                            logger.debug(
-                                "Cannot send registration request: missing telegram_id",
-                                user_id=str(user_id),
-                            )
-                            continue
-
-                        reg_body = (
-                            f"Hello! We detected a suspicious transaction (id={transaction_data.get('id')}).\n"
-                            "To receive real-time Telegram alerts please register your Telegram username with our system by replying with your @username or following the bot instructions."
-                        )
-
-                        payload = NotificationDeliveryCreate(
-                            transaction_id=UUID(transaction_data["id"]),
-                            template_id=None,
-                            channel=NotificationChannel.TELEGRAM,
-                            subject=None,
-                            body=reg_body,
-                            recipients=[str(tg_id)],
-                            priority=template.priority,
-                            scheduled_at=None,
-                            metadata={
-                                "correlation_id": correlation_id,
-                                "reason": "telegram_registration_request",
-                            },
-                        )
-
-                        delivery = await self.repo.create_delivery(payload)
-                        created_ids.append(delivery.id)
-                        asyncio.create_task(self._send_notification_async(delivery.id))
-
-                else:
-                    logger.info(
-                        "Skipping unsupported template channel",
-                        component="notifications",
-                        event="unsupported_channel",
-                        template_id=str(getattr(template, "id", "unknown")),
-                        channel=str(getattr(template, "channel", "unknown")),
-                        correlation_id=correlation_id,
-                    )
-
-            except Exception:
-                logger.exception(
-                    "Failed to create user-targeted notification delivery",
-                    component="notifications",
-                    template_id=str(getattr(template, "id", "unknown")),
-                    user_id=str(user_id),
-                    correlation_id=correlation_id,
-                )
-                increment_error_counter("delivery_create_error")
-
-        duration = (datetime.utcnow() - start).total_seconds()
-        # If no email template was available or none was created for the user, send a fallback email
-        needs_registration = not bool(getattr(user, "telegram_alias", None))
-        if not email_created and getattr(user, "email", None):
-            try:
-                subject = "Suspicious transaction detected"
-                body = (
-                    f"Hello,\n\nWe detected a suspicious transaction (id={transaction_data.get('id')}).\n"
-                    "Please review it in the admin panel."
-                )
-                # If user lacks telegram info, include registration instructions in the email
-                if needs_registration:
-                    bot_link = settings.notifications.TELEGRAM_BOT_TOKEN and "https://t.me/your_bot_here" or "https://t.me/your_bot_here"
-                    body += "\n\nTo receive Telegram alerts, please start the Telegram bot and register your username:\n" + bot_link
-
-                payload = NotificationDeliveryCreate(
-                    transaction_id=UUID(transaction_data["id"]),
-                    template_id=None,
-                    channel=NotificationChannel.EMAIL,
-                    subject=subject,
-                    body=body,
-                    recipients=[user.email],
-                    priority=1,
-                    scheduled_at=None,
-                    metadata={
-                        "correlation_id": correlation_id,
-                        "reason": "fallback_violation_email",
-                    },
-                )
-
-                delivery = await self.repo.create_delivery(payload)
-                created_ids.append(delivery.id)
-                asyncio.create_task(self._send_notification_async(delivery.id))
-            except Exception:
-                logger.exception(
-                    "Failed to create fallback violation email",
-                    component="notifications",
-                    user_id=str(user_id),
-                    correlation_id=correlation_id,
-                )
-                increment_error_counter("delivery_create_error")
-
-        # If user lacks telegram info, also create a short registration email (separate) to encourage registration
-        if needs_registration and getattr(user, "email", None):
-            try:
-                bot_link = settings.notifications.TELEGRAM_BOT_TOKEN or ""
-                bot_link = "https://t.me/your_bot_here"
-                subject = "Please register your Telegram to receive alerts"
-                body = (
-                    f"Hello,\n\nWe detected a suspicious transaction (id={transaction_data.get('id')}). "
-                    "To receive real-time Telegram notifications please register your Telegram username with our system by starting the bot:\n"
-                    f"{bot_link}\n\nThank you."
-                )
-
-                payload = NotificationDeliveryCreate(
-                    transaction_id=UUID(transaction_data["id"]),
-                    template_id=None,
-                    channel=NotificationChannel.EMAIL,
-                    subject=subject,
-                    body=body,
-                    recipients=[user.email],
-                    priority=1,
-                    scheduled_at=None,
-                    metadata={
-                        "correlation_id": correlation_id,
-                        "reason": "telegram_registration_requested",
-                    },
-                )
-
-                delivery = await self.repo.create_delivery(payload)
-                created_ids.append(delivery.id)
-                asyncio.create_task(self._send_notification_async(delivery.id))
-            except Exception:
-                logger.exception(
-                    "Failed to create registration email delivery",
-                    component="notifications",
-                    user_id=str(user_id),
-                    correlation_id=correlation_id,
-                )
-                increment_error_counter("delivery_create_error")
-        observe_notification_time(duration)
-
-        logger.info(
-            "Finished creating user-targeted notification deliveries",
-            component="notifications",
-            created_count=len(created_ids),
-            user_id=str(user_id),
-            correlation_id=correlation_id,
-        )
-
-        return created_ids
-
+    
     def _get_default_recipients(self, channel: NotificationChannel) -> List[str]:
         """
         Returns default recipients for a channel.
@@ -683,6 +306,28 @@ class NotificationService:
             NotificationChannel.TELEGRAM: ["-1001234567890"],
         }
         return defaults.get(channel, [])
+
+    async def _create_and_schedule_delivery(
+        self, payload: NotificationDeliveryCreate, created_ids: List[UUID]
+    ) -> Optional[UUID]:
+        """
+        Create a delivery record via repository, append its id to created_ids
+        and schedule the asynchronous send task. Returns the delivery id on
+        success or None on failure.
+        """
+        try:
+            delivery = await self.repo.create_delivery(payload)
+            created_ids.append(delivery.id)
+            asyncio.create_task(self._send_notification_async(delivery.id))
+            return delivery.id
+        except Exception:
+            logger.exception(
+                "Failed to create/send delivery",
+                component="notifications",
+                metadata=getattr(payload, "metadata", {}),
+            )
+            increment_error_counter("delivery_create_error")
+            return None
 
     async def _render_template(
         self,
