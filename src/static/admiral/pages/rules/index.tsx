@@ -35,7 +35,6 @@ const Rules: React.FC = () => {
     const [newRuleEnabled, setNewRuleEnabled] = useState(true)
     const [newRulePriority, setNewRulePriority] = useState(5)
     const [newRuleCritical, setNewRuleCritical] = useState(false)
-    const [newRuleCreatedBy, setNewRuleCreatedBy] = useState('admin')
     const [newRuleParams, setNewRuleParams] = useState<Record<string, any>>({})
     const [allRules, setAllRules] = useState<Rule[]>([])
     const [loading, setLoading] = useState(true)
@@ -111,7 +110,6 @@ const Rules: React.FC = () => {
         setNewRuleEnabled(true)
         setNewRulePriority(5)
         setNewRuleCritical(false)
-        setNewRuleCreatedBy('admin')
         setNewRuleParams({})
     }
 
@@ -124,18 +122,111 @@ const Rules: React.FC = () => {
         setNewRuleParams({})
     }
 
-    const handleSaveRule = () => {
-        console.log('Saving rule:', {
-            name: newRuleName,
-            type: newRuleType,
-            description: newRuleDescription,
-            enabled: newRuleEnabled,
-            priority: newRulePriority,
-            critical: newRuleCritical,
-            created_by: newRuleCreatedBy,
-            params: newRuleParams,
-        })
-        handleCloseModal()
+    const handleSaveRule = async () => {
+        try {
+            const token = localStorage.getItem('admiral_global_admin_session_token')
+            
+            if (!token) {
+                alert('No authentication token found. Please login again.')
+                return
+            }
+
+            // Filter params based on rule type
+            let filteredParams: Record<string, any> = {}
+
+            if (newRuleType === 'threshold') {
+                // Only include threshold-specific parameters
+                const thresholdKeys = [
+                    'max_amount',
+                    'min_amount',
+                    'operator',
+                    'time_window',
+                    'allowed_hours_start',
+                    'allowed_hours_end',
+                    'allowed_locations',
+                    'max_devices_per_account',
+                    'max_ips_per_account',
+                    'max_velocity_amount',
+                    'max_transaction_types',
+                    'max_transactions_per_account',
+                    'max_transactions_to_account',
+                    'max_transactions_per_ip'
+                ]
+                thresholdKeys.forEach(key => {
+                    if (newRuleParams[key] !== undefined && newRuleParams[key] !== '' && newRuleParams[key] !== null) {
+                        filteredParams[key] = newRuleParams[key]
+                    }
+                })
+            } else if (newRuleType === 'pattern') {
+                // Only include pattern-specific parameters
+                const patternKeys = [
+                    'period',
+                    'count',
+                    'amount_ceiling',
+                    'same_recipient',
+                    'unique_recipients',
+                    'same_device',
+                    'velocity_limit'
+                ]
+                patternKeys.forEach(key => {
+                    if (newRuleParams[key] !== undefined && newRuleParams[key] !== '' && newRuleParams[key] !== null) {
+                        filteredParams[key] = newRuleParams[key]
+                    }
+                })
+            } else if (newRuleType === 'composite') {
+                // Only include composite-specific parameters
+                const compositeKeys = [
+                    'composite_operator',
+                    'rules'
+                ]
+                compositeKeys.forEach(key => {
+                    if (newRuleParams[key] !== undefined && newRuleParams[key] !== '' && newRuleParams[key] !== null) {
+                        filteredParams[key] = newRuleParams[key]
+                    }
+                })
+            } else if (newRuleType === 'ml') {
+                // Only include ML-specific parameters
+                const mlKeys = [
+                    'model_version',
+                    'threshold',
+                    'endpoint_url'
+                ]
+                mlKeys.forEach(key => {
+                    if (newRuleParams[key] !== undefined && newRuleParams[key] !== '' && newRuleParams[key] !== null) {
+                        filteredParams[key] = newRuleParams[key]
+                    }
+                })
+            }
+
+            // Build the request payload
+            const payload = {
+                name: newRuleName,
+                type: newRuleType,
+                params: filteredParams,
+                enabled: newRuleEnabled,
+                priority: newRulePriority,
+                critical: newRuleCritical,
+                description: newRuleDescription,
+            }
+
+            // POST request to create new rule
+            await axios.post(`${API_URL}/rules`, payload, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            })
+
+            // Refresh the rules list after successful creation
+            if (selectedType) {
+                await fetchRules(selectedType)
+            }
+
+            handleCloseModal()
+        } catch (err: any) {
+            console.error('Error saving rule:', err)
+            alert(err.response?.data?.detail || 'Failed to save rule.')
+        }
     }
 
     const exportToCSV = () => {
@@ -712,25 +803,39 @@ const Rules: React.FC = () => {
                                             }
                                             style={{ width: '100%' }}
                                         >
-                                            <Select.Option value="GT">Greater Than</Select.Option>
-                                            <Select.Option value="LT">Less Than</Select.Option>
-                                            <Select.Option value="EQ">Equal</Select.Option>
-                                            <Select.Option value="GTE">Greater Than or Equal</Select.Option>
-                                            <Select.Option value="LTE">Less Than or Equal</Select.Option>
+                                            <Select.Option value="gt">Greater Than (gt)</Select.Option>
+                                            <Select.Option value="lt">Less Than (lt)</Select.Option>
+                                            <Select.Option value="eq">Equal (eq)</Select.Option>
+                                            <Select.Option value="gte">Greater Than or Equal (gte)</Select.Option>
+                                            <Select.Option value="lte">Less Than or Equal (lte)</Select.Option>
+                                            <Select.Option value="ne">Not Equal (ne)</Select.Option>
+                                            <Select.Option value="between">Between</Select.Option>
+                                            <Select.Option value="not_between">Not Between</Select.Option>
                                         </Select>
                                     </Form.Item>
-                                    <Form.Item label="Time Window (seconds)">
-                                        <Input
-                                            type="number"
+                                    <Form.Item label="Time Window">
+                                        <Select
                                             value={newRuleParams.time_window || ''}
-                                            onChange={(e: any) =>
+                                            onChange={(value: any) =>
                                                 setNewRuleParams({
                                                     ...newRuleParams,
-                                                    time_window: parseInt(e.target.value),
+                                                    time_window: value,
                                                 })
                                             }
-                                            placeholder="e.g., 3600"
-                                        />
+                                            style={{ width: '100%' }}
+                                        >
+                                            <Select.Option value="1m">1 Minute</Select.Option>
+                                            <Select.Option value="5m">5 Minutes</Select.Option>
+                                            <Select.Option value="10m">10 Minutes</Select.Option>
+                                            <Select.Option value="15m">15 Minutes</Select.Option>
+                                            <Select.Option value="30m">30 Minutes</Select.Option>
+                                            <Select.Option value="1h">1 Hour</Select.Option>
+                                            <Select.Option value="6h">6 Hours</Select.Option>
+                                            <Select.Option value="12h">12 Hours</Select.Option>
+                                            <Select.Option value="1d">1 Day</Select.Option>
+                                            <Select.Option value="1w">1 Week</Select.Option>
+                                            <Select.Option value="1M">1 Month</Select.Option>
+                                        </Select>
                                     </Form.Item>
                                     <Form.Item label="Allowed Hours Start">
                                         <Input
@@ -867,17 +972,28 @@ const Rules: React.FC = () => {
                             {newRuleType === 'pattern' && (
                                 <>
                                     <Form.Item label="Period (required)" required>
-                                        <Input
-                                            type="number"
+                                        <Select
                                             value={newRuleParams.period || ''}
-                                            onChange={(e: any) =>
+                                            onChange={(value: any) =>
                                                 setNewRuleParams({
                                                     ...newRuleParams,
-                                                    period: parseInt(e.target.value),
+                                                    period: value,
                                                 })
                                             }
-                                            placeholder="Duration of time window in seconds"
-                                        />
+                                            style={{ width: '100%' }}
+                                        >
+                                            <Select.Option value="1m">1 Minute</Select.Option>
+                                            <Select.Option value="5m">5 Minutes</Select.Option>
+                                            <Select.Option value="10m">10 Minutes</Select.Option>
+                                            <Select.Option value="15m">15 Minutes</Select.Option>
+                                            <Select.Option value="30m">30 Minutes</Select.Option>
+                                            <Select.Option value="1h">1 Hour</Select.Option>
+                                            <Select.Option value="6h">6 Hours</Select.Option>
+                                            <Select.Option value="12h">12 Hours</Select.Option>
+                                            <Select.Option value="1d">1 Day</Select.Option>
+                                            <Select.Option value="1w">1 Week</Select.Option>
+                                            <Select.Option value="1M">1 Month</Select.Option>
+                                        </Select>
                                     </Form.Item>
                                     <Form.Item label="Count">
                                         <Input
@@ -1007,13 +1123,13 @@ const Rules: React.FC = () => {
 
                             {newRuleType === 'composite' && (
                                 <>
-                                    <Form.Item label="Operator">
+                                    <Form.Item label="Composite Operator">
                                         <Select
-                                            value={newRuleParams.operator || 'AND'}
+                                            value={newRuleParams.composite_operator || 'AND'}
                                             onChange={(value: any) =>
                                                 setNewRuleParams({
                                                     ...newRuleParams,
-                                                    operator: value,
+                                                    composite_operator: value,
                                                 })
                                             }
                                             style={{ width: '100%' }}
@@ -1047,14 +1163,6 @@ const Rules: React.FC = () => {
                                 />
                             </Form.Item>
 
-                            <Form.Item label="Created By">
-                                <Input
-                                    value={newRuleCreatedBy}
-                                    onChange={(e: any) => setNewRuleCreatedBy(e.target.value)}
-                                    placeholder="Enter creator name"
-                                />
-                            </Form.Item>
-
                             <Form.Item>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <Switch checked={newRuleEnabled} onChange={setNewRuleEnabled} />
@@ -1067,9 +1175,7 @@ const Rules: React.FC = () => {
                                     <Switch checked={newRuleCritical} onChange={setNewRuleCritical} />
                                     <span>Critical</span>
                                 </div>
-                            </Form.Item>
-
-                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                            </Form.Item>                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
                                 <Button onClick={handleCloseModal} style={{ padding: '8px 16px' }}>
                                     Cancel
                                 </Button>
