@@ -134,7 +134,7 @@ const Profile: React.FC = () => {
                             )}
                             
                             <div>
-                                <label style={{ display: 'block', marginBottom: '8px', color: '#e5e7eb' }}>Email</label>
+                                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--color-typo-primary)' }}>Email</label>
                                 <input
                                     type="email"
                                     name="email"
@@ -145,10 +145,10 @@ const Profile: React.FC = () => {
                                     style={{
                                         width: '100%',
                                         padding: '10px 12px',
-                                        backgroundColor: '#374151',
-                                        border: '1px solid #4b5563',
+                                        backgroundColor: 'var(--color-bg-default)',
+                                        border: '1px solid var(--color-bg-border)',
                                         borderRadius: '6px',
-                                        color: '#e5e7eb',
+                                        color: 'var(--color-typo-primary)',
                                         fontSize: '14px',
                                         outline: 'none',
                                     }}
@@ -156,7 +156,7 @@ const Profile: React.FC = () => {
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '8px', color: '#e5e7eb' }}>Telegram Account</label>
+                                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--color-typo-primary)' }}>Telegram Account</label>
                                 <input
                                     type="text"
                                     name="tgAccount"
@@ -167,10 +167,10 @@ const Profile: React.FC = () => {
                                     style={{
                                         width: '100%',
                                         padding: '10px 12px',
-                                        backgroundColor: '#374151',
-                                        border: '1px solid #4b5563',
+                                        backgroundColor: 'var(--color-bg-default)',
+                                        border: '1px solid var(--color-bg-border)',
                                         borderRadius: '6px',
-                                        color: '#e5e7eb',
+                                        color: 'var(--color-typo-primary)',
                                         fontSize: '14px',
                                         outline: 'none',
                                     }}
