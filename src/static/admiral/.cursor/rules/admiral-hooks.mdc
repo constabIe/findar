@@ -1,6 +1,6 @@
 ---
-description: 
-globs: 
+description:
+globs:
 alwaysApply: true
 ---
 # admiral-hooks
@@ -27,7 +27,7 @@ alwaysApply: true
 import { useNav } from '@devfamily/admiral'
 ```
 
-**Purpose:**  
+**Purpose:**
 Manages the state of the navigation panel and burger menu.
 
 **Returned values:**
@@ -49,7 +49,7 @@ Manages the state of the navigation panel and burger menu.
 import { useForm } from '@devfamily/admiral'
 ```
 
-**Purpose:**  
+**Purpose:**
 Get and manage form state. This hook uses the React Context API under the hood, which means it can only be used inside a provider. The provider is already implemented in the @devfamily/admiral library as the Form component. Form wraps the CRUD.CreatePage and CRUD.UpdatePage pages. All input components are connected to the form via context using the 'name' attribute. Therefore, on CRUD pages, it is enough to simply pass the required name value to the component for it to work with the form.
 
 **Returned values:**
@@ -74,7 +74,7 @@ Get and manage form state. This hook uses the React Context API under the hood, 
 import { useTheme } from '@devfamily/admiral'
 ```
 
-**Purpose:**  
+**Purpose:**
 Get and change the current application theme.
 
 **Returned values:**
@@ -92,7 +92,7 @@ Get and change the current application theme.
 import { useGetIdentity } from '@devfamily/admiral'
 ```
 
-**Purpose:**  
+**Purpose:**
 Get information about the current user via AuthProvider.
 
 **Returned values:**
@@ -109,4 +109,3 @@ Get information about the current user via AuthProvider.
 -   Use hooks only as intended, as described above.
 -   Do not leave unused imports.
 -   Do not use hooks outside of components.
-

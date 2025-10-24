@@ -65,7 +65,9 @@ class RuleRepository:
         self.cache_ttl = 3600  # 1 hour default TTL
 
     async def create_rule(
-        self, create_request: RuleCreateRequest, created_by: Optional[str] = None
+        self,
+        create_request: RuleCreateRequest,
+        created_by_user_id: Optional[UUID] = None,
     ) -> Rule:
         """
         Create a new fraud detection rule.
@@ -74,7 +76,7 @@ class RuleRepository:
 
         Args:
             create_request: Rule creation request with parameters
-            created_by: User creating the rule (for audit)
+            created_by_user_id: UUID of user creating the rule (for audit)
 
         Returns:
             Created Rule instance
@@ -102,7 +104,7 @@ class RuleRepository:
                 priority=create_request.priority,
                 critical=create_request.critical,
                 description=create_request.description,
-                created_by=created_by,
+                created_by_user_id=created_by_user_id,
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow(),
             )

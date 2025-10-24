@@ -237,3 +237,7 @@ Findar/
 findar_API
 
 node_modules
+
+
+.dockerignore
+tests

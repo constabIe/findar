@@ -238,7 +238,7 @@ class NotificationDeliveryCreate(BaseModel):
     """Schema for creating a notification delivery record."""
 
     transaction_id: UUID = Field(description="Related transaction ID")
-    template_id: UUID = Field(description="Template used for notification")
+    template_id: Optional[UUID] = Field(default=None, description="Template used for notification")
     channel: NotificationChannel = Field(description="Delivery channel")
 
     # Delivery content
