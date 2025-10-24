@@ -1,77 +1,48 @@
 services:
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    container_name: cadvisor
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:rw
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-    ports:
-      - "${CADVISOR_PORT}:8080"
-    networks:
-      - monitoring
-    restart: unless-stopped
-
-  app:
-    build: .
-    container_name: app
-    environment:
-      - HOST=${HOST}
-      - APP_PORT=${APP_PORT}
+  api:
+    build:
+      context: .
+      target: api
+    container_name: api
     ports:
       - "${APP_PORT}:${APP_PORT}"
+    env_file:
+      - .env
+    networks:
+      - postgres
+      - monitoring
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
-    networks:
-      - postgres
-      - monitoring
+        condition: service_healthy
     restart: unless-stopped
 
+  # --- Celery ---
   celery:
-    build: .
+    build:
+      context: .
+      target: celery
     container_name: celery
-    command: >
-      sh -c "
-        echo '⏳ Waiting for dependencies...' &&
-        sleep 5 &&
-        uv run celery -A src.modules.queue.celery_config:celery_app worker
-          --loglevel=info
-          --queues=transactions,rule_executions,celery
-          --pool=solo
-      "
-    volumes:
-      - .:/app
-    working_dir: /app
+    env_file:
+      - .env
+    networks:
+      - postgres
+      - monitoring
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
-    environment:
-      - HOST=${HOST}
-      - APP_PORT=${APP_PORT}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:${REDIS_PORT}/0
-    networks:
-      - postgres
-      - monitoring
+        condition: service_healthy
+    restart: unless-stopped
 
-  frontend:
-    image: node:22-alpine
-    working_dir: /app
+  frontend-builder:
+    container_name: frontend-builder
+    build:
+      context: ./src/static/admiral
     volumes:
-      - ./src/static/admiral:/app
       - frontend_dist:/app/dist
-    command: sh -c "npm ci --legacy-peer-deps && npm run build"
-
+    
   postgres:
     container_name: db
     image: postgres:16.10-alpine3.22
@@ -100,7 +71,7 @@ services:
       resources:
         limits:
           cpus: "1"
-          memory: 10G
+          memory: 20G
 
   pgadmin:
     image: dpage/pgadmin4:9.9
@@ -123,7 +94,7 @@ services:
     restart: unless-stopped
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_started
 
   redis:
     image: redis/redis-stack:7.4.0-v7
@@ -153,9 +124,12 @@ services:
     stdin_open: true
     networks:
       - postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   node-exporter:
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:v1.10.0
     container_name: node-exporter
     volumes:
       - /proc:/host/proc:ro
@@ -184,14 +158,17 @@ services:
       - "--web.console.templates=/usr/share/prometheus/consoles"
       - "--web.enable-lifecycle"
     ports:
-      - "${PROMETHEUS_PORT}:${PROMETHEUS_PORT}"
+      - "${PROMETHEUS_PORT}:9090"
     networks:
       - monitoring
     restart: unless-stopped
     depends_on:
-      - node-exporter
-      - alertmanager
-      - postgres
+      postgres:
+        condition: service_healthy
+      node-exporter:
+        condition: service_started
+      alertmanager:
+        condition: service_started
 
   grafana:
     image: grafana/grafana:12.2.0
@@ -211,12 +188,15 @@ services:
       - postgres
     restart: unless-stopped
     depends_on:
-      - prometheus
-      - loki
-      - postgres
+      prometheus:
+        condition: service_started
+      loki:
+        condition: service_started
+      postgres:
+        condition: service_healthy
 
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:3.5.7
     container_name: loki
     volumes:
       - ./docker/loki-config.yaml:/etc/loki/loki-config.yaml
@@ -226,14 +206,14 @@ services:
       - "${LOKI_PORT}:3100"
     restart: unless-stopped
     depends_on:
-      - postgres
+      postgres:
+        condition: service_started
 
   promtail:
-    image: grafana/promtail:latest
+    image: grafana/promtail:3.5.7
     container_name: promtail
     volumes:
       - ./docker/promtail-config.yaml:/etc/promtail/promtail-config.yaml
-      # - /var/log:/var/log   # если логируем хостовые логи
     command: -config.file=/etc/promtail/promtail-config.yaml
     restart: unless-stopped
     depends_on:
@@ -259,16 +239,21 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    depends_on:
-      - frontend
     volumes:
       - frontend_dist:/usr/share/nginx/html:ro
       - ./docker/confs/nginx:/etc/nginx/conf.d:ro
 
       # - ./nginx/certs:/etc/nginx/certs:ro
-    # networks:
-    #   - postgres
-    #   - monitoring
+    networks:
+      - postgres
+      - monitoring
+    depends_on:
+      - api
+      - frontend-builder
+      - pgadmin
+      - prometheus
+      - grafana
+      - alertmanager
     restart: unless-stopped
 
 volumes:
