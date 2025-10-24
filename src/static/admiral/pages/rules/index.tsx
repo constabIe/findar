@@ -76,11 +76,37 @@ const Rules: React.FC = () => {
         }
     }
 
-    const handleToggleRule = (ruleId: string, currentValue: boolean) => {
-        setRuleStates((prev) => ({
-            ...prev,
-            [ruleId]: !currentValue,
-        }))
+    const handleToggleRule = async (ruleId: string, currentValue: boolean) => {
+        try {
+            const token = localStorage.getItem('admiral_global_admin_session_token')
+            
+            if (!token) {
+                alert('No authentication token found. Please login again.')
+                return
+            }
+
+            // Determine the endpoint based on current state
+            // If currently enabled (true), we want to deactivate, otherwise activate
+            const endpoint = currentValue 
+                ? `${API_URL}/rules/${ruleId}/deactivate`
+                : `${API_URL}/rules/${ruleId}/activate`
+
+            // Make POST request to activate or deactivate
+            await axios.post(endpoint, {}, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+
+            // Update local state after successful request
+            setRuleStates((prev) => ({
+                ...prev,
+                [ruleId]: !currentValue,
+            }))
+        } catch (err: any) {
+            console.error('Error toggling rule:', err)
+            alert(err.response?.data?.detail || 'Failed to toggle rule.')
+        }
     }
 
     const getRuleApplyState = (ruleId: string, defaultValue: boolean) => {
