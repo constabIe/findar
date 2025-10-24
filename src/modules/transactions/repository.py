@@ -235,3 +235,45 @@ class TransactionRepository:
                 operation="update_status",
                 details={"transaction_id": str(transaction_id), "error": str(e)},
             )
+
+    async def get_all_transactions(
+        self, limit: Optional[int] = None
+    ) -> list[Transaction]:
+        """
+        Get all transactions from database with optional limit.
+
+        Args:
+            limit: Optional limit for number of transactions to return.
+                   If None, returns all transactions.
+
+        Returns:
+            List of Transaction instances ordered by timestamp (newest first)
+
+        Raises:
+            DatabaseError: If query execution fails
+        """
+        try:
+            # Build query with sorting by timestamp (descending - newest first)
+            stmt = select(Transaction).order_by(Transaction.timestamp.desc())  # type: ignore
+
+            # Apply limit if specified
+            if limit is not None:
+                stmt = stmt.limit(limit)
+
+            result = await self.session.execute(stmt)
+            transactions = list(result.scalars().all())
+
+            logger.info(
+                f"Retrieved {len(transactions)} transaction(s)"
+                + (f" with limit={limit}" if limit else " (no limit)")
+            )
+
+            return transactions
+
+        except Exception as e:
+            logger.error(f"Error fetching all transactions: {e}")
+            raise DatabaseError(
+                "Failed to fetch transactions",
+                operation="get_all_transactions",
+                details={"limit": limit, "error": str(e)},
+            )

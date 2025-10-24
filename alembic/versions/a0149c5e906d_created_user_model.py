@@ -53,7 +53,7 @@ def downgrade() -> None:
         "rules",
         sa.Column("created_by", sa.VARCHAR(), autoincrement=False, nullable=True),
     )
-    op.drop_constraint(None, "rules", type_="foreignkey")
+    op.drop_constraint(None, "rules", type_="foreignkey")  # type: ignore
     op.drop_column("rules", "created_by_user_id")
     # # op.create_table(
     #     "celery_taskmeta",
