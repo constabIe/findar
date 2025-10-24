@@ -23,18 +23,17 @@ if TYPE_CHECKING:
 else:
     AsyncSession = Any
 
+from sqlalchemy import select
+
 from src.core.exceptions import NotificationError
 from src.core.logging import get_logger
 from src.modules.notifications.enums import (
     NotificationChannel,
     NotificationStatus,
-    TemplateType,
 )
 from src.modules.notifications.models import (
     NotificationTemplate,
 )
-from sqlalchemy import select
-from src.storage.models import Rule as RuleModel
 from src.modules.notifications.repository import NotificationRepository
 from src.modules.notifications.schemas import NotificationDeliveryCreate
 from src.modules.notifications.senders import EmailSender, TelegramSender
@@ -43,7 +42,7 @@ from src.modules.reporting.metrics import (
     observe_notification_time,
 )
 from src.modules.users.repository import UserRepository
-from src.config import settings
+from src.storage.models import Rule as RuleModel
 
 logger = get_logger("notifications")
 
@@ -130,7 +129,9 @@ class NotificationService:
 
                 # Load rule object from DB
                 try:
-                    res = await self.db_session.execute(select(RuleModel).where(RuleModel.id == rule_id))
+                    res = await self.db_session.execute(
+                        select(RuleModel).where(RuleModel.id == rule_id)
+                    )
                     rule_obj = res.scalars().first()
                 except Exception:
                     logger.exception(
@@ -186,7 +187,11 @@ class NotificationService:
                     )
                     continue
 
-                txn_id = UUID(str(transaction_data.get("id"))) if transaction_data.get("id") else None
+                txn_id = (
+                    UUID(str(transaction_data.get("id")))
+                    if transaction_data.get("id")
+                    else None
+                )
 
                 # Always send email (if available)
                 if getattr(user, "email", None) and txn_id:
@@ -238,17 +243,16 @@ class NotificationService:
 
                     if tg_recipient:
                         if getattr(user, "telegram_alias", None):
-                            tg_body = (
-                                f"Your rule '{rule_obj.name}' was violated by transaction {transaction_data.get('id')}."
-                            )
+                            tg_body = f"Your rule '{rule_obj.name}' was violated by transaction {transaction_data.get('id')}."
                         else:
                             # Ask user to register on the website (bot will be the sender)
-                            tg_body = (
-                                f"Please register on our website to receive full alerts and start the bot @findar_linear_bot."
-                            )
+                            tg_body = "Please register on our website to receive full alerts and start the bot @findar_linear_bot."
 
                         payload = NotificationDeliveryCreate(
-                            transaction_id=txn_id or UUID(str(transaction_data.get("id"))) if transaction_data.get("id") else None,
+                            transaction_id=txn_id
+                            or UUID(str(transaction_data.get("id")))
+                            if transaction_data.get("id")
+                            else None,
                             template_id=None,
                             channel=NotificationChannel.TELEGRAM,
                             subject=None,
@@ -295,7 +299,7 @@ class NotificationService:
         )
 
         return created_ids
-    
+
     def _get_default_recipients(self, channel: NotificationChannel) -> List[str]:
         """
         Returns default recipients for a channel.
