@@ -4,6 +4,12 @@ import axios from 'axios'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
+interface Notification {
+    id: number
+    message: string
+    type: 'success' | 'error'
+}
+
 interface Rule {
     id: string
     name: string
@@ -39,8 +45,19 @@ const Rules: React.FC = () => {
     const [allRules, setAllRules] = useState<Rule[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
+    const [notifications, setNotifications] = useState<Notification[]>([])
 
     const itemsPerPage = 10
+
+    const showNotification = (message: string, type: 'success' | 'error') => {
+        const id = Date.now()
+        setNotifications(prev => [...prev, { id, message, type }])
+        
+        // Auto-remove notification after 3 seconds
+        setTimeout(() => {
+            setNotifications(prev => prev.filter(n => n.id !== id))
+        }, 3000)
+    }
 
     useEffect(() => {
         if (selectedType) {
@@ -81,7 +98,7 @@ const Rules: React.FC = () => {
             const token = localStorage.getItem('admiral_global_admin_session_token')
             
             if (!token) {
-                alert('No authentication token found. Please login again.')
+                showNotification('No authentication token found. Please login again.', 'error')
                 return
             }
 
@@ -103,9 +120,11 @@ const Rules: React.FC = () => {
                 ...prev,
                 [ruleId]: !currentValue,
             }))
+
+            showNotification(`Rule ${currentValue ? 'deactivated' : 'activated'} successfully!`, 'success')
         } catch (err: any) {
             console.error('Error toggling rule:', err)
-            alert(err.response?.data?.detail || 'Failed to toggle rule.')
+            showNotification(err.response?.data?.detail || 'Failed to toggle rule.', 'error')
         }
     }
 
@@ -151,14 +170,33 @@ const Rules: React.FC = () => {
     }
 
     const handleSaveRule = async () => {
-        try {
-            const token = localStorage.getItem('admiral_global_admin_session_token')
-            
-            if (!token) {
-                alert('No authentication token found. Please login again.')
+        // Validate required fields BEFORE try-catch
+        const token = localStorage.getItem('admiral_global_admin_session_token')
+        
+        if (!token) {
+            showNotification('No authentication token found. Please login again.', 'error')
+            return
+        }
+
+        if (!newRuleName || newRuleName.trim() === '') {
+            showNotification('Rule Name is required.', 'error')
+            return
+        }
+
+        // Validate type-specific required fields
+        if (newRuleType === 'pattern') {
+            if (!newRuleParams.period || newRuleParams.period === '') {
+                showNotification('Period is required for Pattern rules.', 'error')
                 return
             }
+        } else if (newRuleType === 'composite') {
+            if (!newRuleParams.rules || newRuleParams.rules.length === 0) {
+                showNotification('Rules field is required for Composite rules.', 'error')
+                return
+            }
+        }
 
+        try {
             // Filter params based on rule type
             let filteredParams: Record<string, any> = {}
 
@@ -245,6 +283,8 @@ const Rules: React.FC = () => {
                 }
             })
 
+            showNotification('Rule created successfully!', 'success')
+
             // Refresh the rules list after successful creation
             if (selectedType) {
                 await fetchRules(selectedType)
@@ -253,7 +293,7 @@ const Rules: React.FC = () => {
             handleCloseModal()
         } catch (err: any) {
             console.error('Error saving rule:', err)
-            alert(err.response?.data?.detail || 'Failed to save rule.')
+            showNotification(err.response?.data?.detail || 'Failed to save rule.', 'error')
         }
     }
 
@@ -308,9 +348,83 @@ const Rules: React.FC = () => {
 
     return (
         <Page title="Rules">
+            {/* Notification Container */}
+            <div style={{
+                position: 'fixed',
+                top: '20px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 9999,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                minWidth: '300px',
+                maxWidth: '500px',
+            }}>
+                {notifications.map(notification => (
+                    <div
+                        key={notification.id}
+                        style={{
+                            backgroundColor: notification.type === 'success' ? '#2d3e2f' : '#4a2828',
+                            color: '#ffffff',
+                            padding: '16px 20px',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            animation: 'slideIn 0.3s ease-out',
+                        }}
+                    >
+                        <div style={{
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '50%',
+                            backgroundColor: notification.type === 'success' ? '#4caf50' : '#f44336',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                        }}>
+                            {notification.type === 'success' ? '✓' : '✕'}
+                        </div>
+                        <span style={{ flex: 1 }}>{notification.message}</span>
+                        <button
+                            onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#ffffff',
+                                cursor: 'pointer',
+                                fontSize: '20px',
+                                padding: 0,
+                                width: '20px',
+                                height: '20px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                        >
+                            ×
+                        </button>
+                    </div>
+                ))}
+            </div>
+
             <Card>
                 <style>
                     {`
+                        @keyframes slideIn {
+                            from {
+                                transform: translateY(-20px);
+                                opacity: 0;
+                            }
+                            to {
+                                transform: translateY(0);
+                                opacity: 1;
+                            }
+                        }
+
                         .modal-content {
                             background-color: var(--color-bg-default);
                             color: var(--color-typo-primary);
@@ -1167,7 +1281,7 @@ const Rules: React.FC = () => {
                                             <Select.Option value="NOT">NOT</Select.Option>
                                         </Select>
                                     </Form.Item>
-                                    <Form.Item label="Rules (comma-separated IDs or Names)">
+                                    <Form.Item label="Rules (comma-separated IDs or Names)" required>
                                         <Input
                                             value={newRuleParams.rules?.join(', ') || ''}
                                             onChange={(e: any) =>
