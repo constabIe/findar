@@ -35,6 +35,8 @@ const Rules: React.FC = () => {
     const [ruleStates, setRuleStates] = useState<Record<string, boolean>>({})
     const [selectedType, setSelectedType] = useState<string | null>('threshold')
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+    const [ruleToDelete, setRuleToDelete] = useState<{ id: string; name: string } | null>(null)
     const [newRuleType, setNewRuleType] = useState('threshold')
     const [newRuleName, setNewRuleName] = useState('')
     const [newRuleDescription, setNewRuleDescription] = useState('')
@@ -126,6 +128,53 @@ const Rules: React.FC = () => {
             console.error('Error toggling rule:', err)
             showNotification(err.response?.data?.detail || 'Failed to toggle rule.', 'error')
         }
+    }
+
+    const handleDeleteRule = (ruleId: string, ruleName: string) => {
+        setRuleToDelete({ id: ruleId, name: ruleName })
+        setIsDeleteModalOpen(true)
+    }
+
+    const confirmDeleteRule = async () => {
+        if (!ruleToDelete) return
+
+        try {
+            const token = localStorage.getItem('admiral_global_admin_session_token')
+            
+            if (!token) {
+                showNotification('No authentication token found. Please login again.', 'error')
+                setIsDeleteModalOpen(false)
+                setRuleToDelete(null)
+                return
+            }
+
+            // Make DELETE request
+            await axios.delete(`${API_URL}/rules/${ruleToDelete.id}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+
+            showNotification(`Rule "${ruleToDelete.name}" deleted successfully!`, 'success')
+
+            // Refresh the rules list after successful deletion
+            if (selectedType) {
+                await fetchRules(selectedType)
+            }
+
+            setIsDeleteModalOpen(false)
+            setRuleToDelete(null)
+        } catch (err: any) {
+            console.error('Error deleting rule:', err)
+            showNotification(err.response?.data?.detail || 'Failed to delete rule.', 'error')
+            setIsDeleteModalOpen(false)
+            setRuleToDelete(null)
+        }
+    }
+
+    const cancelDeleteRule = () => {
+        setIsDeleteModalOpen(false)
+        setRuleToDelete(null)
     }
 
     const getRuleApplyState = (ruleId: string, defaultValue: boolean) => {
@@ -348,7 +397,6 @@ const Rules: React.FC = () => {
 
     return (
         <Page title="Rules">
-            {/* Notification Container */}
             <div style={{
                 position: 'fixed',
                 top: '20px',
@@ -542,6 +590,7 @@ const Rules: React.FC = () => {
                                         <th style={{ padding: '12px 8px', textAlign: 'center' }}>Apply rule</th>
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>ID</th>
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>Name</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'center' }}>Actions</th>
                                         
                                         {/* ALL possible parameter columns across all types */}
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Amount</th>
@@ -632,6 +681,26 @@ const Rules: React.FC = () => {
                                         {rule.id.substring(0, 8)}...
                                     </td>
                                     <td style={{ padding: '12px 8px', fontWeight: 'bold' }}>{rule.name}</td>
+                                    <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                                        <button
+                                            onClick={() => handleDeleteRule(rule.id, rule.name)}
+                                            style={{
+                                                backgroundColor: '#f44336',
+                                                color: '#ffffff',
+                                                border: 'none',
+                                                padding: '6px 12px',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer',
+                                                fontSize: '12px',
+                                                fontWeight: 'bold',
+                                                transition: 'background-color 0.2s',
+                                            }}
+                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d32f2f'}
+                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f44336'}
+                                        >
+                                            Delete
+                                        </button>
+                                    </td>
                                     
                                     {/* ALL possible parameter columns - show "-" for missing values */}
                                     <td style={{ padding: '12px 8px' }}>{rule.params.max_amount || '-'}</td>
@@ -1336,6 +1405,63 @@ const Rules: React.FC = () => {
                             </div>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {isDeleteModalOpen && ruleToDelete && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                    }}
+                    onClick={cancelDeleteRule}
+                >
+                    <div
+                        className="modal-content"
+                        style={{
+                            padding: '32px',
+                            borderRadius: '8px',
+                            maxWidth: '500px',
+                            width: '90%',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 style={{ marginTop: 0, marginBottom: '16px' }}>Confirm Delete</h2>
+                        <p style={{ marginBottom: '24px', fontSize: '16px' }}>
+                            Are you sure you want to delete rule "<strong>{ruleToDelete.name}</strong>"?
+                        </p>
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                            <Button 
+                                onClick={cancelDeleteRule} 
+                                style={{ 
+                                    padding: '10px 20px',
+                                    border: 'none',
+                                }}
+                            >
+                                Отмена
+                            </Button>
+                            <Button
+                                onClick={confirmDeleteRule}
+                                style={{
+                                    backgroundColor: '#f44336',
+                                    color: '#ffffff',
+                                    padding: '10px 20px',
+                                    fontWeight: 'bold',
+                                    border: 'none',
+                                }}
+                            >
+                                OK
+                            </Button>
+                        </div>
                     </div>
                 </div>
             )}
