@@ -24,14 +24,12 @@ const Profile: React.FC = () => {
     })
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
+    const [saving, setSaving] = useState(false)
+    const [successMessage, setSuccessMessage] = useState('')
 
     useEffect(() => {
         fetchProfile()
     }, [])
-
-    useEffect(() => {
-        console.log('Form data updated:', formData)
-    }, [formData])
 
     const fetchProfile = async () => {
         try {
@@ -46,21 +44,17 @@ const Profile: React.FC = () => {
                 return
             }
 
-            console.log('Fetching profile from:', `${API_URL}/users/me`)
             const response = await axios.get<UserResponse>(`${API_URL}/users/me`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             })
-
-            console.log('Profile data received:', response.data)
             
             const newFormData = {
                 email: response.data.email || '',
                 tgAccount: response.data.telegram_alias || '',
             }
             
-            console.log('Setting form data to:', newFormData)
             setFormData(newFormData)
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Failed to load profile data.')
@@ -77,12 +71,46 @@ const Profile: React.FC = () => {
         }))
     }
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        console.log('Profile updated:', formData)
-    }
+        setError('')
+        setSuccessMessage('')
+        setSaving(true)
 
-    console.log('Rendering with formData:', formData)
+        try {
+            const token = localStorage.getItem('admiral_global_admin_session_token')
+            
+            if (!token) {
+                setError('No authentication token found. Please login again.')
+                setSaving(false)
+                return
+            }
+
+            // Send PATCH request to update telegram alias
+            await axios.patch(
+                `${API_URL}/users/me/telegram`,
+                { telegram_alias: formData.tgAccount },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }
+            )
+
+            // Fetch updated profile data
+            await fetchProfile()
+            
+            setSuccessMessage('Telegram alias updated successfully!')
+            
+            // Clear success message after 3 seconds
+            setTimeout(() => setSuccessMessage(''), 3000)
+        } catch (err: any) {
+            setError(err.response?.data?.detail || 'Failed to update telegram alias.')
+            console.error('Error updating profile:', err)
+        } finally {
+            setSaving(false)
+        }
+    }
     
     return (
         <Page title="Profile">
@@ -94,6 +122,17 @@ const Profile: React.FC = () => {
                 ) : (
                     <form onSubmit={handleSubmit}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            {successMessage && (
+                                <div style={{ padding: '12px', backgroundColor: '#10b981', color: 'white', borderRadius: '6px' }}>
+                                    {successMessage}
+                                </div>
+                            )}
+                            {error && (
+                                <div style={{ padding: '12px', backgroundColor: '#ef4444', color: 'white', borderRadius: '6px' }}>
+                                    {error}
+                                </div>
+                            )}
+                            
                             <div>
                                 <label style={{ display: 'block', marginBottom: '8px', color: '#e5e7eb' }}>Email</label>
                                 <input
@@ -124,6 +163,7 @@ const Profile: React.FC = () => {
                                     placeholder="@username"
                                     value={formData.tgAccount}
                                     onChange={(e) => handleInputChange('tgAccount', e.target.value)}
+                                    disabled={saving}
                                     style={{
                                         width: '100%',
                                         padding: '10px 12px',
@@ -138,7 +178,9 @@ const Profile: React.FC = () => {
                             </div>
 
                             <div style={{ marginTop: '16px' }}>
-                                <Button type="submit">Save Changes</Button>
+                                <Button type="submit" disabled={saving}>
+                                    {saving ? 'Saving...' : 'Save Changes'}
+                                </Button>
                             </div>
                         </div>
                     </form>
