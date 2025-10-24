@@ -587,12 +587,11 @@ const Rules: React.FC = () => {
                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                 <thead>
                                     <tr style={{ borderBottom: '2px solid #ddd' }}>
+                                        <th style={{ padding: '12px 8px', textAlign: 'center' }}>Deletion</th>
                                         <th style={{ padding: '12px 8px', textAlign: 'center' }}>Apply rule</th>
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>ID</th>
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>Name</th>
-                                        <th style={{ padding: '12px 8px', textAlign: 'center' }}>Actions</th>
                                         
-                                        {/* ALL possible parameter columns across all types */}
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Amount</th>
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>Min Amount</th>
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>Operator</th>
@@ -640,6 +639,26 @@ const Rules: React.FC = () => {
                                     }}
                                 >
                                     <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                                        <button
+                                            onClick={() => handleDeleteRule(rule.id, rule.name)}
+                                            style={{
+                                                backgroundColor: '#f44336',
+                                                color: '#ffffff',
+                                                border: 'none',
+                                                padding: '6px 12px',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer',
+                                                fontSize: '12px',
+                                                fontWeight: 'bold',
+                                                transition: 'background-color 0.2s',
+                                            }}
+                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d32f2f'}
+                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f44336'}
+                                        >
+                                            Delete
+                                        </button>
+                                    </td>
+                                    <td style={{ padding: '12px 8px', textAlign: 'center' }}>
                                         <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
                                             <input
                                                 type="checkbox"
@@ -681,26 +700,6 @@ const Rules: React.FC = () => {
                                         {rule.id.substring(0, 8)}...
                                     </td>
                                     <td style={{ padding: '12px 8px', fontWeight: 'bold' }}>{rule.name}</td>
-                                    <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                                        <button
-                                            onClick={() => handleDeleteRule(rule.id, rule.name)}
-                                            style={{
-                                                backgroundColor: '#f44336',
-                                                color: '#ffffff',
-                                                border: 'none',
-                                                padding: '6px 12px',
-                                                borderRadius: '4px',
-                                                cursor: 'pointer',
-                                                fontSize: '12px',
-                                                fontWeight: 'bold',
-                                                transition: 'background-color 0.2s',
-                                            }}
-                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d32f2f'}
-                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f44336'}
-                                        >
-                                            Delete
-                                        </button>
-                                    </td>
                                     
                                     {/* ALL possible parameter columns - show "-" for missing values */}
                                     <td style={{ padding: '12px 8px' }}>{rule.params.max_amount || '-'}</td>
@@ -1443,7 +1442,10 @@ const Rules: React.FC = () => {
                             <Button 
                                 onClick={cancelDeleteRule} 
                                 style={{ 
+                                    backgroundColor: '#4caf50',
+                                    color: '#ffffff',
                                     padding: '10px 20px',
+                                    fontWeight: 'bold',
                                     border: 'none',
                                 }}
                             >
