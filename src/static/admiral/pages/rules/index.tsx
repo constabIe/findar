@@ -876,7 +876,8 @@ const Rules: React.FC = () => {
                     >
                         <h2 style={{ marginTop: 0, marginBottom: '24px' }}>Add New Rule</h2>
 
-                        <Form>
+                        <form onSubmit={(e) => { e.preventDefault(); handleSaveRule(); }}>
+                            <div>
                             <Form.Item label="Rule Name" required>
                                 <Input
                                     value={newRuleName}
@@ -1322,7 +1323,7 @@ const Rules: React.FC = () => {
                                     Cancel
                                 </Button>
                                 <Button
-                                    onClick={handleSaveRule}
+                                    type="submit"
                                     style={{
                                         backgroundColor: '#1565c0',
                                         color: '#ffffff',
@@ -1333,7 +1334,8 @@ const Rules: React.FC = () => {
                                     Save Rule
                                 </Button>
                             </div>
-                        </Form>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
