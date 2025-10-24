@@ -31,7 +31,10 @@ CELERY_QUEUE = "transactions.consume"
 
 
 async def enqueue_transaction(
-    redis_client: Redis, session: AsyncSession, data: Dict[str, Any]
+    redis_client: Redis,
+    session: AsyncSession,
+    data: Dict[str, Any],
+    max_composite_depth: int = 5,
 ) -> Dict[str, Any]:
     """
     Enqueue a transaction to Redis Stream and save to PostgreSQL.
@@ -135,6 +138,7 @@ async def enqueue_transaction(
             "queued_at": now.isoformat(),
             "correlation_id": correlation_id,
             "status": "queued",
+            "max_composite_depth": str(max_composite_depth),
             **{k: ("" if v is None else str(v)) for k, v in data.items()},
         }
 

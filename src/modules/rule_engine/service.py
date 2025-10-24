@@ -189,11 +189,91 @@ async def get_cached_active_rules(redis_client: Redis) -> List[Dict[str, Any]]:
         return []
 
 
+async def get_rule_by_name(
+    redis_client: Redis, rule_name: str
+) -> Optional[Dict[str, Any]]:
+    """
+    Find a rule by its name in Redis cache.
+
+    This function searches through all active rules in the cache to find
+    a rule with the matching name. Used by composite rules to resolve
+    sub-rule references.
+
+    Args:
+        redis_client: Async Redis client
+        rule_name: Name of the rule to find
+
+    Returns:
+        Rule dictionary if found, None otherwise
+    """
+    try:
+        # Get all active rule IDs from SET
+        rule_ids = await redis_client.smembers(ACTIVE_RULES_KEY)  # type: ignore
+
+        if not rule_ids:
+            logger.warning(
+                f"No active rules in cache when searching for '{rule_name}'",
+                event="cache_empty",
+                rule_name=rule_name,
+            )
+            return None
+
+        # Search through each rule
+        for rule_id_bytes in rule_ids:
+            try:
+                rule_id = (
+                    rule_id_bytes.decode("utf-8")
+                    if isinstance(rule_id_bytes, bytes)
+                    else str(rule_id_bytes)
+                )
+                rule_cache_key = f"{RULE_CACHE_KEY_PREFIX}{rule_id}"
+
+                # Get rule data
+                rule_data = await redis_client.get(rule_cache_key)
+
+                if rule_data:
+                    rule_dict = json.loads(rule_data)
+                    
+                    # Check if name matches
+                    if rule_dict.get("name") == rule_name:
+                        logger.debug(
+                            f"Found rule by name: {rule_name}",
+                            rule_id=rule_id,
+                            rule_name=rule_name,
+                        )
+                        return rule_dict
+
+            except Exception as e:
+                logger.error(
+                    f"Error checking rule {rule_id}: {e}",
+                    rule_id=rule_id,
+                    error=str(e),
+                )
+                continue
+
+        logger.warning(
+            f"Rule not found by name: {rule_name}",
+            event="rule_not_found",
+            rule_name=rule_name,
+        )
+        return None
+
+    except Exception as e:
+        logger.error(
+            f"Failed to search for rule by name: {e}",
+            event="search_error",
+            rule_name=rule_name,
+            error=str(e),
+        )
+        return None
+
+
 async def evaluate_transaction(
     transaction_data: Dict[str, Any],
     rules: List[Dict[str, Any]],
     correlation_id: str,
     redis_client: Optional[Redis] = None,
+    max_composite_depth: int = 5,
 ) -> TransactionEvaluationResult:
     """
     Evaluate a transaction against all active fraud detection rules.
@@ -203,6 +283,7 @@ async def evaluate_transaction(
         rules: List of active rule dictionaries
         correlation_id: Correlation ID for tracking
         redis_client: Optional async Redis client for frequency checks
+        max_composite_depth: Maximum recursion depth for composite rules (default: 5)
 
     Returns:
         TransactionEvaluationResult with all evaluation results
@@ -252,7 +333,12 @@ async def evaluate_transaction(
                 )
             elif rule_type == RuleType.COMPOSITE:
                 result = await evaluate_composite_rule(
-                    transaction_data, rule_dict, rule_id, rule_name
+                    transaction_data,
+                    rule_dict,
+                    rule_id,
+                    rule_name,
+                    redis_client,
+                    max_depth=max_composite_depth,
                 )
             elif rule_type == RuleType.ML:
                 result = await evaluate_ml_rule(
@@ -914,41 +1000,274 @@ async def evaluate_composite_rule(
     rule_dict: Dict[str, Any],
     rule_id: UUID,
     rule_name: str,
+    redis_client: Redis,
+    max_depth: int = 5,
+    current_depth: int = 0,
 ) -> RuleEvaluationResult:
     """
     Evaluate a composite rule (combination of other rules with AND/OR/NOT logic).
 
-    TODO: Implement composite rule evaluation
-    - Load sub-rules
-    - Apply logical operators
-    - Aggregate results
+    This function recursively evaluates sub-rules (referenced by name) and applies 
+    logical operators:
+    - AND: all sub-rules must match
+    - OR: at least one sub-rule must match
+    - NOT: applies NOT to all rules using OR - NOT(rule1 OR rule2 OR ...)
+      Returns True if NONE of the rules match.
+
+    Sub-rules are referenced by their unique names (not UUIDs) and are loaded from
+    Redis cache using the get_rule_by_name() function. Sub-rules are evaluated
+    regardless of their is_active status - composite rules work with any referenced rule.
+
+    Aggregation strategy:
+    - AND: confidence = min(all), risk = max(all)
+    - OR: confidence = max(all), risk = max(all)
+    - NOT: confidence = 1.0 - max(all), risk = unchanged
+
+    Note: Circular dependency protection is not yet implemented.
+    TODO: Add tracking of evaluated_rule_ids to prevent infinite recursion loops.
 
     Args:
         transaction_data: Transaction data
-        rule_dict: Rule configuration dictionary
+        rule_dict: Rule configuration dictionary (parameters.rules should contain rule names)
         rule_id: Rule UUID
         rule_name: Rule name
+        redis_client: Async Redis client for loading sub-rules by name
+        max_depth: Maximum recursion depth allowed (default: 5)
+        current_depth: Current recursion depth (internal use)
 
     Returns:
         RuleEvaluationResult with evaluation outcome
     """
+    from .schemas import CompositeRuleParams
+    from .enums import CompositeOperator
+
     is_critical = rule_dict.get("critical", False)
 
-    # TODO: Implement composite logic
-    logger.debug(
-        f"Composite rule evaluation not fully implemented: {rule_name}",
-        rule_id=str(rule_id),
-    )
+    # Check recursion depth limit
+    if current_depth >= max_depth:
+        logger.error(
+            f"Composite rule {rule_name} exceeded max depth {max_depth}",
+            event="max_depth_exceeded",
+            rule_id=str(rule_id),
+            current_depth=current_depth,
+            max_depth=max_depth,
+        )
+        return RuleEvaluationResult(
+            rule_id=rule_id,
+            rule_name=rule_name,
+            rule_type=RuleType.COMPOSITE,
+            matched=False,
+            confidence_score=0.0,
+            risk_level=RiskLevel.LOW,
+            error_message=f"Max recursion depth ({max_depth}) exceeded",
+        )
 
-    return RuleEvaluationResult(
-        rule_id=rule_id,
-        rule_name=rule_name,
-        rule_type=RuleType.COMPOSITE,
-        matched=False,
-        confidence_score=0.0,
-        risk_level=RiskLevel.LOW,
-        match_reason="Composite rules not yet implemented",
-    )
+    try:
+        # Parse composite rule parameters
+        params_dict = rule_dict.get("parameters", {})
+        params = CompositeRuleParams(**params_dict)
+
+        operator = params.operator
+        sub_rule_names = params.rules
+
+        logger.debug(
+            f"Evaluating composite rule: {rule_name}",
+            event="composite_evaluation_start",
+            rule_id=str(rule_id),
+            operator=operator.value,
+            sub_rules_count=len(sub_rule_names),
+            sub_rule_names=sub_rule_names,
+            depth=current_depth,
+        )
+
+        # Load and evaluate all sub-rules
+        sub_results: List[RuleEvaluationResult] = []
+
+        for sub_rule_name in sub_rule_names:
+            # Load sub-rule by name from Redis cache
+            sub_rule_dict = await get_rule_by_name(redis_client, sub_rule_name)
+
+            if not sub_rule_dict:
+                logger.warning(
+                    f"Sub-rule '{sub_rule_name}' not found in cache, skipping",
+                    event="sub_rule_not_found",
+                    composite_rule_id=str(rule_id),
+                    sub_rule_name=sub_rule_name,
+                )
+                # Skip only if rule doesn't exist (not found in cache)
+                continue
+
+            # Extract sub-rule metadata
+            # Note: We evaluate sub-rules regardless of their is_active status
+            # because composite rules should work with any referenced rule
+            sub_rule_id = UUID(sub_rule_dict.get("id"))
+            sub_rule_type = RuleType(sub_rule_dict.get("rule_type"))
+            actual_sub_rule_name = sub_rule_dict.get("name", sub_rule_name)
+            is_active = sub_rule_dict.get("is_active", False)
+            
+            logger.debug(
+                f"Evaluating sub-rule '{sub_rule_name}'",
+                event="sub_rule_evaluation",
+                sub_rule_name=sub_rule_name,
+                sub_rule_id=str(sub_rule_id),
+                sub_rule_type=sub_rule_type.value,
+                is_active=is_active,
+            )
+
+            # Recursively evaluate sub-rule based on type
+            if sub_rule_type == RuleType.THRESHOLD:
+                sub_result = await evaluate_threshold_rule(
+                    transaction_data,
+                    sub_rule_dict,
+                    sub_rule_id,
+                    actual_sub_rule_name,
+                    redis_client,
+                )
+            elif sub_rule_type == RuleType.PATTERN:
+                sub_result = await evaluate_pattern_rule(
+                    transaction_data,
+                    sub_rule_dict,
+                    sub_rule_id,
+                    actual_sub_rule_name,
+                    redis_client,
+                )
+            elif sub_rule_type == RuleType.COMPOSITE:
+                # Recursive call with incremented depth
+                sub_result = await evaluate_composite_rule(
+                    transaction_data,
+                    sub_rule_dict,
+                    sub_rule_id,
+                    actual_sub_rule_name,
+                    redis_client,
+                    max_depth=max_depth,
+                    current_depth=current_depth + 1,
+                )
+            elif sub_rule_type == RuleType.ML:
+                sub_result = await evaluate_ml_rule(
+                    transaction_data,
+                    sub_rule_dict,
+                    sub_rule_id,
+                    actual_sub_rule_name,
+                )
+            else:
+                logger.warning(
+                    f"Unknown sub-rule type: {sub_rule_type}",
+                    sub_rule_name=sub_rule_name,
+                    sub_rule_type=sub_rule_type,
+                )
+                continue
+
+            sub_results.append(sub_result)
+
+        # If no sub-rules were evaluated, return no match
+        if not sub_results:
+            logger.warning(
+                f"No valid sub-rules found for composite rule {rule_name}",
+                event="no_sub_rules",
+                rule_id=str(rule_id),
+            )
+            return RuleEvaluationResult(
+                rule_id=rule_id,
+                rule_name=rule_name,
+                rule_type=RuleType.COMPOSITE,
+                matched=False,
+                confidence_score=0.0,
+                risk_level=RiskLevel.LOW,
+                match_reason="No valid sub-rules to evaluate",
+            )
+
+        # Apply logical operator
+        matched_sub_rules = [r for r in sub_results if r.matched]
+        all_confidences = [r.confidence_score for r in sub_results]
+        all_risk_levels = [r.risk_level for r in sub_results]
+
+        if operator == CompositeOperator.AND:
+            # All sub-rules must match
+            matched = len(matched_sub_rules) == len(sub_results)
+            confidence_score = min(all_confidences) if matched else 0.0
+            risk_level = max(all_risk_levels, key=lambda r: _risk_level_value(r))
+            match_reason = (
+                f"AND: All {len(sub_results)} sub-rules matched"
+                if matched
+                else f"AND: Only {len(matched_sub_rules)}/{len(sub_results)} sub-rules matched"
+            )
+
+        elif operator == CompositeOperator.OR:
+            # At least one sub-rule must match
+            matched = len(matched_sub_rules) > 0
+            confidence_score = max(all_confidences) if matched else 0.0
+            risk_level = max(all_risk_levels, key=lambda r: _risk_level_value(r))
+            match_reason = (
+                f"OR: {len(matched_sub_rules)}/{len(sub_results)} sub-rules matched"
+                if matched
+                else f"OR: None of {len(sub_results)} sub-rules matched"
+            )
+
+        elif operator == CompositeOperator.NOT:
+            # NOT(rule1 OR rule2 OR ...) - True if NONE match
+            matched = len(matched_sub_rules) == 0
+            confidence_score = 1.0 - max(all_confidences) if matched else 0.0
+            risk_level = max(all_risk_levels, key=lambda r: _risk_level_value(r))
+            match_reason = (
+                f"NOT: None of {len(sub_results)} sub-rules matched (as expected)"
+                if matched
+                else f"NOT: {len(matched_sub_rules)} sub-rules matched (violation)"
+            )
+
+        else:
+            logger.error(f"Unknown composite operator: {operator}")
+            matched = False
+            confidence_score = 0.0
+            risk_level = RiskLevel.LOW
+            match_reason = f"Unknown operator: {operator}"
+
+        logger.info(
+            f"Composite rule evaluation complete: {rule_name}",
+            event="composite_evaluation_complete",
+            rule_id=str(rule_id),
+            operator=operator.value,
+            matched=matched,
+            sub_results_count=len(sub_results),
+            matched_count=len(matched_sub_rules),
+        )
+
+        return RuleEvaluationResult(
+            rule_id=rule_id,
+            rule_name=rule_name,
+            rule_type=RuleType.COMPOSITE,
+            matched=matched,
+            confidence_score=confidence_score,
+            risk_level=risk_level,
+            match_reason=match_reason,
+        )
+
+    except Exception as e:
+        logger.error(
+            f"Error evaluating composite rule {rule_name}: {e}",
+            event="composite_evaluation_error",
+            rule_id=str(rule_id),
+            error=str(e),
+        )
+        return RuleEvaluationResult(
+            rule_id=rule_id,
+            rule_name=rule_name,
+            rule_type=RuleType.COMPOSITE,
+            matched=False,
+            confidence_score=0.0,
+            risk_level=RiskLevel.LOW,
+            error_message=f"Composite evaluation failed: {str(e)}",
+        )
+
+
+def _risk_level_value(risk: RiskLevel) -> int:
+    """Helper function to convert RiskLevel to numeric value for comparison."""
+    risk_values = {
+        RiskLevel.LOW: 1,
+        RiskLevel.MEDIUM: 2,
+        RiskLevel.HIGH: 3,
+        RiskLevel.CRITICAL: 4,
+    }
+    return risk_values.get(risk, 0)
 
 
 async def evaluate_ml_rule(

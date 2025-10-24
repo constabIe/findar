@@ -186,6 +186,9 @@ def process_transaction(
 
     # Extract transaction_id from data
     transaction_id = transaction_data.get("id")
+    
+    # Extract max_composite_depth (default to 5 if not provided)
+    max_composite_depth = int(transaction_data.get("max_composite_depth", 5))
 
     logger.info(
         f"Processing transaction {transaction_id} "
@@ -206,6 +209,7 @@ def process_transaction(
                 queue_task_id=UUID(queue_task_id),
                 worker_id=worker_id,
                 worker_hostname=worker_hostname,
+                max_composite_depth=max_composite_depth,
             )
         )
 
@@ -266,6 +270,7 @@ async def _process_transaction_async(
     queue_task_id: UUID,
     worker_id: str,
     worker_hostname: str,
+    max_composite_depth: int = 5,
 ) -> Dict[str, Any]:
     """
     Async implementation of transaction processing.
@@ -276,6 +281,7 @@ async def _process_transaction_async(
         queue_task_id: Queue task UUID
         worker_id: Celery worker ID
         worker_hostname: Worker hostname
+        max_composite_depth: Maximum recursion depth for composite rules
 
     Returns:
         Processing results dictionary
@@ -295,7 +301,9 @@ async def _process_transaction_async(
 
         # Evaluate with rule engine
         rule_engine_start = time()
-        evaluation_result = await _evaluate_transaction(transaction_data)
+        evaluation_result = await _evaluate_transaction(
+            transaction_data, max_composite_depth=max_composite_depth
+        )
         rule_engine_time_ms = int((time() - rule_engine_start) * 1000)
         observe_rule_engine_time((time() - rule_engine_start))
 
@@ -358,12 +366,15 @@ async def _process_transaction_async(
         }
 
 
-async def _evaluate_transaction(transaction: Dict[str, Any]) -> Dict[str, Any]:
+async def _evaluate_transaction(
+    transaction: Dict[str, Any], max_composite_depth: int = 5
+) -> Dict[str, Any]:
     """
     Evaluate transaction with rule engine.
 
     Args:
         transaction: Complete transaction data from Redis
+        max_composite_depth: Maximum recursion depth for composite rules
 
     Returns:
         Evaluation results dictionary
@@ -421,6 +432,7 @@ async def _evaluate_transaction(transaction: Dict[str, Any]) -> Dict[str, Any]:
             rules=active_rules,
             correlation_id=correlation_id,
             redis_client=redis_client,
+            max_composite_depth=max_composite_depth,
         )
 
         # Store transaction data for pattern analysis (async, non-blocking)

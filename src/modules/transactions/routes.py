@@ -39,6 +39,12 @@ async def create_transaction(
     payload: TransactionCreate,
     redis_client: AsyncRedisDep,
     session: AsyncSessionDep,
+    max_composite_depth: int = Query(
+        5,
+        ge=1,
+        le=10,
+        description="Maximum recursion depth for composite rule evaluation (1-10)",
+    ),
 ) -> TransactionQueued:
     """
     Create and enqueue a new transaction for processing.
@@ -86,6 +92,7 @@ async def create_transaction(
             redis_client=redis_client,
             session=session,
             data=payload.model_dump(),
+            max_composite_depth=max_composite_depth,
         )
 
         logger.info(
