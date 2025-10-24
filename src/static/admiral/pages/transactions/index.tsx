@@ -1,5 +1,8 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Page, Card, Button } from '@devfamily/admiral'
+import axios from 'axios'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
 interface Transaction {
     id: string
@@ -16,213 +19,61 @@ interface Transaction {
     location: string
     device_id: string
     ip_address: string
+    created_at: string
+    updated_at: string
+}
+
+interface TransactionsResponse {
+    transactions: Transaction[]
+    count: number
+    limit: number
 }
 
 const Transactions: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1)
+    const [allTransactions, setAllTransactions] = useState<Transaction[]>([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState('')
 
     const itemsPerPage = 10
 
-    const allTransactions: Transaction[] = [
-        {
-            id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-            amount: 1250.50,
-            from_account: 'ACC-1001',
-            to_account: 'ACC-2045',
-            timestamp: '2025-10-23 14:30:15',
-            type: 'TRANSFER',
-            correlation_id: 'COR-2025-001',
-            status: 'COMPLETED',
-            currency: 'USD',
-            description: 'Payment for services',
-            merchant_id: 'MERCH-5001',
-            location: 'New York, USA',
-            device_id: 'DEV-001',
-            ip_address: '192.168.1.1',
-        },
-        {
-            id: 'b2c3d4e5-f6a7-8901-bcde-f23456789012',
-            amount: 75.00,
-            from_account: 'ACC-1002',
-            to_account: 'ACC-2046',
-            timestamp: '2025-10-23 15:45:30',
-            type: 'PAYMENT',
-            correlation_id: 'COR-2025-002',
-            status: 'PENDING',
-            currency: 'USD',
-            description: 'Online purchase',
-            merchant_id: 'MERCH-5002',
-            location: 'Los Angeles, USA',
-            device_id: 'DEV-002',
-            ip_address: '192.168.1.2',
-        },
-        {
-            id: 'c3d4e5f6-a7b8-9012-cdef-345678901234',
-            amount: 3500.00,
-            from_account: 'ACC-1003',
-            to_account: 'ACC-2047',
-            timestamp: '2025-10-23 16:20:45',
-            type: 'WITHDRAWAL',
-            correlation_id: 'COR-2025-003',
-            status: 'FLAGGED',
-            currency: 'EUR',
-            description: 'Suspicious ATM withdrawal',
-            merchant_id: 'MERCH-5003',
-            location: 'London, UK',
-            device_id: 'DEV-003',
-            ip_address: '192.168.1.3',
-        },
-        {
-            id: 'd4e5f6a7-b8c9-0123-def4-56789012345',
-            amount: 150.75,
-            from_account: 'ACC-1004',
-            to_account: 'ACC-2048',
-            timestamp: '2025-10-23 17:10:00',
-            type: 'PAYMENT',
-            correlation_id: 'COR-2025-004',
-            status: 'COMPLETED',
-            currency: 'USD',
-            description: 'Restaurant payment',
-            merchant_id: 'MERCH-5004',
-            location: 'Chicago, USA',
-            device_id: 'DEV-004',
-            ip_address: '192.168.1.4',
-        },
-        {
-            id: 'e5f6a7b8-c9d0-1234-ef56-789012345678',
-            amount: 2200.00,
-            from_account: 'ACC-1005',
-            to_account: 'ACC-2049',
-            timestamp: '2025-10-23 18:05:20',
-            type: 'TRANSFER',
-            correlation_id: 'COR-2025-005',
-            status: 'FLAGGED',
-            currency: 'GBP',
-            description: 'Unusual international transfer',
-            merchant_id: 'MERCH-5005',
-            location: 'Paris, France',
-            device_id: 'DEV-005',
-            ip_address: '192.168.1.5',
-        },
-        {
-            id: 'f6a7b8c9-d0e1-2345-f678-90123456789a',
-            amount: 9999.99,
-            from_account: 'ACC-1006',
-            to_account: 'ACC-2050',
-            timestamp: '2025-10-23 19:30:00',
-            type: 'TRANSFER',
-            correlation_id: 'COR-2025-006',
-            status: 'FAILED',
-            currency: 'USD',
-            description: 'Wire transfer',
-            merchant_id: 'MERCH-5006',
-            location: 'Miami, USA',
-            device_id: 'DEV-006',
-            ip_address: '192.168.1.6',
-        },
-        {
-            id: 'a1a1a1a1-b2b2-3c3c-d4d4-e5e5e5e5e5e5',
-            amount: 450.00,
-            from_account: 'ACC-1007',
-            to_account: 'ACC-2051',
-            timestamp: '2025-10-23 20:15:30',
-            type: 'PAYMENT',
-            correlation_id: 'COR-2025-007',
-            status: 'COMPLETED',
-            currency: 'USD',
-            description: 'Hotel booking',
-            merchant_id: 'MERCH-5007',
-            location: 'Boston, USA',
-            device_id: 'DEV-007',
-            ip_address: '192.168.1.7',
-        },
-        {
-            id: 'b2b2b2b2-c3c3-4d4d-e5e5-f6f6f6f6f6f6',
-            amount: 825.50,
-            from_account: 'ACC-1008',
-            to_account: 'ACC-2052',
-            timestamp: '2025-10-23 21:30:45',
-            type: 'TRANSFER',
-            correlation_id: 'COR-2025-008',
-            status: 'PENDING',
-            currency: 'EUR',
-            description: 'Rent payment',
-            merchant_id: 'MERCH-5008',
-            location: 'Berlin, Germany',
-            device_id: 'DEV-008',
-            ip_address: '192.168.1.8',
-        },
-        {
-            id: 'c3c3c3c3-d4d4-5e5e-f6f6-a7a7a7a7a7a7',
-            amount: 125.25,
-            from_account: 'ACC-1009',
-            to_account: 'ACC-2053',
-            timestamp: '2025-10-23 22:45:00',
-            type: 'PAYMENT',
-            correlation_id: 'COR-2025-009',
-            status: 'COMPLETED',
-            currency: 'USD',
-            description: 'Grocery shopping',
-            merchant_id: 'MERCH-5009',
-            location: 'Seattle, USA',
-            device_id: 'DEV-009',
-            ip_address: '192.168.1.9',
-        },
-        {
-            id: 'd4d4d4d4-e5e5-6f6f-a7a7-b8b8b8b8b8b8',
-            amount: 5600.00,
-            from_account: 'ACC-1010',
-            to_account: 'ACC-2054',
-            timestamp: '2025-10-24 08:00:15',
-            type: 'WITHDRAWAL',
-            correlation_id: 'COR-2025-010',
-            status: 'FLAGGED',
-            currency: 'USD',
-            description: 'Large ATM withdrawal',
-            merchant_id: 'MERCH-5010',
-            location: 'Las Vegas, USA',
-            device_id: 'DEV-010',
-            ip_address: '192.168.1.10',
-        },
-        {
-            id: 'e5e5e5e5-f6f6-7a7a-b8b8-c9c9c9c9c9c9',
-            amount: 299.99,
-            from_account: 'ACC-1011',
-            to_account: 'ACC-2055',
-            timestamp: '2025-10-24 09:20:30',
-            type: 'PAYMENT',
-            correlation_id: 'COR-2025-011',
-            status: 'COMPLETED',
-            currency: 'GBP',
-            description: 'Electronics purchase',
-            merchant_id: 'MERCH-5011',
-            location: 'Manchester, UK',
-            device_id: 'DEV-011',
-            ip_address: '192.168.1.11',
-        },
-        {
-            id: 'f6f6f6f6-a7a7-8b8b-c9c9-d0d0d0d0d0d0',
-            amount: 1750.00,
-            from_account: 'ACC-1012',
-            to_account: 'ACC-2056',
-            timestamp: '2025-10-24 10:45:45',
-            type: 'TRANSFER',
-            correlation_id: 'COR-2025-012',
-            status: 'FAILED',
-            currency: 'EUR',
-            description: 'Investment transfer',
-            merchant_id: 'MERCH-5012',
-            location: 'Amsterdam, Netherlands',
-            device_id: 'DEV-012',
-            ip_address: '192.168.1.12',
-        },
-    ]
+    useEffect(() => {
+        fetchTransactions()
+    }, [])
+
+    const fetchTransactions = async () => {
+        try {
+            setLoading(true)
+            setError('')
+            
+            const token = localStorage.getItem('admiral_global_admin_session_token')
+            
+            if (!token) {
+                setError('No authentication token found. Please login again.')
+                setLoading(false)
+                return
+            }
+
+            const response = await axios.get<TransactionsResponse>(`${API_URL}/transactions`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+
+            setAllTransactions(response.data.transactions || [])
+        } catch (err: any) {
+            setError(err.response?.data?.detail || 'Failed to load transactions.')
+            console.error('Error fetching transactions:', err)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const totalPages = Math.ceil(allTransactions.length / itemsPerPage)
     const paginatedTransactions = useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage
         return allTransactions.slice(startIndex, startIndex + itemsPerPage)
-    }, [currentPage])
+    }, [currentPage, allTransactions])
 
     const exportToCSV = () => {
         const headers = [
@@ -276,6 +127,12 @@ const Transactions: React.FC = () => {
     return (
         <Page title="Transactions">
             <Card>
+                {loading ? (
+                    <div style={{ padding: '20px', textAlign: 'center' }}>Loading transactions...</div>
+                ) : error ? (
+                    <div style={{ padding: '20px', color: 'red' }}>{error}</div>
+                ) : (
+                    <>
                 <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
@@ -395,6 +252,8 @@ const Transactions: React.FC = () => {
                         <Button style={{marginTop: '12px'}} onClick={exportToCSV}>Export to CSV</Button>
                     </div>
                 </div>
+                    </>
+                )}
             </Card>
         </Page>
     )
