@@ -34,6 +34,7 @@ const Transactions: React.FC = () => {
     const [allTransactions, setAllTransactions] = useState<Transaction[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
+    const [creating, setCreating] = useState(false)
 
     const itemsPerPage = 10
 
@@ -66,6 +67,61 @@ const Transactions: React.FC = () => {
             console.error('Error fetching transactions:', err)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const createTransaction = async () => {
+        try {
+            setCreating(true)
+            setError('')
+            
+            const token = localStorage.getItem('admiral_global_admin_session_token')
+            
+            if (!token) {
+                setError('No authentication token found. Please login again.')
+                setCreating(false)
+                return
+            }
+
+            const randomAmount = Math.floor(Math.random() * 5000) + 10
+            const randomAccountFrom = `ACC-${Math.floor(Math.random() * 9000) + 1000}`
+            const randomAccountTo = `ACC-${Math.floor(Math.random() * 9000) + 1000}`
+            const types = ['TRANSFER', 'PAYMENT', 'WITHDRAWAL']
+            const randomType = types[Math.floor(Math.random() * types.length)]
+            const currencies = ['USD', 'EUR', 'GBP']
+            const randomCurrency = currencies[Math.floor(Math.random() * currencies.length)]
+            const descriptions = ['Payment for services', 'Online purchase', 'ATM withdrawal', 'Restaurant payment', 'Hotel booking']
+            const randomDescription = descriptions[Math.floor(Math.random() * descriptions.length)]
+            const locations = ['New York, USA', 'London, UK', 'Paris, France', 'Berlin, Germany', 'Tokyo, Japan']
+            const randomLocation = locations[Math.floor(Math.random() * locations.length)]
+
+            await axios.post(
+                `${API_URL}/transactions`,
+                {
+                    amount: randomAmount,
+                    from_account: randomAccountFrom,
+                    to_account: randomAccountTo,
+                    type: randomType,
+                    currency: randomCurrency,
+                    description: randomDescription,
+                    merchant_id: `MERCH-${Math.floor(Math.random() * 9000) + 1000}`,
+                    location: randomLocation,
+                    device_id: `DEV-${Math.floor(Math.random() * 900) + 100}`,
+                    ip_address: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                }
+            )
+
+            await fetchTransactions()
+        } catch (err: any) {
+            setError(err.response?.data?.detail || 'Failed to create transaction.')
+            console.error('Error creating transaction:', err)
+        } finally {
+            setCreating(false)
         }
     }
 
@@ -133,6 +189,11 @@ const Transactions: React.FC = () => {
                     <div style={{ padding: '20px', color: 'red' }}>{error}</div>
                 ) : (
                     <>
+                <div style={{ marginBottom: '20px' }}>
+                    <Button onClick={createTransaction} disabled={creating}>
+                        {creating ? 'Creating...' : 'Create New Transaction'}
+                    </Button>
+                </div>
                 <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
