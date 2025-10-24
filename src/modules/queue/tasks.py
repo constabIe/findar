@@ -21,9 +21,7 @@ from celery import Task
 from celery.exceptions import MaxRetriesExceededError
 from loguru import logger
 from redis import Redis as SyncRedis
-from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session, sessionmaker
 
 
 def get_or_create_event_loop():
@@ -334,7 +332,9 @@ async def _process_transaction_async(
         notification_time_ms = 0
         if evaluation_result.get("is_suspicious", False):
             notification_start = time()
-            await _send_notifications(transaction_data, evaluation_result, correlation_id)
+            await _send_notifications(
+                transaction_data, evaluation_result, correlation_id
+            )
             notification_time_ms = int((time() - notification_start) * 1000)
             observe_notification_time((time() - notification_start))
 
@@ -426,9 +426,9 @@ async def _evaluate_transaction(transaction: Dict[str, Any]) -> Dict[str, Any]:
         # Store transaction data for pattern analysis (async, non-blocking)
         # This allows pattern rules to analyze historical transaction patterns
         try:
-            from src.storage.redis.pattern import store_transaction_for_pattern
             from src.modules.rule_engine.enums import TimeWindow
-            
+            from src.storage.redis.pattern import store_transaction_for_pattern
+
             # Store for multiple time windows to support different pattern rules
             time_windows = [
                 TimeWindow.THIRTY_MINUTES,
@@ -437,9 +437,9 @@ async def _evaluate_transaction(transaction: Dict[str, Any]) -> Dict[str, Any]:
                 TimeWindow.TWELVE_HOURS,
                 TimeWindow.DAY,
             ]
-            
+
             from_account = transaction.get("from_account", "")
-            
+
             for window in time_windows:
                 await store_transaction_for_pattern(
                     redis=redis_client,
@@ -447,14 +447,14 @@ async def _evaluate_transaction(transaction: Dict[str, Any]) -> Dict[str, Any]:
                     transaction_data=transaction,
                     time_window=window,
                 )
-            
+
             logger.debug(
                 "Stored transaction for pattern analysis",
                 transaction_id=transaction_id,
                 from_account=from_account,
                 windows=[w.value for w in time_windows],
             )
-            
+
         except Exception as pattern_error:
             # Don't fail transaction processing if pattern storage fails
             logger.warning(
@@ -577,9 +577,7 @@ async def _update_transaction_status(
 
 
 async def _send_notifications(
-    transaction: Dict[str, Any], 
-    evaluation_result: Dict[str, Any],
-    correlation_id: str
+    transaction: Dict[str, Any], evaluation_result: Dict[str, Any], correlation_id: str
 ) -> None:
     """
     Send notifications for suspicious/flagged transactions.
@@ -629,7 +627,9 @@ async def _send_notifications(
         except ImportError:
             logger.warning("Notifications module not available, using fallback")
             # Fallback to console output
-            _print_fraud_alert(transaction_id or "unknown", triggered_rules, risk_level or "low")
+            _print_fraud_alert(
+                transaction_id or "unknown", triggered_rules, risk_level or "low"
+            )
         except Exception as e:
             logger.error(
                 f"Notification service error: {e}",
@@ -637,7 +637,9 @@ async def _send_notifications(
                 correlation_id=correlation_id,
             )
             # Fallback to console output
-            _print_fraud_alert(transaction_id or "unknown", triggered_rules, risk_level or "low")
+            _print_fraud_alert(
+                transaction_id or "unknown", triggered_rules, risk_level or "low"
+            )
 
     except Exception as e:
         logger.error(
@@ -905,7 +907,9 @@ def _save_rule_executions_to_db_sync(
         host=settings.redis.REDIS_HOST,
         port=settings.redis.REDIS_PORT,
         db=settings.redis.REDIS_DB,
-        password=settings.redis.REDIS_PASSWORD if settings.redis.REDIS_PASSWORD else None,
+        password=settings.redis.REDIS_PASSWORD
+        if settings.redis.REDIS_PASSWORD
+        else None,
         decode_responses=True,
     )
 
@@ -947,7 +951,7 @@ def _save_rule_executions_to_db_sync(
         # Get sync database session
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
-        
+
         # Build sync database URL
         db_url = (
             f"postgresql://{settings.database.POSTGRES_USER}:"
@@ -956,7 +960,7 @@ def _save_rule_executions_to_db_sync(
             f"{settings.database.POSTGRES_PORT}/"
             f"{settings.database.POSTGRES_DB}"
         )
-        
+
         # Create sync engine and session
         sync_engine = create_engine(db_url, pool_pre_ping=True)
         SyncSessionLocal = sessionmaker(bind=sync_engine, expire_on_commit=False)

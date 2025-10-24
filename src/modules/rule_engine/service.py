@@ -711,13 +711,13 @@ async def evaluate_pattern_rule(
         RuleEvaluationResult with evaluation outcome
     """
     from .schemas import PatternRuleParams
-    
+
     is_critical = rule_dict.get("critical", False)
     params = PatternRuleParams(**rule_dict["params"])
-    
+
     # Extract transaction fields
     from_account = transaction_data.get("from_account", "")
-    
+
     # Pattern rules require Redis for historical data
     if not redis_client:
         logger.warning(
@@ -734,33 +734,33 @@ async def evaluate_pattern_rule(
             risk_level=RiskLevel.LOW,
             match_reason="Redis not available for pattern analysis",
         )
-    
+
     try:
         from src.storage.redis.pattern import (
-            get_transactions_in_window,
-            analyze_recipient_pattern,
-            analyze_device_pattern,
             analyze_amount_pattern,
+            analyze_device_pattern,
+            analyze_recipient_pattern,
+            get_transactions_in_window,
         )
-        
+
         # Get historical transactions in time window
         transactions = await get_transactions_in_window(
             redis=redis_client,
             account_id=from_account,
             time_window=params.period,
         )
-        
+
         matched = False
         match_reason = None
         risk_level = RiskLevel.LOW
-        
+
         # Check 1: Transaction count
         if params.count is not None:
             if len(transactions) >= params.count:
                 matched = True
                 match_reason = f"Transaction count {len(transactions)} >= {params.count} in {params.period.value}"
                 risk_level = RiskLevel.MEDIUM
-                
+
                 logger.info(
                     "PATTERN MATCHED: Transaction count threshold",
                     rule_name=rule_name,
@@ -768,17 +768,17 @@ async def evaluate_pattern_rule(
                     threshold=params.count,
                     period=params.period.value,
                 )
-        
+
         # Check 2: Amount ceiling
         if not matched and params.amount_ceiling is not None:
             amount_analysis = await analyze_amount_pattern(transactions)
             total_amount = amount_analysis["total_amount"]
-            
+
             if total_amount >= params.amount_ceiling:
                 matched = True
                 match_reason = f"Total amount ${total_amount:.2f} >= ${params.amount_ceiling:.2f} in {params.period.value}"
                 risk_level = RiskLevel.HIGH if is_critical else RiskLevel.MEDIUM
-                
+
                 logger.info(
                     "PATTERN MATCHED: Amount ceiling exceeded",
                     rule_name=rule_name,
@@ -786,11 +786,11 @@ async def evaluate_pattern_rule(
                     ceiling=params.amount_ceiling,
                     txn_count=len(transactions),
                 )
-        
+
         # Check 3: Same recipient pattern
         if not matched and params.same_recipient:
             recipient_analysis = await analyze_recipient_pattern(transactions)
-            
+
             if not recipient_analysis["all_same_recipient"] and len(transactions) > 0:
                 # Rule requires same recipient but transactions go to different recipients
                 matched = True
@@ -799,18 +799,18 @@ async def evaluate_pattern_rule(
                     f"(expected same recipient)"
                 )
                 risk_level = RiskLevel.MEDIUM
-                
+
                 logger.info(
                     "PATTERN MATCHED: Same recipient violation",
                     rule_name=rule_name,
                     unique_recipients=recipient_analysis["unique_recipients"],
                     recipients=recipient_analysis["recipients"],
                 )
-        
+
         # Check 4: Unique recipients limit
         if not matched and params.unique_recipients is not None:
             recipient_analysis = await analyze_recipient_pattern(transactions)
-            
+
             if recipient_analysis["unique_recipients"] > params.unique_recipients:
                 matched = True
                 match_reason = (
@@ -818,18 +818,18 @@ async def evaluate_pattern_rule(
                     f"{params.unique_recipients} in {params.period.value}"
                 )
                 risk_level = RiskLevel.HIGH if is_critical else RiskLevel.MEDIUM
-                
+
                 logger.info(
                     "PATTERN MATCHED: Too many unique recipients",
                     rule_name=rule_name,
                     unique_recipients=recipient_analysis["unique_recipients"],
                     limit=params.unique_recipients,
                 )
-        
+
         # Check 5: Same device pattern
         if not matched and params.same_device:
             device_analysis = await analyze_device_pattern(transactions)
-            
+
             if not device_analysis["all_same_device"] and len(transactions) > 0:
                 matched = True
                 match_reason = (
@@ -837,18 +837,18 @@ async def evaluate_pattern_rule(
                     f"(expected same device)"
                 )
                 risk_level = RiskLevel.MEDIUM
-                
+
                 logger.info(
                     "PATTERN MATCHED: Same device violation",
                     rule_name=rule_name,
                     unique_devices=device_analysis["unique_devices"],
                 )
-        
+
         # Check 6: Device velocity limit
         if not matched and params.velocity_limit is not None:
             device_analysis = await analyze_device_pattern(transactions)
             max_velocity = device_analysis["max_device_velocity"]
-            
+
             if max_velocity >= params.velocity_limit:
                 matched = True
                 match_reason = (
@@ -856,7 +856,7 @@ async def evaluate_pattern_rule(
                     f"${params.velocity_limit:.2f} in {params.period.value}"
                 )
                 risk_level = RiskLevel.HIGH if is_critical else RiskLevel.MEDIUM
-                
+
                 logger.info(
                     "PATTERN MATCHED: Device velocity exceeded",
                     rule_name=rule_name,
@@ -864,12 +864,12 @@ async def evaluate_pattern_rule(
                     limit=params.velocity_limit,
                     device_velocities=device_analysis["device_velocities"],
                 )
-        
+
         # Set confidence score and final risk level
         confidence_score = 0.85 if matched else 0.0
         if is_critical and matched:
             risk_level = RiskLevel.CRITICAL
-        
+
         if matched:
             logger.info(
                 "Pattern rule MATCHED",
@@ -879,7 +879,7 @@ async def evaluate_pattern_rule(
                 risk_level=risk_level.value,
                 transactions_analyzed=len(transactions),
             )
-        
+
         return RuleEvaluationResult(
             rule_id=rule_id,
             rule_name=rule_name,
@@ -889,7 +889,7 @@ async def evaluate_pattern_rule(
             risk_level=risk_level,
             match_reason=match_reason,
         )
-        
+
     except Exception as e:
         logger.error(
             f"Error evaluating pattern rule {rule_name}: {e}",
@@ -897,7 +897,7 @@ async def evaluate_pattern_rule(
             error=str(e),
             event="pattern_evaluation_error",
         )
-        
+
         return RuleEvaluationResult(
             rule_id=rule_id,
             rule_name=rule_name,

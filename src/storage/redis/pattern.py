@@ -9,7 +9,6 @@ pattern analysis like structuring detection, recipient patterns, and device-base
 import json
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
-from uuid import UUID
 
 from redis.asyncio import Redis
 
@@ -25,12 +24,12 @@ KEY_PREFIX_PATTERN_TXNS = "pattern:txns:{account_id}:{window}"
 def get_ttl_for_window(time_window: TimeWindow) -> int:
     """
     Get TTL in seconds for a time window.
-    
+
     TTL is set to 2x the window duration to ensure data availability.
-    
+
     Args:
         time_window: Time window enum value
-        
+
     Returns:
         TTL in seconds
     """
@@ -53,10 +52,10 @@ def get_ttl_for_window(time_window: TimeWindow) -> int:
 def get_window_duration_seconds(time_window: TimeWindow) -> int:
     """
     Get duration of time window in seconds.
-    
+
     Args:
         time_window: Time window enum value
-        
+
     Returns:
         Duration in seconds
     """
@@ -84,16 +83,16 @@ async def store_transaction_for_pattern(
 ) -> None:
     """
     Store transaction data in Redis for pattern analysis.
-    
+
     Stores complete transaction information in a Redis list with automatic TTL.
     Each transaction is stored as JSON with timestamp for time-based filtering.
-    
+
     Args:
         redis: Async Redis client
         account_id: Account ID (from_account)
         transaction_data: Complete transaction data dict
         time_window: Time window for pattern detection
-        
+
     Transaction data should include:
         - id: Transaction UUID
         - amount: Transaction amount
@@ -108,25 +107,27 @@ async def store_transaction_for_pattern(
         key = KEY_PREFIX_PATTERN_TXNS.format(
             account_id=account_id, window=time_window.value
         )
-        
+
         # Prepare transaction record with timestamp for filtering
         txn_record = {
             "id": str(transaction_data.get("id")),
             "amount": float(transaction_data.get("amount", 0)),
             "to_account": transaction_data.get("to_account", ""),
             "device_id": transaction_data.get("device_id"),
-            "timestamp": transaction_data.get("timestamp", datetime.utcnow().isoformat()),
+            "timestamp": transaction_data.get(
+                "timestamp", datetime.utcnow().isoformat()
+            ),
             "type": transaction_data.get("type", ""),
             "location": transaction_data.get("location"),
         }
-        
+
         # Store as JSON in list
         await redis.lpush(key, json.dumps(txn_record))
-        
+
         # Set TTL
         ttl = get_ttl_for_window(time_window)
         await redis.expire(key, ttl)
-        
+
         logger.debug(
             "Stored transaction for pattern analysis",
             account_id=account_id,
@@ -134,7 +135,7 @@ async def store_transaction_for_pattern(
             window=time_window.value,
             event="pattern_txn_stored",
         )
-        
+
     except Exception as e:
         logger.error(
             "Failed to store transaction for pattern analysis",
@@ -153,47 +154,47 @@ async def get_transactions_in_window(
 ) -> List[Dict[str, Any]]:
     """
     Get all transactions from account within the time window.
-    
+
     Retrieves transactions and filters by timestamp to ensure they fall
     within the specified time window.
-    
+
     Args:
         redis: Async Redis client
         account_id: Account ID to get transactions for
         time_window: Time window for filtering
         current_timestamp: Current time (defaults to now)
-        
+
     Returns:
         List of transaction dictionaries within the time window
     """
     try:
         if current_timestamp is None:
             current_timestamp = datetime.utcnow()
-        
+
         key = KEY_PREFIX_PATTERN_TXNS.format(
             account_id=account_id, window=time_window.value
         )
-        
+
         # Get all transactions from list
         raw_txns = await redis.lrange(key, 0, -1)
-        
+
         if not raw_txns:
             return []
-        
+
         # Parse and filter by time window
         window_duration = get_window_duration_seconds(time_window)
         cutoff_time = current_timestamp - timedelta(seconds=window_duration)
-        
+
         filtered_txns = []
         for raw_txn in raw_txns:
             try:
                 txn = json.loads(raw_txn)
                 txn_time = datetime.fromisoformat(txn["timestamp"])
-                
+
                 # Only include transactions within window
                 if txn_time >= cutoff_time:
                     filtered_txns.append(txn)
-                    
+
             except (json.JSONDecodeError, KeyError, ValueError) as e:
                 logger.warning(
                     "Failed to parse transaction from Redis",
@@ -201,7 +202,7 @@ async def get_transactions_in_window(
                     raw_data=raw_txn,
                 )
                 continue
-        
+
         logger.debug(
             "Retrieved transactions for pattern analysis",
             account_id=account_id,
@@ -210,9 +211,9 @@ async def get_transactions_in_window(
             in_window=len(filtered_txns),
             event="pattern_txns_retrieved",
         )
-        
+
         return filtered_txns
-        
+
     except Exception as e:
         logger.error(
             "Failed to retrieve transactions for pattern analysis",
@@ -225,14 +226,14 @@ async def get_transactions_in_window(
 
 
 async def analyze_recipient_pattern(
-    transactions: List[Dict[str, Any]]
+    transactions: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
     """
     Analyze recipient patterns in transaction list.
-    
+
     Args:
         transactions: List of transaction dictionaries
-        
+
     Returns:
         Dictionary with recipient pattern analysis:
         - unique_recipients: Count of unique recipients
@@ -245,13 +246,13 @@ async def analyze_recipient_pattern(
             "recipients": [],
             "all_same_recipient": False,
         }
-    
+
     recipients = set()
     for txn in transactions:
         to_account = txn.get("to_account")
         if to_account:
             recipients.add(to_account)
-    
+
     return {
         "unique_recipients": len(recipients),
         "recipients": list(recipients),
@@ -259,15 +260,13 @@ async def analyze_recipient_pattern(
     }
 
 
-async def analyze_device_pattern(
-    transactions: List[Dict[str, Any]]
-) -> Dict[str, Any]:
+async def analyze_device_pattern(transactions: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Analyze device patterns in transaction list.
-    
+
     Args:
         transactions: List of transaction dictionaries
-        
+
     Returns:
         Dictionary with device pattern analysis:
         - unique_devices: Count of unique devices
@@ -284,20 +283,20 @@ async def analyze_device_pattern(
             "device_velocities": {},
             "max_device_velocity": 0.0,
         }
-    
+
     devices = set()
     device_amounts = {}
-    
+
     for txn in transactions:
         device_id = txn.get("device_id")
         amount = float(txn.get("amount", 0))
-        
+
         if device_id:
             devices.add(device_id)
             device_amounts[device_id] = device_amounts.get(device_id, 0.0) + amount
-    
+
     max_velocity = max(device_amounts.values()) if device_amounts else 0.0
-    
+
     return {
         "unique_devices": len(devices),
         "devices": list(devices),
@@ -307,15 +306,13 @@ async def analyze_device_pattern(
     }
 
 
-async def analyze_amount_pattern(
-    transactions: List[Dict[str, Any]]
-) -> Dict[str, Any]:
+async def analyze_amount_pattern(transactions: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Analyze amount patterns in transaction list.
-    
+
     Args:
         transactions: List of transaction dictionaries
-        
+
     Returns:
         Dictionary with amount analysis:
         - total_amount: Sum of all transaction amounts
@@ -332,11 +329,11 @@ async def analyze_amount_pattern(
             "min_amount": 0.0,
             "max_amount": 0.0,
         }
-    
+
     amounts = [float(txn.get("amount", 0)) for txn in transactions]
     total = sum(amounts)
     count = len(amounts)
-    
+
     return {
         "total_amount": total,
         "transaction_count": count,
