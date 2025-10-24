@@ -19,7 +19,6 @@ from .enums import (
     RuleType,
     ThresholdOperator,
     TimeWindow,
-    TransactionType,
 )
 
 
@@ -74,7 +73,8 @@ class ThresholdRuleParams(BaseModel):
 
     # Velocity thresholds
     max_velocity_amount: Optional[float] = Field(
-        None, description="Maximum total amount in time window (limit of sum transfer in period)"
+        None,
+        description="Maximum total amount in time window (limit of sum transfer in period)",
     )
 
     # Frequency thresholds (within time window)
@@ -188,16 +188,14 @@ class MLRuleParams(BaseModel):
 
     # Scoring threshold
     threshold: float = Field(
-        0.5, 
-        ge=0.0, 
-        le=1.0, 
-        description="Minimum confidence score for positive match (0.0-1.0)"
+        0.5,
+        ge=0.0,
+        le=1.0,
+        description="Minimum confidence score for positive match (0.0-1.0)",
     )
 
     # Endpoint configuration
-    endpoint_url: str = Field(
-        description="URL of the ML model inference endpoint"
-    )
+    endpoint_url: str = Field(description="URL of the ML model inference endpoint")
 
     @field_validator("endpoint_url")
     @classmethod
@@ -205,11 +203,11 @@ class MLRuleParams(BaseModel):
         """Validate that endpoint URL is not empty and has valid format."""
         if not v or not v.strip():
             raise ValueError("Endpoint URL cannot be empty")
-        
+
         # Basic URL validation
         if not (v.startswith("http://") or v.startswith("https://")):
             raise ValueError("Endpoint URL must start with http:// or https://")
-        
+
         return v.strip()
 
 
