@@ -72,10 +72,12 @@ from src.modules.reporting.metrics import (
     increment_retry_counter,
     increment_submitted_counter,
     increment_task_counter,
+    increment_transaction_counter,
     observe_db_write_time,
     observe_notification_time,
     observe_processing_time,
     observe_rule_engine_time,
+    observe_transaction_processing_time,
 )
 from src.modules.rule_engine import service as rule_engine_service
 from src.modules.rule_engine.enums import RiskLevel
@@ -348,6 +350,10 @@ async def _process_transaction_async(
 
         # Mark task as completed
         total_time_ms = rule_engine_time_ms + db_write_time_ms + notification_time_ms
+        
+        # Record transaction processing time metric
+        observe_transaction_processing_time(total_time_ms / 1000.0)  # Convert to seconds
+        
         await repo.mark_completed(
             task_id=queue_task_id,
             processing_time_ms=total_time_ms,
@@ -565,6 +571,9 @@ async def _update_transaction_status(
             transaction_id=transaction_id,
             status=final_status,
         )
+
+        # This increments the counter for the final status
+        increment_transaction_counter(status=final_status.value)
 
         logger.info(
             f"Updated transaction {transaction_id} status to {final_status.value}",

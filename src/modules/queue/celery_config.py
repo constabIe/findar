@@ -126,3 +126,16 @@ celery_app.autodiscover_tasks(["src.modules.queue"], force=True)
 
 # Explicitly import tasks to ensure they're registered
 from . import tasks  # noqa: F401, E402
+
+
+# Start metrics server when Celery worker starts
+@celery_app.on_after_configure.connect
+def setup_metrics_server(sender, **kwargs):
+    """Start Prometheus metrics server for Celery worker."""
+    try:
+        from .metrics_server import start_metrics_server
+        
+        # Start metrics server on port 9091
+        start_metrics_server(port=9091)
+    except Exception as e:
+        print(f"⚠️  Failed to start Celery metrics server: {e}")
