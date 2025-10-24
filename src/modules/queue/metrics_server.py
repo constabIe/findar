@@ -6,7 +6,7 @@ from the Celery worker process.
 """
 
 import threading
-from wsgiref.simple_server import make_server, WSGIServer
+from wsgiref.simple_server import make_server
 
 from prometheus_client import REGISTRY, generate_latest
 
@@ -49,28 +49,32 @@ class MetricsServer:
 
         with _server_lock:
             if _server_started:
-                print(f"⚠️  Metrics server already started")
+                print("⚠️  Metrics server already started")
                 return
 
             try:
                 # Create WSGI server
                 self.server = make_server("0.0.0.0", self.port, self.metrics_app)
-                
+
                 # Make server non-blocking
                 self.server.timeout = 0.5
-                
+
                 # Start server in daemon thread
                 self.thread = threading.Thread(
                     target=self._run_server, daemon=True, name="MetricsServer"
                 )
                 self.thread.start()
-                
+
                 _server_started = True
-                print(f"✅ Celery metrics server started on http://0.0.0.0:{self.port}/metrics")
-                
+                print(
+                    f"✅ Celery metrics server started on http://0.0.0.0:{self.port}/metrics"
+                )
+
             except OSError as e:
                 if e.errno == 48:  # Address already in use
-                    print(f"⚠️  Port {self.port} already in use, metrics server not started")
+                    print(
+                        f"⚠️  Port {self.port} already in use, metrics server not started"
+                    )
                 else:
                     print(f"❌ Failed to start metrics server: {e}")
 

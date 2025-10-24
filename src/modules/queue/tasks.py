@@ -350,10 +350,12 @@ async def _process_transaction_async(
 
         # Mark task as completed
         total_time_ms = rule_engine_time_ms + db_write_time_ms + notification_time_ms
-        
+
         # Record transaction processing time metric
-        observe_transaction_processing_time(total_time_ms / 1000.0)  # Convert to seconds
-        
+        observe_transaction_processing_time(
+            total_time_ms / 1000.0
+        )  # Convert to seconds
+
         await repo.mark_completed(
             task_id=queue_task_id,
             processing_time_ms=total_time_ms,

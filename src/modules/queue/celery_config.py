@@ -134,7 +134,7 @@ def setup_metrics_server(sender, **kwargs):
     """Start Prometheus metrics server for Celery worker."""
     try:
         from .metrics_server import start_metrics_server
-        
+
         # Start metrics server on port 9091
         start_metrics_server(port=9091)
     except Exception as e:
