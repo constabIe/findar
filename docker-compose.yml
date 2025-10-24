@@ -42,7 +42,7 @@ services:
       context: ./src/static/admiral
     volumes:
       - frontend_dist:/app/dist
-    
+
   postgres:
     container_name: db
     image: postgres:16.10-alpine3.22
