@@ -88,8 +88,10 @@ const Rules: React.FC = () => {
     }
 
     const filteredRules = useMemo(() => {
-        return allRules
-    }, [allRules])
+        // Filter rules by selected type
+        if (!selectedType) return []
+        return allRules.filter(rule => rule.type === selectedType)
+    }, [allRules, selectedType])
 
     const totalPages = Math.ceil(filteredRules.length / itemsPerPage)
     const paginatedRules = useMemo(() => {
