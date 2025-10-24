@@ -10,9 +10,75 @@ Responsibilities:
 - Handle notification failures and retries
 - Track notification status
 - Support notification templates
-
-Note: Full notification integration is excluded from scaffolding.
-This is a placeholder for future implementation.
+- Template-based message generation
+- Fault-tolerant delivery with retry logic
+- Integration with reporting metrics
 """
 
-# TODO: Implement NotifierService with send_email(), send_telegram(), send_webhook() methods and retry logic
+from .enums import (
+    DeliveryErrorType,
+    NotificationChannel,
+    NotificationPriority,
+    NotificationStatus,
+    TemplateType,
+)
+from .models import (
+    NotificationChannelConfig,
+    NotificationDelivery,
+    NotificationDeliveryAttempt,
+    NotificationTemplate,
+)
+from .repository import NotificationRepository
+from .routes import router
+from .schemas import (
+    NotificationChannelConfigCreate,
+    NotificationChannelConfigResponse,
+    NotificationDeliveryCreate,
+    NotificationDeliveryListResponse,
+    NotificationDeliveryResponse,
+    NotificationSendRequest,
+    NotificationSendResponse,
+    NotificationStatsResponse,
+    NotificationTemplateCreate,
+    NotificationTemplateListResponse,
+    NotificationTemplateResponse,
+    NotificationTemplateUpdate,
+)
+from .senders import BaseSender, EmailSender, TelegramSender
+from .service import NotificationService
+
+__all__ = [
+    # Enums
+    "NotificationChannel",
+    "NotificationStatus",
+    "TemplateType",
+    "NotificationPriority",
+    "DeliveryErrorType",
+    # Models
+    "NotificationTemplate",
+    "NotificationChannelConfig",
+    "NotificationDelivery",
+    "NotificationDeliveryAttempt",
+    # Schemas
+    "NotificationTemplateCreate",
+    "NotificationTemplateUpdate",
+    "NotificationTemplateResponse",
+    "NotificationTemplateListResponse",
+    "NotificationChannelConfigCreate",
+    "NotificationChannelConfigResponse",
+    "NotificationDeliveryCreate",
+    "NotificationDeliveryResponse",
+    "NotificationDeliveryListResponse",
+    "NotificationSendRequest",
+    "NotificationSendResponse",
+    "NotificationStatsResponse",
+    # Senders
+    "BaseSender",
+    "EmailSender",
+    "TelegramSender",
+    # Services
+    "NotificationService",
+    "NotificationRepository",
+    # Routes
+    "router",
+]

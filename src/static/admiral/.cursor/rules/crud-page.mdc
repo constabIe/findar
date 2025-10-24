@@ -1,10 +1,10 @@
 ---
-description: 
-globs: 
+description:
+globs:
 alwaysApply: false
 ---
 Rule Name: crud-page
-Description: 
+Description:
 This rule applies only to files in the crud folder.
 
 Main principles:
@@ -132,7 +132,7 @@ admin/
 
 # Types of CRUD page.
 The full typing is located in the @devfamily/admiral library at the following path - node_modules/@devfamily/admiral/lib/admiral/crud.
-   
+
 
 # Steps for Using This Rule
 

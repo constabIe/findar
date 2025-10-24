@@ -22,6 +22,7 @@ from src.core.exceptions import (
     ValidationError,
 )
 from src.core.logging import get_logger
+from src.modules.users.dependencies import CurrentUser
 from src.storage.dependencies import AsyncDbSessionDep
 from src.storage.redis.client import get_async_redis_dependency
 
@@ -78,6 +79,7 @@ async def get_rule_repository(
     },
 )
 async def create_rule(
+    current_user: CurrentUser,
     rule_data: RuleCreateRequest = Body(..., description="Rule creation parameters"),
     repository: RuleRepository = Depends(get_rule_repository),
 ) -> RuleResponse:
@@ -87,6 +89,7 @@ async def create_rule(
     Args:
         rule_data: Rule creation request with parameters
         repository: Injected rule repository
+        current_user: Current authenticated user
 
     Returns:
         RuleResponse: Created rule with UUID
@@ -101,21 +104,23 @@ async def create_rule(
             rule_type=rule_data.type.value,
             priority=rule_data.priority,
             critical=rule_data.critical,
+            created_by_user_id=str(current_user.id),
             event="rule_create_request",
         )
 
-        # Create rule in repository
-        created_rule = await repository.create_rule(rule_data)
+        # Create rule in repository with user ID
+        created_rule = await repository.create_rule(
+            rule_data, created_by_user_id=current_user.id
+        )
 
         logger.info(
             "Rule created successfully",
             rule_id=str(created_rule.id),
             rule_name=created_rule.name,
             rule_type=created_rule.type.value,
+            created_by_user_id=str(current_user.id),
             event="rule_created",
         )
-
-        # print("Now RULE", created_rule)
 
         return RuleResponse.model_validate(created_rule)
 

@@ -1,5 +1,5 @@
 module.exports = {
-    plugins: {
-        'postcss-color-mod-function': {},
-    },
+  plugins: {
+    "postcss-color-mod-function": {}
+  }
 }

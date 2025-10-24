@@ -314,8 +314,7 @@ def observe_rule_execution_time(rule_type: str, duration_seconds: float) -> None
         rule_type: Type of rule (threshold, pattern, composite, ml)
         duration_seconds: Rule execution duration in seconds
     """
-    rule_execution_duration.labels(
-        rule_type=rule_type).observe(duration_seconds)
+    rule_execution_duration.labels(rule_type=rule_type).observe(duration_seconds)
 
 
 def update_rule_match_rate(rule_id: str, rule_type: str, match_rate: float) -> None:
@@ -327,5 +326,4 @@ def update_rule_match_rate(rule_id: str, rule_type: str, match_rate: float) -> N
         rule_type: Type of rule (threshold, pattern, composite, ml)
         match_rate: Match rate as a float (0.0 to 1.0)
     """
-    rule_match_rate.labels(
-        rule_id=rule_id, rule_type=rule_type).set(match_rate)
+    rule_match_rate.labels(rule_id=rule_id, rule_type=rule_type).set(match_rate)
