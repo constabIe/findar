@@ -52,6 +52,11 @@ def create_app() -> FastAPI:
 
     app.include_router(reporting_router, prefix="/api/v1", tags=["Reporting"])
 
+    # Register notifications router
+    from src.modules.notifications.routes import router as notifications_router
+
+    app.include_router(notifications_router, prefix="/api/v1", tags=["Notifications"])
+
     # Mount Prometheus metrics endpoint
     metrics_app = make_asgi_app()
     app.mount("/metrics", metrics_app)
