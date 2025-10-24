@@ -35,8 +35,16 @@ const Rules: React.FC = () => {
     const [ruleStates, setRuleStates] = useState<Record<string, boolean>>({})
     const [selectedType, setSelectedType] = useState<string | null>('threshold')
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
     const [ruleToDelete, setRuleToDelete] = useState<{ id: string; name: string } | null>(null)
+    const [ruleToEdit, setRuleToEdit] = useState<Rule | null>(null)
+    const [editRuleName, setEditRuleName] = useState('')
+    const [editRuleDescription, setEditRuleDescription] = useState('')
+    const [editRuleEnabled, setEditRuleEnabled] = useState(true)
+    const [editRulePriority, setEditRulePriority] = useState(5)
+    const [editRuleCritical, setEditRuleCritical] = useState(false)
+    const [editRuleParams, setEditRuleParams] = useState<Record<string, any>>({})
     const [newRuleType, setNewRuleType] = useState('threshold')
     const [newRuleName, setNewRuleName] = useState('')
     const [newRuleDescription, setNewRuleDescription] = useState('')
@@ -175,6 +183,153 @@ const Rules: React.FC = () => {
     const cancelDeleteRule = () => {
         setIsDeleteModalOpen(false)
         setRuleToDelete(null)
+    }
+
+    const handleOpenEditModal = (rule: Rule) => {
+        setRuleToEdit(rule)
+        setEditRuleName(rule.name)
+        setEditRuleDescription(rule.description)
+        setEditRuleEnabled(rule.enabled)
+        setEditRulePriority(rule.priority)
+        setEditRuleCritical(rule.critical)
+        setEditRuleParams(rule.params)
+        setIsEditModalOpen(true)
+    }
+
+    const handleCloseEditModal = () => {
+        setIsEditModalOpen(false)
+        setRuleToEdit(null)
+        setEditRuleName('')
+        setEditRuleDescription('')
+        setEditRuleEnabled(true)
+        setEditRulePriority(5)
+        setEditRuleCritical(false)
+        setEditRuleParams({})
+    }
+
+    const handleUpdateRule = async () => {
+        if (!ruleToEdit) return
+
+        const token = localStorage.getItem('admiral_global_admin_session_token')
+        
+        if (!token) {
+            showNotification('No authentication token found. Please login again.', 'error')
+            return
+        }
+
+        if (!editRuleName || editRuleName.trim() === '') {
+            showNotification('Rule Name is required.', 'error')
+            return
+        }
+
+        // Validate type-specific required fields
+        if (ruleToEdit.type === 'pattern') {
+            if (!editRuleParams.period || editRuleParams.period === '') {
+                showNotification('Period is required for Pattern rules.', 'error')
+                return
+            }
+        } else if (ruleToEdit.type === 'composite') {
+            if (!editRuleParams.rules || editRuleParams.rules.length === 0) {
+                showNotification('Rules field is required for Composite rules.', 'error')
+                return
+            }
+        }
+
+        try {
+            // Filter params based on rule type
+            let filteredParams: Record<string, any> = {}
+
+            if (ruleToEdit.type === 'threshold') {
+                const thresholdKeys = [
+                    'max_amount',
+                    'min_amount',
+                    'operator',
+                    'time_window',
+                    'allowed_hours_start',
+                    'allowed_hours_end',
+                    'allowed_locations',
+                    'max_devices_per_account',
+                    'max_ips_per_account',
+                    'max_velocity_amount',
+                    'max_transaction_types',
+                    'max_transactions_per_account',
+                    'max_transactions_to_account',
+                    'max_transactions_per_ip'
+                ]
+                thresholdKeys.forEach(key => {
+                    if (editRuleParams[key] !== undefined && editRuleParams[key] !== '' && editRuleParams[key] !== null) {
+                        filteredParams[key] = editRuleParams[key]
+                    }
+                })
+            } else if (ruleToEdit.type === 'pattern') {
+                const patternKeys = [
+                    'period',
+                    'count',
+                    'amount_ceiling',
+                    'same_recipient',
+                    'unique_recipients',
+                    'same_device',
+                    'velocity_limit'
+                ]
+                patternKeys.forEach(key => {
+                    if (editRuleParams[key] !== undefined && editRuleParams[key] !== '' && editRuleParams[key] !== null) {
+                        filteredParams[key] = editRuleParams[key]
+                    }
+                })
+            } else if (ruleToEdit.type === 'composite') {
+                const compositeKeys = [
+                    'composite_operator',
+                    'rules'
+                ]
+                compositeKeys.forEach(key => {
+                    if (editRuleParams[key] !== undefined && editRuleParams[key] !== '' && editRuleParams[key] !== null) {
+                        filteredParams[key] = editRuleParams[key]
+                    }
+                })
+            } else if (ruleToEdit.type === 'ml') {
+                const mlKeys = [
+                    'model_version',
+                    'threshold',
+                    'endpoint_url'
+                ]
+                mlKeys.forEach(key => {
+                    if (editRuleParams[key] !== undefined && editRuleParams[key] !== '' && editRuleParams[key] !== null) {
+                        filteredParams[key] = editRuleParams[key]
+                    }
+                })
+            }
+
+            // Build the request payload
+            const payload = {
+                name: editRuleName,
+                type: ruleToEdit.type,
+                params: filteredParams,
+                enabled: editRuleEnabled,
+                priority: editRulePriority,
+                critical: editRuleCritical,
+                description: editRuleDescription,
+            }
+
+            // PUT request to update rule
+            await axios.put(`${API_URL}/rules/${ruleToEdit.id}`, payload, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            })
+
+            showNotification('Rule updated successfully!', 'success')
+
+            // Refresh the rules list after successful update
+            if (selectedType) {
+                await fetchRules(selectedType)
+            }
+
+            handleCloseEditModal()
+        } catch (err: any) {
+            console.error('Error updating rule:', err)
+            showNotification(err.response?.data?.detail || 'Failed to update rule.', 'error')
+        }
     }
 
     const getRuleApplyState = (ruleId: string, defaultValue: boolean) => {
@@ -634,9 +789,22 @@ const Rules: React.FC = () => {
                             {paginatedRules.map((rule) => (
                                 <tr
                                     key={rule.id}
+                                    onClick={(e) => {
+                                        // Don't open edit modal if clicking on delete button or toggle switch
+                                        if ((e.target as HTMLElement).closest('button') || 
+                                            (e.target as HTMLElement).closest('input[type="checkbox"]') ||
+                                            (e.target as HTMLElement).closest('label')) {
+                                            return
+                                        }
+                                        handleOpenEditModal(rule)
+                                    }}
                                     style={{
                                         borderBottom: '1px solid #eee',
+                                        cursor: 'pointer',
+                                        transition: 'background-color 0.2s',
                                     }}
+                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                 >
                                     <td style={{ padding: '12px 8px', textAlign: 'center' }}>
                                         <button
@@ -1464,6 +1632,500 @@ const Rules: React.FC = () => {
                                 OK
                             </Button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {isEditModalOpen && ruleToEdit && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                    }}
+                    onClick={handleCloseEditModal}
+                >
+                    <div
+                        className="modal-content"
+                        style={{
+                            padding: '32px',
+                            borderRadius: '8px',
+                            maxWidth: '600px',
+                            width: '90%',
+                            maxHeight: '90vh',
+                            overflowY: 'auto',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 style={{ marginTop: 0, marginBottom: '24px' }}>Edit Rule</h2>
+
+                        <form onSubmit={(e) => { e.preventDefault(); handleUpdateRule(); }}>
+                            <div>
+                            <Form.Item label="Rule Name" required>
+                                <Input
+                                    value={editRuleName}
+                                    onChange={(e: any) => setEditRuleName(e.target.value)}
+                                    placeholder="Enter rule name"
+                                />
+                            </Form.Item>
+
+                            <Form.Item label="Rule Type">
+                                <Input
+                                    value={ruleToEdit.type}
+                                    disabled
+                                    style={{ 
+                                        backgroundColor: 'var(--color-control-bg-disable)',
+                                        cursor: 'not-allowed' 
+                                    }}
+                                />
+                            </Form.Item>
+
+                            <Form.Item label="Description">
+                                <Input
+                                    value={editRuleDescription}
+                                    onChange={(e: any) => setEditRuleDescription(e.target.value)}
+                                    placeholder="Enter rule description"
+                                />
+                            </Form.Item>
+
+                            {ruleToEdit.type === 'threshold' && (
+                                <>
+                                    <Form.Item label="Max Amount">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.max_amount || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    max_amount: parseFloat(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Maximum amount"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Min Amount">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.min_amount || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    min_amount: parseFloat(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Minimum amount"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Operator">
+                                        <Select
+                                            value={editRuleParams.operator || ''}
+                                            onChange={(value: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    operator: value,
+                                                })
+                                            }
+                                            style={{ width: '100%' }}
+                                        >
+                                            <Select.Option value="gt">Greater Than (gt)</Select.Option>
+                                            <Select.Option value="lt">Less Than (lt)</Select.Option>
+                                            <Select.Option value="eq">Equal (eq)</Select.Option>
+                                            <Select.Option value="gte">Greater Than or Equal (gte)</Select.Option>
+                                            <Select.Option value="lte">Less Than or Equal (lte)</Select.Option>
+                                            <Select.Option value="ne">Not Equal (ne)</Select.Option>
+                                            <Select.Option value="between">Between</Select.Option>
+                                            <Select.Option value="not_between">Not Between</Select.Option>
+                                        </Select>
+                                    </Form.Item>
+                                    <Form.Item label="Time Window">
+                                        <Select
+                                            value={editRuleParams.time_window || ''}
+                                            onChange={(value: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    time_window: value,
+                                                })
+                                            }
+                                            style={{ width: '100%' }}
+                                        >
+                                            <Select.Option value="1m">1 Minute</Select.Option>
+                                            <Select.Option value="5m">5 Minutes</Select.Option>
+                                            <Select.Option value="10m">10 Minutes</Select.Option>
+                                            <Select.Option value="15m">15 Minutes</Select.Option>
+                                            <Select.Option value="30m">30 Minutes</Select.Option>
+                                            <Select.Option value="1h">1 Hour</Select.Option>
+                                            <Select.Option value="6h">6 Hours</Select.Option>
+                                            <Select.Option value="12h">12 Hours</Select.Option>
+                                            <Select.Option value="1d">1 Day</Select.Option>
+                                            <Select.Option value="1w">1 Week</Select.Option>
+                                            <Select.Option value="1M">1 Month</Select.Option>
+                                        </Select>
+                                    </Form.Item>
+                                    <Form.Item label="Allowed Hours Start">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.allowed_hours_start || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    allowed_hours_start: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 9 (9 AM)"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Allowed Hours End">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.allowed_hours_end || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    allowed_hours_end: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 17 (5 PM)"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Allowed Locations (comma-separated)">
+                                        <Input
+                                            value={editRuleParams.allowed_locations?.join(', ') || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    allowed_locations: e.target.value.split(',').map((loc: string) => loc.trim()).filter(Boolean),
+                                                })
+                                            }
+                                            placeholder="e.g., US, UK, CA"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max Devices per Account">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.max_devices_per_account || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    max_devices_per_account: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 5"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max IPs per Account">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.max_ips_per_account || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    max_ips_per_account: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 3"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max Velocity Amount">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.max_velocity_amount || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    max_velocity_amount: parseFloat(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Limit of sum transfer in period"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max Transaction Types">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.max_transaction_types || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    max_transaction_types: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 5"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max Transactions per Account">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.max_transactions_per_account || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    max_transactions_per_account: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 100"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max Transactions to Account">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.max_transactions_to_account || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    max_transactions_to_account: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 50"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max Transactions per IP">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.max_transactions_per_ip || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    max_transactions_per_ip: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 10"
+                                        />
+                                    </Form.Item>
+                                </>
+                            )}
+
+                            {ruleToEdit.type === 'pattern' && (
+                                <>
+                                    <Form.Item label="Period (required)" required>
+                                        <Select
+                                            value={editRuleParams.period || ''}
+                                            onChange={(value: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    period: value,
+                                                })
+                                            }
+                                            style={{ width: '100%' }}
+                                        >
+                                            <Select.Option value="1m">1 Minute</Select.Option>
+                                            <Select.Option value="5m">5 Minutes</Select.Option>
+                                            <Select.Option value="10m">10 Minutes</Select.Option>
+                                            <Select.Option value="15m">15 Minutes</Select.Option>
+                                            <Select.Option value="30m">30 Minutes</Select.Option>
+                                            <Select.Option value="1h">1 Hour</Select.Option>
+                                            <Select.Option value="6h">6 Hours</Select.Option>
+                                            <Select.Option value="12h">12 Hours</Select.Option>
+                                            <Select.Option value="1d">1 Day</Select.Option>
+                                            <Select.Option value="1w">1 Week</Select.Option>
+                                            <Select.Option value="1M">1 Month</Select.Option>
+                                        </Select>
+                                    </Form.Item>
+                                    <Form.Item label="Count">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.count || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    count: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Number of transactions in the period"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Amount Ceiling">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.amount_ceiling || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    amount_ceiling: parseFloat(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Maximum sum of transactions in period"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <Switch 
+                                                checked={editRuleParams.same_recipient || false} 
+                                                onChange={(checked: boolean) =>
+                                                    setEditRuleParams({
+                                                        ...editRuleParams,
+                                                        same_recipient: checked,
+                                                    })
+                                                } 
+                                            />
+                                            <span>Same Recipient (all transactions to one recipient)</span>
+                                        </div>
+                                    </Form.Item>
+                                    <Form.Item label="Unique Recipients">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.unique_recipients || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    unique_recipients: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Max number of unique recipients in period"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <Switch 
+                                                checked={editRuleParams.same_device || false} 
+                                                onChange={(checked: boolean) =>
+                                                    setEditRuleParams({
+                                                        ...editRuleParams,
+                                                        same_device: checked,
+                                                    })
+                                                } 
+                                            />
+                                            <span>Same Device (all transactions from one device)</span>
+                                        </div>
+                                    </Form.Item>
+                                    <Form.Item label="Velocity Limit">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.velocity_limit || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    velocity_limit: parseFloat(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Max sum of transactions from one device in period"
+                                        />
+                                    </Form.Item>
+                                </>
+                            )}
+
+                            {ruleToEdit.type === 'ml' && (
+                                <>
+                                    <Form.Item label="Model Version">
+                                        <Input
+                                            value={editRuleParams.model_version || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    model_version: e.target.value,
+                                                })
+                                            }
+                                            placeholder="e.g., v2.1"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Threshold (0.0 - 1.0)">
+                                        <Input
+                                            type="number"
+                                            step="0.01"
+                                            value={editRuleParams.threshold || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    threshold: parseFloat(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 0.75"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Endpoint URL">
+                                        <Input
+                                            value={editRuleParams.endpoint_url || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    endpoint_url: e.target.value,
+                                                })
+                                            }
+                                            placeholder="https://api.example.com/ml/predict"
+                                        />
+                                    </Form.Item>
+                                </>
+                            )}
+
+                            {ruleToEdit.type === 'composite' && (
+                                <>
+                                    <Form.Item label="Composite Operator">
+                                        <Select
+                                            value={editRuleParams.composite_operator || 'AND'}
+                                            onChange={(value: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    composite_operator: value,
+                                                })
+                                            }
+                                            style={{ width: '100%' }}
+                                        >
+                                            <Select.Option value="AND">AND</Select.Option>
+                                            <Select.Option value="OR">OR</Select.Option>
+                                            <Select.Option value="NOT">NOT</Select.Option>
+                                        </Select>
+                                    </Form.Item>
+                                    <Form.Item label="Rules (comma-separated IDs or Names)" required>
+                                        <Input
+                                            value={editRuleParams.rules?.join(', ') || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    rules: e.target.value.split(',').map((id: string) => id.trim()).filter(Boolean),
+                                                })
+                                            }
+                                            placeholder="e.g., rule1, rule2, rule3"
+                                        />
+                                    </Form.Item>
+                                </>
+                            )}
+
+                            <Form.Item label="Priority">
+                                <Input
+                                    type="number"
+                                    value={editRulePriority}
+                                    onChange={(e: any) => setEditRulePriority(parseInt(e.target.value))}
+                                    placeholder="e.g., 5"
+                                />
+                            </Form.Item>
+
+                            <Form.Item>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Switch checked={editRuleEnabled} onChange={setEditRuleEnabled} />
+                                    <span>Enabled</span>
+                                </div>
+                            </Form.Item>
+
+                            <Form.Item>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Switch checked={editRuleCritical} onChange={setEditRuleCritical} />
+                                    <span>Critical</span>
+                                </div>
+                            </Form.Item>
+
+                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                                <Button onClick={handleCloseEditModal} style={{ padding: '8px 16px' }}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    style={{
+                                        backgroundColor: '#1565c0',
+                                        color: '#ffffff',
+                                        padding: '8px 16px',
+                                        border: 'none',
+                                    }}
+                                >
+                                    Update Rule
+                                </Button>
+                            </div>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
