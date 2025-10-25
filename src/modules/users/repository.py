@@ -112,6 +112,21 @@ class UserRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_user_by_telegram_id(self, telegram_id: int) -> Optional[User]:
+        """
+        Get user by Telegram ID.
+
+        Args:
+            telegram_id: Telegram user ID (numeric)
+
+        Returns:
+            User object if found, None otherwise
+        """
+        result = await self.db.execute(
+            select(User).where(User.telegram_id == telegram_id)  # type: ignore
+        )
+        return result.scalar_one_or_none()
+
     async def update_user_telegram_id(
         self, user_id: UUID, telegram_id: int
     ) -> Optional[User]:
@@ -161,5 +176,163 @@ class UserRepository:
             await self.db.commit()
             await self.db.refresh(user)
             logger.info(f"User {user.id} Telegram alias updated: @{telegram_alias}")
+
+        return user
+
+    async def create_default_templates_for_user(
+        self, user_id: UUID
+    ) -> tuple[UUID, UUID]:
+        """
+        Create default email and telegram notification templates for a user.
+
+        Args:
+            user_id: User ID to create templates for
+
+        Returns:
+            Tuple of (email_template_id, telegram_template_id)
+        """
+        from src.modules.notifications.enums import NotificationChannel, TemplateType
+        from src.modules.notifications.models import NotificationTemplate
+
+        # Create default email template
+        email_template = NotificationTemplate(
+            name=f"User {user_id} - Email Template",
+            type=TemplateType.FRAUD_ALERT,
+            channel=NotificationChannel.EMAIL,
+            subject_template="Fraud Alert: Rule Violation Detected",
+            body_template=(
+                "Hello,\n\n"
+                "Your fraud detection rule was triggered.\n\n"
+                "Transaction ID: {transaction_id}\n"
+                "Amount: {amount} {currency}\n"
+                "Timestamp: {timestamp}\n"
+                "From Account: {from_account}\n"
+                "To Account: {to_account}\n"
+                "Triggered Rules: {triggered_rules}\n"
+                "Risk Level: {overall_risk_level}\n\n"
+                "Please review this transaction in the admin panel.\n\n"
+                "Regards,\nFindar Fraud Detection System"
+            ),
+            enabled=True,
+            priority=1,
+            show_transaction_id=True,
+            show_amount=True,
+            show_timestamp=True,
+            show_from_account=True,
+            show_to_account=True,
+            show_triggered_rules=True,
+            show_fraud_probability=True,
+            show_location=True,
+            show_device_info=True,
+            description="Default email notification template",
+        )
+
+        # Create default telegram template
+        telegram_template = NotificationTemplate(
+            name=f"User {user_id} - Telegram Template",
+            type=TemplateType.FRAUD_ALERT,
+            channel=NotificationChannel.TELEGRAM,
+            subject_template=None,
+            body_template=(
+                "🚨 *Fraud Alert*\n\n"
+                "Transaction ID: `{transaction_id}`\n"
+                "Amount: *{amount} {currency}*\n"
+                "Time: {timestamp}\n"
+                "From: {from_account}\n"
+                "To: {to_account}\n"
+                "Rules: {triggered_rules}\n"
+                "Risk: *{overall_risk_level}*"
+            ),
+            enabled=True,
+            priority=1,
+            show_transaction_id=True,
+            show_amount=True,
+            show_timestamp=True,
+            show_from_account=True,
+            show_to_account=True,
+            show_triggered_rules=True,
+            show_fraud_probability=True,
+            show_location=True,
+            show_device_info=True,
+            description="Default Telegram notification template",
+        )
+
+        self.db.add(email_template)
+        self.db.add(telegram_template)
+        await self.db.commit()
+        await self.db.refresh(email_template)
+        await self.db.refresh(telegram_template)
+
+        logger.info(
+            f"Created default templates for user {user_id}: "
+            f"email={email_template.id}, telegram={telegram_template.id}"
+        )
+
+        return email_template.id, telegram_template.id
+
+    async def update_notification_channels(
+        self, user_id: UUID, email_enabled: Optional[bool] = None, telegram_enabled: Optional[bool] = None
+    ) -> Optional[User]:
+        """
+        Update user's notification channel settings.
+
+        Args:
+            user_id: User ID
+            email_enabled: Enable/disable email notifications (optional)
+            telegram_enabled: Enable/disable telegram notifications (optional)
+
+        Returns:
+            Updated User object if found, None otherwise
+        """
+        user = await self.get_user_by_id(user_id)
+
+        if user:
+            if email_enabled is not None:
+                user.email_notifications_enabled = email_enabled
+            if telegram_enabled is not None:
+                user.telegram_notifications_enabled = telegram_enabled
+
+            user.updated_at = datetime.utcnow()
+            self.db.add(user)
+            await self.db.commit()
+            await self.db.refresh(user)
+
+            logger.info(
+                f"User {user_id} notification channels updated: "
+                f"email={user.email_notifications_enabled}, "
+                f"telegram={user.telegram_notifications_enabled}"
+            )
+
+        return user
+
+    async def link_templates_to_user(
+        self, user_id: UUID, email_template_id: UUID, telegram_template_id: UUID
+    ) -> Optional[User]:
+        """
+        Link notification templates to a user.
+
+        Args:
+            user_id: User ID
+            email_template_id: Email template ID
+            telegram_template_id: Telegram template ID
+
+        Returns:
+            Updated User object if found, None otherwise
+        """
+        user = await self.get_user_by_id(user_id)
+
+        if user:
+            user.email_template_id = email_template_id
+            user.telegram_template_id = telegram_template_id
+            user.updated_at = datetime.utcnow()
+
+            self.db.add(user)
+            await self.db.commit()
+            await self.db.refresh(user)
+
+            logger.info(
+                f"Templates linked to user {user_id}: "
+                f"email={email_template_id}, telegram={telegram_template_id}"
+            )
 
         return user

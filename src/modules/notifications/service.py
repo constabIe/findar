@@ -80,16 +80,13 @@ class NotificationService:
         correlation_id: str,
     ) -> List[UUID]:
         """
-        For each matched rule in evaluation_result:
+        Send fraud alerts using user's notification templates.
 
-        - Load the rule from the DB and find the rule's author (created_by_user_id)
-        - Load the user record
-        - Always create an EMAIL delivery to the user's email informing about the rule violation
-        - For Telegram:
-            - If the user's telegram_alias is present in DB -> send a telegram message notifying
-              that their rule was violated
-            - If telegram_alias is not present -> send a telegram message (using telegram_id)
-              asking the user to register on the website (bot: @findar_linear_bot)
+        For each matched rule:
+        - Load the rule author (user)
+        - Load user's email and telegram templates
+        - Check notification channel settings (email_notifications_enabled, telegram_notifications_enabled)
+        - Render and send notifications using user's template configurations
 
         Returns list of created delivery IDs. Function is fault-tolerant and logs errors.
         """
@@ -193,46 +190,58 @@ class NotificationService:
                     else None
                 )
 
-                # Always send email (if available)
-                if getattr(user, "email", None) and txn_id:
-                    try:
-                        subject = f"Rule violated: {rule_obj.name}"
-                        body = (
-                            f"Hello,\n\nYour rule '{rule_obj.name}' was triggered by transaction {transaction_data.get('id')}.\n"
-                            "Please review the transaction in the admin panel.\n\nRegards,\nFindar"
-                        )
+                # Send EMAIL notification if enabled and template exists
+                if getattr(user, "email_notifications_enabled", True):
+                    email_template_id = getattr(user, "email_template_id", None)
+                    if email_template_id and getattr(user, "email", None) and txn_id:
+                        try:
+                            # Load email template
+                            email_template = await self.repo.get_template(email_template_id)
+                            if email_template:
+                                # Render template
+                                rendered = await self._render_template(
+                                    email_template, transaction_data, evaluation_result
+                                )
 
-                        payload = NotificationDeliveryCreate(
-                            transaction_id=txn_id,
-                            template_id=None,
-                            channel=NotificationChannel.EMAIL,
-                            subject=subject,
-                            body=body,
-                            recipients=[user.email],
-                            priority=1,
-                            scheduled_at=None,
-                            metadata={
-                                "correlation_id": correlation_id,
-                                "rule_id": str(rule_id),
-                                "rule_name": rule_obj.name,
-                            },
-                        )
+                                payload = NotificationDeliveryCreate(
+                                    transaction_id=txn_id,
+                                    template_id=email_template_id,
+                                    channel=NotificationChannel.EMAIL,
+                                    subject=rendered.get("subject"),
+                                    body=rendered.get("body"),
+                                    recipients=[user.email],
+                                    priority=1,
+                                    scheduled_at=None,
+                                    metadata={
+                                        "correlation_id": correlation_id,
+                                        "rule_id": str(rule_id),
+                                        "rule_name": rule_obj.name,
+                                    },
+                                )
 
-                        await self._create_and_schedule_delivery(payload, created_ids)
-                    except Exception:
-                        logger.exception(
-                            "Failed to create/send email delivery for rule author",
-                            component="notifications",
-                            user_id=str(author_id),
-                            rule_id=str(rule_id),
-                            correlation_id=correlation_id,
-                        )
-                        increment_error_counter("delivery_create_error")
+                                await self._create_and_schedule_delivery(payload, created_ids)
+                            else:
+                                logger.warning(
+                                    "Email template not found for user",
+                                    user_id=str(author_id),
+                                    template_id=str(email_template_id),
+                                )
+                        except Exception:
+                            logger.exception(
+                                "Failed to create/send email delivery for rule author",
+                                component="notifications",
+                                user_id=str(author_id),
+                                rule_id=str(rule_id),
+                                correlation_id=correlation_id,
+                            )
+                            increment_error_counter("delivery_create_error")
 
-                # Telegram send: users always have telegram_id; check alias presence
-                try:
-                    # Prefer numeric telegram_id for direct messages
+                # Send TELEGRAM notification if enabled and template exists
+                if getattr(user, "telegram_notifications_enabled", True):
+                    telegram_template_id = getattr(user, "telegram_template_id", None)
                     tg_recipient = None
+                    
+                    # Determine telegram recipient
                     if getattr(user, "telegram_id", None):
                         tg_recipient = [str(user.telegram_id)]
                     elif getattr(user, "telegram_alias", None):
@@ -241,43 +250,48 @@ class NotificationService:
                             alias = f"@{alias}"
                         tg_recipient = [alias]
 
-                    if tg_recipient:
-                        if getattr(user, "telegram_alias", None):
-                            tg_body = f"Your rule '{rule_obj.name}' was violated by transaction {transaction_data.get('id')}."
-                        else:
-                            # Ask user to register on the website (bot will be the sender)
-                            tg_body = "Please register on our website to receive full alerts and start the bot @findar_linear_bot."
+                    if telegram_template_id and tg_recipient and txn_id:
+                        try:
+                            # Load telegram template
+                            telegram_template = await self.repo.get_template(telegram_template_id)
+                            if telegram_template:
+                                # Render template
+                                rendered = await self._render_template(
+                                    telegram_template, transaction_data, evaluation_result
+                                )
 
-                        payload = NotificationDeliveryCreate(
-                            transaction_id=txn_id
-                            or UUID(str(transaction_data.get("id")))
-                            if transaction_data.get("id")
-                            else None,
-                            template_id=None,
-                            channel=NotificationChannel.TELEGRAM,
-                            subject=None,
-                            body=tg_body,
-                            recipients=tg_recipient,
-                            priority=1,
-                            scheduled_at=None,
-                            metadata={
-                                "correlation_id": correlation_id,
-                                "rule_id": str(rule_id),
-                                "rule_name": rule_obj.name,
-                            },
-                        )
+                                payload = NotificationDeliveryCreate(
+                                    transaction_id=txn_id,
+                                    template_id=telegram_template_id,
+                                    channel=NotificationChannel.TELEGRAM,
+                                    subject=None,
+                                    body=rendered.get("body"),
+                                    recipients=tg_recipient,
+                                    priority=1,
+                                    scheduled_at=None,
+                                    metadata={
+                                        "correlation_id": correlation_id,
+                                        "rule_id": str(rule_id),
+                                        "rule_name": rule_obj.name,
+                                    },
+                                )
 
-                        await self._create_and_schedule_delivery(payload, created_ids)
-
-                except Exception:
-                    logger.exception(
-                        "Failed to create/send telegram delivery for rule author",
-                        component="notifications",
-                        user_id=str(author_id),
-                        rule_id=str(rule_id),
-                        correlation_id=correlation_id,
-                    )
-                    increment_error_counter("delivery_create_error")
+                                await self._create_and_schedule_delivery(payload, created_ids)
+                            else:
+                                logger.warning(
+                                    "Telegram template not found for user",
+                                    user_id=str(author_id),
+                                    template_id=str(telegram_template_id),
+                                )
+                        except Exception:
+                            logger.exception(
+                                "Failed to create/send telegram delivery for rule author",
+                                component="notifications",
+                                user_id=str(author_id),
+                                rule_id=str(rule_id),
+                                correlation_id=correlation_id,
+                            )
+                            increment_error_counter("delivery_create_error")
 
             except Exception:
                 logger.exception(
@@ -375,14 +389,14 @@ class NotificationService:
         """
         variables: Dict[str, Any] = {}
 
-        if getattr(template, "include_transaction_id", False):
+        if getattr(template, "show_transaction_id", False):
             variables["transaction_id"] = transaction_data.get("id", "Unknown")
 
-        if getattr(template, "include_amount", False):
+        if getattr(template, "show_amount", False):
             variables["amount"] = transaction_data.get("amount", 0)
             variables["currency"] = transaction_data.get("currency", "USD")
 
-        if getattr(template, "include_timestamp", False):
+        if getattr(template, "show_timestamp", False):
             ts = transaction_data.get("timestamp")
             if isinstance(ts, str):
                 variables["timestamp"] = ts
@@ -394,20 +408,20 @@ class NotificationService:
             else:
                 variables["timestamp"] = "Unknown"
 
-        if getattr(template, "include_from_account", False):
+        if getattr(template, "show_from_account", False):
             variables["from_account"] = transaction_data.get("from_account", "Unknown")
 
-        if getattr(template, "include_to_account", False):
+        if getattr(template, "show_to_account", False):
             variables["to_account"] = transaction_data.get("to_account", "Unknown")
 
-        if getattr(template, "include_location", False):
+        if getattr(template, "show_location", False):
             variables["location"] = transaction_data.get("location", "Unknown")
 
-        if getattr(template, "include_device_info", False):
+        if getattr(template, "show_device_info", False):
             variables["device_id"] = transaction_data.get("device_id", "Unknown")
             variables["ip_address"] = transaction_data.get("ip_address", "Unknown")
 
-        if getattr(template, "include_triggered_rules", False):
+        if getattr(template, "show_triggered_rules", False):
             rule_results = evaluation_result.get("rule_results", []) or []
             triggered = [
                 f"{r.get('rule_name', 'Unknown')} ({r.get('risk_level', 'Unknown')})"
@@ -417,7 +431,7 @@ class NotificationService:
             variables["triggered_rules"] = ", ".join(triggered) if triggered else "None"
             variables["triggered_rules_count"] = len(triggered)
 
-        if getattr(template, "include_fraud_probability", False):
+        if getattr(template, "show_fraud_probability", False):
             rule_results = evaluation_result.get("rule_results", []) or []
             if rule_results:
                 avg_conf = sum(

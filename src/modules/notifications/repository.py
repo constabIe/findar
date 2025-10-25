@@ -76,15 +76,15 @@ class NotificationRepository:
             body_template=template_data.body_template,
             enabled=template_data.enabled,
             priority=template_data.priority,
-            include_transaction_id=template_data.include_transaction_id,
-            include_amount=template_data.include_amount,
-            include_timestamp=template_data.include_timestamp,
-            include_from_account=template_data.include_from_account,
-            include_to_account=template_data.include_to_account,
-            include_triggered_rules=template_data.include_triggered_rules,
-            include_fraud_probability=template_data.include_fraud_probability,
-            include_location=template_data.include_location,
-            include_device_info=template_data.include_device_info,
+            show_transaction_id=template_data.show_transaction_id,
+            show_amount=template_data.show_amount,
+            show_timestamp=template_data.show_timestamp,
+            show_from_account=template_data.show_from_account,
+            show_to_account=template_data.show_to_account,
+            show_triggered_rules=template_data.show_triggered_rules,
+            show_fraud_probability=template_data.show_fraud_probability,
+            show_location=template_data.show_location,
+            show_device_info=template_data.show_device_info,
             custom_fields=template_data.custom_fields,
             description=template_data.description,
         )
@@ -484,3 +484,44 @@ class NotificationRepository:
 
         result = await self.db_session.execute(query)
         return result.scalars().all()
+
+    # User template operations
+    async def update_template_fields(
+        self, template_id: UUID, fields_update: Dict[str, bool]
+    ) -> Optional[NotificationTemplate]:
+        """
+        Update template field visibility (show_* fields).
+        
+        Args:
+            template_id: Template ID to update
+            fields_update: Dictionary of show_* fields to update
+            
+        Returns:
+            Updated template or None if not found
+        """
+        template = await self.get_template(template_id)
+        if not template:
+            return None
+
+        # Only allow updating show_* fields
+        allowed_fields = {
+            "show_transaction_id",
+            "show_amount",
+            "show_timestamp",
+            "show_from_account",
+            "show_to_account",
+            "show_triggered_rules",
+            "show_fraud_probability",
+            "show_location",
+            "show_device_info",
+        }
+
+        for field, value in fields_update.items():
+            if field in allowed_fields and isinstance(value, bool):
+                setattr(template, field, value)
+
+        template.updated_at = datetime.utcnow()
+        await self.db_session.commit()
+        await self.db_session.refresh(template)
+
+        return template

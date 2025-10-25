@@ -52,33 +52,33 @@ class NotificationTemplate(SQLModel, table=True):
 
     priority: int = Field(default=0, description="Template priority")
 
-    # Template variables configuration
-    include_transaction_id: bool = Field(
-        default=True, description="Include transaction ID in notification"
+    # Template variables configuration (fields to show in notification)
+    show_transaction_id: bool = Field(
+        default=True, description="Show transaction ID in notification"
     )
-    include_amount: bool = Field(
-        default=True, description="Include transaction amount in notification"
+    show_amount: bool = Field(
+        default=True, description="Show transaction amount in notification"
     )
-    include_timestamp: bool = Field(
-        default=True, description="Include transaction timestamp in notification"
+    show_timestamp: bool = Field(
+        default=True, description="Show transaction timestamp in notification"
     )
-    include_from_account: bool = Field(
-        default=True, description="Include source account in notification"
+    show_from_account: bool = Field(
+        default=True, description="Show source account in notification"
     )
-    include_to_account: bool = Field(
-        default=True, description="Include destination account in notification"
+    show_to_account: bool = Field(
+        default=True, description="Show destination account in notification"
     )
-    include_triggered_rules: bool = Field(
-        default=True, description="Include triggered rules list in notification"
+    show_triggered_rules: bool = Field(
+        default=True, description="Show triggered rules list in notification"
     )
-    include_fraud_probability: bool = Field(
-        default=True, description="Include fraud probability in notification"
+    show_fraud_probability: bool = Field(
+        default=True, description="Show fraud probability in notification"
     )
-    include_location: bool = Field(
-        default=False, description="Include transaction location in notification"
+    show_location: bool = Field(
+        default=True, description="Show transaction location in notification"
     )
-    include_device_info: bool = Field(
-        default=False, description="Include device information in notification"
+    show_device_info: bool = Field(
+        default=True, description="Show device information in notification"
     )
 
     # Additional custom fields

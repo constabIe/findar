@@ -76,6 +76,14 @@ class UserTelegramUpdate(BaseModel):
         return v.lower()  # Store in lowercase for consistency
 
 
+class UserTelegramIdUpdate(BaseModel):
+    """Schema for updating user's telegram ID."""
+
+    telegram_id: int = Field(
+        ..., gt=0, description="Telegram user ID (numeric, from bot)"
+    )
+
+
 class UserResponse(BaseModel):
     """Schema for user information response."""
 
