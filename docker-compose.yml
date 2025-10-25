@@ -50,7 +50,7 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
-    
+
   bot:
     build:
       context: .
