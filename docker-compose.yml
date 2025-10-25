@@ -19,7 +19,7 @@ services:
       migrations:
         condition: service_started
     restart: unless-stopped
-    
+
   migrations:
     build:
       context: .
