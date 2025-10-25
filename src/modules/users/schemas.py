@@ -54,6 +54,28 @@ class TokenResponse(BaseModel):
     )
 
 
+class UserTelegramUpdate(BaseModel):
+    """Schema for updating user's telegram alias."""
+
+    telegram_alias: str = Field(
+        ..., min_length=3, description="New Telegram username (without @)"
+    )
+
+    @field_validator("telegram_alias")
+    @classmethod
+    def validate_telegram_alias(cls, v: str) -> str:
+        """Remove @ prefix if present and validate."""
+        # Remove @ if user accidentally included it
+        if v.startswith("@"):
+            v = v[1:]
+
+        # Validate length after removing @
+        if len(v) < 3:
+            raise ValueError("Telegram alias must be at least 3 characters")
+
+        return v.lower()  # Store in lowercase for consistency
+
+
 class UserResponse(BaseModel):
     """Schema for user information response."""
 

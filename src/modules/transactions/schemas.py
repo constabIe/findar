@@ -62,3 +62,55 @@ class TransactionQueued(BaseModel):
         ..., description="Timestamp when transaction was queued"
     )
     correlation_id: str = Field(..., description="Correlation ID for request tracking")
+
+
+class TransactionResponse(BaseModel):
+    """
+    Schema for transaction information response.
+
+    Represents complete transaction data returned from API queries.
+    """
+
+    id: UUID = Field(..., description="Unique transaction identifier")
+    amount: float = Field(..., description="Transaction amount")
+    from_account: str = Field(..., description="Source account identifier")
+    to_account: str = Field(..., description="Destination account identifier")
+    type: str = Field(..., description="Type of transaction")
+    status: str = Field(..., description="Transaction processing status")
+    correlation_id: str = Field(..., description="Correlation ID for request tracking")
+
+    # Additional fields
+    currency: str = Field(..., description="Transaction currency")
+    description: Optional[str] = Field(
+        default=None, description="Transaction description"
+    )
+    merchant_id: Optional[str] = Field(default=None, description="Merchant identifier")
+    location: Optional[str] = Field(default=None, description="Transaction location")
+    device_id: Optional[str] = Field(default=None, description="Device identifier")
+    ip_address: Optional[str] = Field(default=None, description="IP address of origin")
+
+    # Timestamps
+    timestamp: datetime = Field(..., description="Transaction timestamp")
+    created_at: datetime = Field(..., description="Record creation timestamp")
+    updated_at: datetime = Field(..., description="Record update timestamp")
+
+    class Config:
+        """Pydantic configuration."""
+
+        from_attributes = True  # Enable ORM mode for SQLModel compatibility
+
+
+class TransactionListResponse(BaseModel):
+    """
+    Schema for list of transactions response.
+
+    Returns paginated transaction list with metadata.
+    """
+
+    transactions: list[TransactionResponse] = Field(
+        ..., description="List of transactions"
+    )
+    count: int = Field(..., description="Number of transactions returned")
+    limit: Optional[int] = Field(
+        default=None, description="Limit applied to query (if any)"
+    )

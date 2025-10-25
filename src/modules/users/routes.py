@@ -16,7 +16,13 @@ from src.core.logging import get_logger
 from src.modules.users.dependencies import get_user_repository
 
 from .dependencies import CurrentUser
-from .schemas import TokenResponse, UserCreate, UserLogin, UserResponse
+from .schemas import (
+    TokenResponse,
+    UserCreate,
+    UserLogin,
+    UserResponse,
+    UserTelegramUpdate,
+)
 from .utils import create_access_token, hash_password, verify_password
 
 # Initialize logger
@@ -170,3 +176,74 @@ async def get_current_user_info(
     logger.info(f"User info requested: {current_user.id} ({current_user.email})")
 
     return UserResponse.model_validate(current_user)
+
+
+@router.patch(
+    "/me/telegram",
+    response_model=UserResponse,
+    status_code=HTTPStatus.OK,
+    summary="Update Telegram alias",
+    description="Update the Telegram alias for the currently authenticated user",
+)
+async def update_current_user_telegram(
+    telegram_update: UserTelegramUpdate,
+    current_user: CurrentUser,
+    repo=Depends(get_user_repository),
+) -> UserResponse:
+    """
+    Update current user's Telegram alias.
+
+    Args:
+        telegram_update: New Telegram alias data
+        current_user: Current authenticated user (from JWT token)
+        repo: User repository
+
+    Returns:
+        UserResponse: Updated user information
+
+    Raises:
+        HTTPException 400: If telegram_alias already exists for another user
+        HTTPException 404: If user not found
+        HTTPException 500: If database error occurs
+    """
+    logger.info(
+        f"Telegram alias update attempt for user {current_user.id} ({current_user.email}): "
+        f"@{telegram_update.telegram_alias}"
+    )
+
+    try:
+        # Update telegram alias
+        updated_user = await repo.update_user_telegram_alias(
+            user_id=current_user.id,
+            telegram_alias=telegram_update.telegram_alias,
+        )
+
+        if not updated_user:
+            logger.error(f"User not found: {current_user.id}")
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail="User not found",
+            )
+
+        logger.info(
+            f"Telegram alias updated successfully for user {updated_user.id}: "
+            f"@{updated_user.telegram_alias}"
+        )
+
+        return UserResponse.model_validate(updated_user)
+
+    except IntegrityError:
+        logger.warning(
+            f"Telegram alias update failed - duplicate alias: {telegram_update.telegram_alias}"
+        )
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Telegram alias already registered by another user",
+        )
+
+    except Exception as e:
+        logger.error(f"Telegram alias update error: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail="Failed to update Telegram alias",
+        )
