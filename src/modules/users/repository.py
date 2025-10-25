@@ -271,7 +271,10 @@ class UserRepository:
         return email_template.id, telegram_template.id
 
     async def update_notification_channels(
-        self, user_id: UUID, email_enabled: Optional[bool] = None, telegram_enabled: Optional[bool] = None
+        self,
+        user_id: UUID,
+        email_enabled: Optional[bool] = None,
+        telegram_enabled: Optional[bool] = None,
     ) -> Optional[User]:
         """
         Update user's notification channel settings.

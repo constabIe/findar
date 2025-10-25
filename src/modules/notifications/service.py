@@ -196,7 +196,9 @@ class NotificationService:
                     if email_template_id and getattr(user, "email", None) and txn_id:
                         try:
                             # Load email template
-                            email_template = await self.repo.get_template(email_template_id)
+                            email_template = await self.repo.get_template(
+                                email_template_id
+                            )
                             if email_template:
                                 # Render template
                                 rendered = await self._render_template(
@@ -219,7 +221,9 @@ class NotificationService:
                                     },
                                 )
 
-                                await self._create_and_schedule_delivery(payload, created_ids)
+                                await self._create_and_schedule_delivery(
+                                    payload, created_ids
+                                )
                             else:
                                 logger.warning(
                                     "Email template not found for user",
@@ -240,7 +244,7 @@ class NotificationService:
                 if getattr(user, "telegram_notifications_enabled", True):
                     telegram_template_id = getattr(user, "telegram_template_id", None)
                     tg_recipient = None
-                    
+
                     # Determine telegram recipient
                     if getattr(user, "telegram_id", None):
                         tg_recipient = [str(user.telegram_id)]
@@ -253,11 +257,15 @@ class NotificationService:
                     if telegram_template_id and tg_recipient and txn_id:
                         try:
                             # Load telegram template
-                            telegram_template = await self.repo.get_template(telegram_template_id)
+                            telegram_template = await self.repo.get_template(
+                                telegram_template_id
+                            )
                             if telegram_template:
                                 # Render template
                                 rendered = await self._render_template(
-                                    telegram_template, transaction_data, evaluation_result
+                                    telegram_template,
+                                    transaction_data,
+                                    evaluation_result,
                                 )
 
                                 payload = NotificationDeliveryCreate(
@@ -276,7 +284,9 @@ class NotificationService:
                                     },
                                 )
 
-                                await self._create_and_schedule_delivery(payload, created_ids)
+                                await self._create_and_schedule_delivery(
+                                    payload, created_ids
+                                )
                             else:
                                 logger.warning(
                                     "Telegram template not found for user",

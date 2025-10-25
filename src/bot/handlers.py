@@ -22,27 +22,27 @@ router = Router()
 async def cmd_start(message: Message) -> None:
     """
     Handle /start command.
-    
+
     Checks if user is registered and provides appropriate response.
     """
     telegram_id = message.from_user.id
     username = message.from_user.username
-    
+
     logger.info(
         "Received /start command",
         component="telegram_bot",
         telegram_id=telegram_id,
         username=username,
     )
-    
+
     try:
         # Get database session
         async for session in get_async_session():
             user_repo = UserRepository(session)
-            
+
             # Check if user exists by telegram_id
             user = await user_repo.get_user_by_telegram_id(telegram_id)
-            
+
             if user:
                 # User is registered
                 await message.answer(
@@ -71,9 +71,9 @@ async def cmd_start(message: Message) -> None:
                     component="telegram_bot",
                     telegram_id=telegram_id,
                 )
-            
+
             break  # Exit async generator
-            
+
     except Exception as e:
         logger.exception(
             "Error handling /start command",

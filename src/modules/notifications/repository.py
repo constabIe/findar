@@ -491,11 +491,11 @@ class NotificationRepository:
     ) -> Optional[NotificationTemplate]:
         """
         Update template field visibility (show_* fields).
-        
+
         Args:
             template_id: Template ID to update
             fields_update: Dictionary of show_* fields to update
-            
+
         Returns:
             Updated template or None if not found
         """

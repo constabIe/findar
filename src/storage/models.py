@@ -52,7 +52,7 @@ class User(SQLModel, table=True):
         foreign_key="notification_templates.id",
         description="Telegram notification template ID",
     )
-    
+
     email_notifications_enabled: bool = Field(
         default=True, description="Whether email notifications are enabled"
     )

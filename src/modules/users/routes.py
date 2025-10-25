@@ -76,9 +76,10 @@ async def register_user(
 
         # Create default notification templates for the new user
         try:
-            email_template_id, telegram_template_id = (
-                await repo.create_default_templates_for_user(user.id)
-            )
+            (
+                email_template_id,
+                telegram_template_id,
+            ) = await repo.create_default_templates_for_user(user.id)
 
             # Link templates to user
             await repo.link_templates_to_user(

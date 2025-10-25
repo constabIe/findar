@@ -40,9 +40,13 @@ def create_app() -> FastAPI:
     app.include_router(users_router, prefix="/api/v1", tags=["Users"])
 
     # Register user notifications router
-    from src.modules.users.notifications_routes import router as user_notifications_router
+    from src.modules.users.notifications_routes import (
+        router as user_notifications_router,
+    )
 
-    app.include_router(user_notifications_router, prefix="/api/v1", tags=["User Notifications"])
+    app.include_router(
+        user_notifications_router, prefix="/api/v1", tags=["User Notifications"]
+    )
 
     # TODO: Register additional API routers as they are implemented
     # from src.api.routes import transactions, statistics

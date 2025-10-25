@@ -5,14 +5,10 @@ Provides API endpoints for users to manage their notification templates
 and channel settings (email/telegram).
 """
 
-from typing import Optional
-from uuid import UUID
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.logging import get_logger
-from src.modules.notifications.enums import NotificationChannel
 from src.modules.notifications.repository import NotificationRepository
 from src.modules.notifications.schemas import (
     NotificationChannelsResponse,

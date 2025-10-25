@@ -32,31 +32,19 @@ class NotificationTemplateCreate(BaseModel):
     priority: int = Field(default=0, description="Template priority")
 
     # Template variables configuration
-    show_transaction_id: bool = Field(
-        default=True, description="Show transaction ID"
-    )
+    show_transaction_id: bool = Field(default=True, description="Show transaction ID")
     show_amount: bool = Field(default=True, description="Show transaction amount")
-    show_timestamp: bool = Field(
-        default=True, description="Show transaction timestamp"
-    )
-    show_from_account: bool = Field(
-        default=True, description="Show source account"
-    )
-    show_to_account: bool = Field(
-        default=True, description="Show destination account"
-    )
+    show_timestamp: bool = Field(default=True, description="Show transaction timestamp")
+    show_from_account: bool = Field(default=True, description="Show source account")
+    show_to_account: bool = Field(default=True, description="Show destination account")
     show_triggered_rules: bool = Field(
         default=True, description="Show triggered rules list"
     )
     show_fraud_probability: bool = Field(
         default=True, description="Show fraud probability"
     )
-    show_location: bool = Field(
-        default=True, description="Show transaction location"
-    )
-    show_device_info: bool = Field(
-        default=True, description="Show device information"
-    )
+    show_location: bool = Field(default=True, description="Show transaction location")
+    show_device_info: bool = Field(default=True, description="Show device information")
 
     # Additional custom fields
     custom_fields: Dict[str, Any] = Field(
@@ -88,18 +76,12 @@ class NotificationTemplateUpdate(BaseModel):
     priority: Optional[int] = Field(None, description="Template priority")
 
     # Template variables configuration
-    show_transaction_id: Optional[bool] = Field(
-        None, description="Show transaction ID"
-    )
-    show_amount: Optional[bool] = Field(
-        None, description="Show transaction amount"
-    )
+    show_transaction_id: Optional[bool] = Field(None, description="Show transaction ID")
+    show_amount: Optional[bool] = Field(None, description="Show transaction amount")
     show_timestamp: Optional[bool] = Field(
         None, description="Show transaction timestamp"
     )
-    show_from_account: Optional[bool] = Field(
-        None, description="Show source account"
-    )
+    show_from_account: Optional[bool] = Field(None, description="Show source account")
     show_to_account: Optional[bool] = Field(
         None, description="Show destination account"
     )
@@ -109,9 +91,7 @@ class NotificationTemplateUpdate(BaseModel):
     show_fraud_probability: Optional[bool] = Field(
         None, description="Show fraud probability"
     )
-    show_location: Optional[bool] = Field(
-        None, description="Show transaction location"
-    )
+    show_location: Optional[bool] = Field(None, description="Show transaction location")
     show_device_info: Optional[bool] = Field(
         None, description="Show device information"
     )
@@ -400,13 +380,23 @@ class TemplateFieldsUpdate(BaseModel):
 
     show_transaction_id: Optional[bool] = Field(None, description="Show transaction ID")
     show_amount: Optional[bool] = Field(None, description="Show transaction amount")
-    show_timestamp: Optional[bool] = Field(None, description="Show transaction timestamp")
+    show_timestamp: Optional[bool] = Field(
+        None, description="Show transaction timestamp"
+    )
     show_from_account: Optional[bool] = Field(None, description="Show source account")
-    show_to_account: Optional[bool] = Field(None, description="Show destination account")
-    show_triggered_rules: Optional[bool] = Field(None, description="Show triggered rules list")
-    show_fraud_probability: Optional[bool] = Field(None, description="Show fraud probability")
+    show_to_account: Optional[bool] = Field(
+        None, description="Show destination account"
+    )
+    show_triggered_rules: Optional[bool] = Field(
+        None, description="Show triggered rules list"
+    )
+    show_fraud_probability: Optional[bool] = Field(
+        None, description="Show fraud probability"
+    )
     show_location: Optional[bool] = Field(None, description="Show transaction location")
-    show_device_info: Optional[bool] = Field(None, description="Show device information")
+    show_device_info: Optional[bool] = Field(
+        None, description="Show device information"
+    )
 
 
 class UserNotificationTemplateResponse(BaseModel):
@@ -414,7 +404,7 @@ class UserNotificationTemplateResponse(BaseModel):
 
     id: UUID = Field(description="Template ID")
     channel: NotificationChannel = Field(description="Notification channel")
-    
+
     # Field visibility configuration
     show_transaction_id: bool = Field(description="Show transaction ID")
     show_amount: bool = Field(description="Show transaction amount")
@@ -433,19 +423,29 @@ class UserNotificationTemplateResponse(BaseModel):
 class UserNotificationTemplatesResponse(BaseModel):
     """Schema for both user notification templates (email + telegram)."""
 
-    email_template: UserNotificationTemplateResponse = Field(description="Email template configuration")
-    telegram_template: UserNotificationTemplateResponse = Field(description="Telegram template configuration")
+    email_template: UserNotificationTemplateResponse = Field(
+        description="Email template configuration"
+    )
+    telegram_template: UserNotificationTemplateResponse = Field(
+        description="Telegram template configuration"
+    )
 
 
 class NotificationChannelsResponse(BaseModel):
     """Schema for user's notification channel settings."""
 
     email_enabled: bool = Field(description="Whether email notifications are enabled")
-    telegram_enabled: bool = Field(description="Whether telegram notifications are enabled")
+    telegram_enabled: bool = Field(
+        description="Whether telegram notifications are enabled"
+    )
 
 
 class NotificationChannelsUpdate(BaseModel):
     """Schema for updating user's notification channel settings."""
 
-    email_enabled: Optional[bool] = Field(None, description="Enable/disable email notifications")
-    telegram_enabled: Optional[bool] = Field(None, description="Enable/disable telegram notifications")
+    email_enabled: Optional[bool] = Field(
+        None, description="Enable/disable email notifications"
+    )
+    telegram_enabled: Optional[bool] = Field(
+        None, description="Enable/disable telegram notifications"
+    )
