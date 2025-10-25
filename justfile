@@ -18,4 +18,3 @@ confirm-lint:
 # Delete files ignored by git
 clean:
   git clean -Xdf
-
