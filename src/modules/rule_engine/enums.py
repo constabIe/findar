@@ -33,6 +33,8 @@ class TransactionStatus(str, Enum):
     APPROVED = "approved"
     FLAGGED = "flagged"
     FAILED = "failed"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
 
 
 class TransactionType(str, Enum):

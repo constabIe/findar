@@ -94,6 +94,14 @@ class TransactionResponse(BaseModel):
     created_at: datetime = Field(..., description="Record creation timestamp")
     updated_at: datetime = Field(..., description="Record update timestamp")
 
+    # Review fields
+    reviewed_at: Optional[datetime] = Field(
+        default=None, description="Timestamp when reviewed by analyst"
+    )
+    review_comment: Optional[str] = Field(
+        default=None, description="Analyst's review comment"
+    )
+
     class Config:
         """Pydantic configuration."""
 
@@ -114,3 +122,43 @@ class TransactionListResponse(BaseModel):
     limit: Optional[int] = Field(
         default=None, description="Limit applied to query (if any)"
     )
+
+
+class TransactionReviewRequest(BaseModel):
+    """
+    Schema for transaction review request.
+
+    Used when an analyst manually reviews a flagged/failed transaction
+    and decides to accept or reject it.
+    """
+
+    status: str = Field(
+        ...,
+        description="New status after review (must be 'accepted' or 'rejected')",
+        pattern="^(accepted|rejected)$",
+    )
+    comment: Optional[str] = Field(
+        default=None,
+        max_length=1000,
+        description="Optional comment explaining the review decision",
+    )
+
+
+class TransactionReviewResponse(BaseModel):
+    """
+    Schema for transaction review response.
+
+    Returns updated transaction information after successful review.
+    """
+
+    id: UUID = Field(..., description="Transaction ID")
+    status: str = Field(..., description="Updated transaction status")
+    reviewed_at: datetime = Field(..., description="Timestamp of the review")
+    review_comment: Optional[str] = Field(
+        default=None, description="Analyst's review comment"
+    )
+
+    class Config:
+        """Pydantic configuration."""
+
+        from_attributes = True
