@@ -64,6 +64,22 @@ const Rules: React.FC = () => {
     e.currentTarget.blur()
   }
 
+  // Format operator for display
+  const formatOperator = (operator: string | undefined) => {
+    if (!operator) return "-"
+    const operatorMap: Record<string, string> = {
+      gt: ">",
+      lt: "<",
+      eq: "=",
+      gte: "≥",
+      lte: "≤",
+      ne: "≠",
+      between: "Between",
+      not_between: "Not Between"
+    }
+    return operatorMap[operator] || operator
+  }
+
   const showNotification = (message: string, type: "success" | "error") => {
     const id = Date.now()
     setNotifications((prev) => [...prev, { id, message, type }])
@@ -391,7 +407,9 @@ const Rules: React.FC = () => {
 
   const handleRuleTypeChange = (value: string) => {
     setNewRuleType(value)
-    setNewRuleParams({})
+    // Keep existing params instead of clearing them completely
+    // This allows users to preserve their input when switching between types
+    // Note: Backend validation will filter out irrelevant params for each type
   }
 
   const handleSaveRule = async () => {
@@ -955,7 +973,7 @@ const Rules: React.FC = () => {
                           {/* ALL possible parameter columns - show "-" for missing values */}
                           <td style={{ padding: "12px 8px" }}>{rule.params.max_amount || "-"}</td>
                           <td style={{ padding: "12px 8px" }}>{rule.params.min_amount || "-"}</td>
-                          <td style={{ padding: "12px 8px" }}>{rule.params.operator || "-"}</td>
+                          <td style={{ padding: "12px 8px" }}>{formatOperator(rule.params.operator)}</td>
                           <td style={{ padding: "12px 8px" }}>{rule.params.time_window || "-"}</td>
                           <td style={{ padding: "12px 8px" }}>
                             {rule.params.allowed_hours_start || "-"}
@@ -1275,10 +1293,10 @@ const Rules: React.FC = () => {
                         type="number"
                         value={newRuleParams.max_amount || ""}
                         onChange={(e: any) =>
-                          setNewRuleParams({
-                            ...newRuleParams,
+                          setNewRuleParams((prev) => ({
+                            ...prev,
                             max_amount: parseFloat(e.target.value)
-                          })
+                          }))
                         }
                         onWheel={preventNumberInputScroll}
                         placeholder="Maximum amount"
@@ -1289,10 +1307,10 @@ const Rules: React.FC = () => {
                         type="number"
                         value={newRuleParams.min_amount || ""}
                         onChange={(e: any) =>
-                          setNewRuleParams({
-                            ...newRuleParams,
+                          setNewRuleParams((prev) => ({
+                            ...prev,
                             min_amount: parseFloat(e.target.value)
-                          })
+                          }))
                         }
                         onWheel={preventNumberInputScroll}
                         placeholder="Minimum amount"
@@ -1300,35 +1318,37 @@ const Rules: React.FC = () => {
                     </Form.Item>
                     <Form.Item label="Operator">
                       <Select
-                        value={newRuleParams.operator || ""}
+                        value={newRuleParams.operator}
                         onChange={(value: any) =>
-                          setNewRuleParams({
-                            ...newRuleParams,
+                          setNewRuleParams((prev) => ({
+                            ...prev,
                             operator: value
-                          })
+                          }))
                         }
                         style={{ width: "100%" }}
+                        allowClear
                       >
-                        <Select.Option value="gt">Greater Than (gt)</Select.Option>
-                        <Select.Option value="lt">Less Than (lt)</Select.Option>
-                        <Select.Option value="eq">Equal (eq)</Select.Option>
-                        <Select.Option value="gte">Greater Than or Equal (gte)</Select.Option>
-                        <Select.Option value="lte">Less Than or Equal (lte)</Select.Option>
-                        <Select.Option value="ne">Not Equal (ne)</Select.Option>
+                        <Select.Option value="gt">&gt;</Select.Option>
+                        <Select.Option value="lt">&lt;</Select.Option>
+                        <Select.Option value="eq">=</Select.Option>
+                        <Select.Option value="gte">≥</Select.Option>
+                        <Select.Option value="lte">≤</Select.Option>
+                        <Select.Option value="ne">≠</Select.Option>
                         <Select.Option value="between">Between</Select.Option>
                         <Select.Option value="not_between">Not Between</Select.Option>
                       </Select>
                     </Form.Item>
                     <Form.Item label="Time Window">
                       <Select
-                        value={newRuleParams.time_window || ""}
+                        value={newRuleParams.time_window}
                         onChange={(value: any) =>
-                          setNewRuleParams({
-                            ...newRuleParams,
+                          setNewRuleParams((prev) => ({
+                            ...prev,
                             time_window: value
-                          })
+                          }))
                         }
                         style={{ width: "100%" }}
+                        allowClear
                       >
                         <Select.Option value="1m">1 Minute</Select.Option>
                         <Select.Option value="5m">5 Minutes</Select.Option>
@@ -1490,14 +1510,15 @@ const Rules: React.FC = () => {
                   <>
                     <Form.Item label="Period (required)" required>
                       <Select
-                        value={newRuleParams.period || ""}
+                        value={newRuleParams.period}
                         onChange={(value: any) =>
-                          setNewRuleParams({
-                            ...newRuleParams,
+                          setNewRuleParams((prev) => ({
+                            ...prev,
                             period: value
-                          })
+                          }))
                         }
                         style={{ width: "100%" }}
+                        allowClear
                       >
                         <Select.Option value="1m">1 Minute</Select.Option>
                         <Select.Option value="5m">5 Minutes</Select.Option>
@@ -1645,12 +1666,12 @@ const Rules: React.FC = () => {
                   <>
                     <Form.Item label="Composite Operator">
                       <Select
-                        value={newRuleParams.composite_operator || "AND"}
+                        value={newRuleParams.composite_operator}
                         onChange={(value: any) =>
-                          setNewRuleParams({
-                            ...newRuleParams,
+                          setNewRuleParams((prev) => ({
+                            ...prev,
                             composite_operator: value
-                          })
+                          }))
                         }
                         style={{ width: "100%" }}
                       >
@@ -1760,7 +1781,7 @@ const Rules: React.FC = () => {
               <Button
                 onClick={cancelDeleteRule}
                 style={{
-                  backgroundColor: "#4caf50",
+                  backgroundColor: "#f44336",
                   color: "#ffffff",
                   padding: "10px 20px",
                   fontWeight: "bold",
@@ -1772,7 +1793,7 @@ const Rules: React.FC = () => {
               <Button
                 onClick={confirmDeleteRule}
                 style={{
-                  backgroundColor: "#f44336",
+                  backgroundColor: "#4caf50",
                   color: "#ffffff",
                   padding: "10px 20px",
                   fontWeight: "bold",
@@ -1891,12 +1912,12 @@ const Rules: React.FC = () => {
                         }
                         style={{ width: "100%" }}
                       >
-                        <Select.Option value="gt">Greater Than (gt)</Select.Option>
-                        <Select.Option value="lt">Less Than (lt)</Select.Option>
-                        <Select.Option value="eq">Equal (eq)</Select.Option>
-                        <Select.Option value="gte">Greater Than or Equal (gte)</Select.Option>
-                        <Select.Option value="lte">Less Than or Equal (lte)</Select.Option>
-                        <Select.Option value="ne">Not Equal (ne)</Select.Option>
+                        <Select.Option value="gt">&gt;</Select.Option>
+                        <Select.Option value="lt">&lt;</Select.Option>
+                        <Select.Option value="eq">=</Select.Option>
+                        <Select.Option value="gte">≥</Select.Option>
+                        <Select.Option value="lte">≤</Select.Option>
+                        <Select.Option value="ne">≠</Select.Option>
                         <Select.Option value="between">Between</Select.Option>
                         <Select.Option value="not_between">Not Between</Select.Option>
                       </Select>
