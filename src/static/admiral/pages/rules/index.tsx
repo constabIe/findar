@@ -59,6 +59,27 @@ const Rules: React.FC = () => {
 
   const itemsPerPage = 10
 
+  // Prevent scroll wheel from changing number input values
+  const preventNumberInputScroll = (e: React.WheelEvent<HTMLInputElement>) => {
+    e.currentTarget.blur()
+  }
+
+  // Format operator for display
+  const formatOperator = (operator: string | undefined) => {
+    if (!operator) return "-"
+    const operatorMap: Record<string, string> = {
+      gt: ">",
+      lt: "<",
+      eq: "=",
+      gte: "≥",
+      lte: "≤",
+      ne: "≠",
+      between: "Between",
+      not_between: "Not Between"
+    }
+    return operatorMap[operator] || operator
+  }
+
   const showNotification = (message: string, type: "success" | "error") => {
     const id = Date.now()
     setNotifications((prev) => [...prev, { id, message, type }])
@@ -303,7 +324,7 @@ const Rules: React.FC = () => {
           }
         })
       } else if (ruleToEdit.type === "ml") {
-        const mlKeys = ["model_version", "threshold", "endpoint_url"]
+        const mlKeys = ["model_version", "threshold", "endpoint_url", "model_file_path"]
         mlKeys.forEach((key) => {
           if (
             editRuleParams[key] !== undefined &&
@@ -386,7 +407,9 @@ const Rules: React.FC = () => {
 
   const handleRuleTypeChange = (value: string) => {
     setNewRuleType(value)
-    setNewRuleParams({})
+    // Keep existing params instead of clearing them completely
+    // This allows users to preserve their input when switching between types
+    // Note: Backend validation will filter out irrelevant params for each type
   }
 
   const handleSaveRule = async () => {
@@ -481,7 +504,7 @@ const Rules: React.FC = () => {
         })
       } else if (newRuleType === "ml") {
         // Only include ML-specific parameters
-        const mlKeys = ["model_version", "threshold", "endpoint_url"]
+        const mlKeys = ["model_version", "threshold", "endpoint_url", "model_file_path"]
         mlKeys.forEach((key) => {
           if (
             newRuleParams[key] !== undefined &&
@@ -826,6 +849,7 @@ const Rules: React.FC = () => {
                         </th>
                         <th style={{ padding: "12px 8px", textAlign: "left" }}>Rules</th>
                         <th style={{ padding: "12px 8px", textAlign: "left" }}>Model Version</th>
+                        <th style={{ padding: "12px 8px", textAlign: "left" }}>Model File</th>
                         <th style={{ padding: "12px 8px", textAlign: "left" }}>Threshold</th>
                         <th style={{ padding: "12px 8px", textAlign: "left" }}>Endpoint URL</th>
 
@@ -950,7 +974,9 @@ const Rules: React.FC = () => {
                           {/* ALL possible parameter columns - show "-" for missing values */}
                           <td style={{ padding: "12px 8px" }}>{rule.params.max_amount || "-"}</td>
                           <td style={{ padding: "12px 8px" }}>{rule.params.min_amount || "-"}</td>
-                          <td style={{ padding: "12px 8px" }}>{rule.params.operator || "-"}</td>
+                          <td style={{ padding: "12px 8px" }}>
+                            {formatOperator(rule.params.operator)}
+                          </td>
                           <td style={{ padding: "12px 8px" }}>{rule.params.time_window || "-"}</td>
                           <td style={{ padding: "12px 8px" }}>
                             {rule.params.allowed_hours_start || "-"}
@@ -1070,6 +1096,9 @@ const Rules: React.FC = () => {
                           </td>
                           <td style={{ padding: "12px 8px" }}>
                             {rule.params.model_version || "-"}
+                          </td>
+                          <td style={{ padding: "12px 8px", maxWidth: "200px", fontSize: "11px" }}>
+                            {rule.params.model_file_path || "-"}
                           </td>
                           <td style={{ padding: "12px 8px" }}>{rule.params.threshold || "-"}</td>
                           <td style={{ padding: "12px 8px", maxWidth: "200px", fontSize: "11px" }}>
@@ -1270,11 +1299,12 @@ const Rules: React.FC = () => {
                         type="number"
                         value={newRuleParams.max_amount || ""}
                         onChange={(e: any) =>
-                          setNewRuleParams({
-                            ...newRuleParams,
+                          setNewRuleParams((prev) => ({
+                            ...prev,
                             max_amount: parseFloat(e.target.value)
-                          })
+                          }))
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Maximum amount"
                       />
                     </Form.Item>
@@ -1283,45 +1313,48 @@ const Rules: React.FC = () => {
                         type="number"
                         value={newRuleParams.min_amount || ""}
                         onChange={(e: any) =>
-                          setNewRuleParams({
-                            ...newRuleParams,
+                          setNewRuleParams((prev) => ({
+                            ...prev,
                             min_amount: parseFloat(e.target.value)
-                          })
+                          }))
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Minimum amount"
                       />
                     </Form.Item>
                     <Form.Item label="Operator">
                       <Select
-                        value={newRuleParams.operator || ""}
+                        value={newRuleParams.operator}
                         onChange={(value: any) =>
-                          setNewRuleParams({
-                            ...newRuleParams,
+                          setNewRuleParams((prev) => ({
+                            ...prev,
                             operator: value
-                          })
+                          }))
                         }
                         style={{ width: "100%" }}
+                        allowClear
                       >
-                        <Select.Option value="gt">Greater Than (gt)</Select.Option>
-                        <Select.Option value="lt">Less Than (lt)</Select.Option>
-                        <Select.Option value="eq">Equal (eq)</Select.Option>
-                        <Select.Option value="gte">Greater Than or Equal (gte)</Select.Option>
-                        <Select.Option value="lte">Less Than or Equal (lte)</Select.Option>
-                        <Select.Option value="ne">Not Equal (ne)</Select.Option>
+                        <Select.Option value="gt">&gt;</Select.Option>
+                        <Select.Option value="lt">&lt;</Select.Option>
+                        <Select.Option value="eq">=</Select.Option>
+                        <Select.Option value="gte">≥</Select.Option>
+                        <Select.Option value="lte">≤</Select.Option>
+                        <Select.Option value="ne">≠</Select.Option>
                         <Select.Option value="between">Between</Select.Option>
                         <Select.Option value="not_between">Not Between</Select.Option>
                       </Select>
                     </Form.Item>
                     <Form.Item label="Time Window">
                       <Select
-                        value={newRuleParams.time_window || ""}
+                        value={newRuleParams.time_window}
                         onChange={(value: any) =>
-                          setNewRuleParams({
-                            ...newRuleParams,
+                          setNewRuleParams((prev) => ({
+                            ...prev,
                             time_window: value
-                          })
+                          }))
                         }
                         style={{ width: "100%" }}
+                        allowClear
                       >
                         <Select.Option value="1m">1 Minute</Select.Option>
                         <Select.Option value="5m">5 Minutes</Select.Option>
@@ -1346,6 +1379,7 @@ const Rules: React.FC = () => {
                             allowed_hours_start: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 9 (9 AM)"
                       />
                     </Form.Item>
@@ -1359,6 +1393,7 @@ const Rules: React.FC = () => {
                             allowed_hours_end: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 17 (5 PM)"
                       />
                     </Form.Item>
@@ -1387,6 +1422,7 @@ const Rules: React.FC = () => {
                             max_devices_per_account: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 5"
                       />
                     </Form.Item>
@@ -1400,6 +1436,7 @@ const Rules: React.FC = () => {
                             max_ips_per_account: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 3"
                       />
                     </Form.Item>
@@ -1413,6 +1450,7 @@ const Rules: React.FC = () => {
                             max_velocity_amount: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Limit of sum transfer in period"
                       />
                     </Form.Item>
@@ -1426,6 +1464,7 @@ const Rules: React.FC = () => {
                             max_transaction_types: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 5"
                       />
                     </Form.Item>
@@ -1439,6 +1478,7 @@ const Rules: React.FC = () => {
                             max_transactions_per_account: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 100"
                       />
                     </Form.Item>
@@ -1452,6 +1492,7 @@ const Rules: React.FC = () => {
                             max_transactions_to_account: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 50"
                       />
                     </Form.Item>
@@ -1465,6 +1506,7 @@ const Rules: React.FC = () => {
                             max_transactions_per_ip: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 10"
                       />
                     </Form.Item>
@@ -1474,14 +1516,15 @@ const Rules: React.FC = () => {
                   <>
                     <Form.Item label="Period (required)" required>
                       <Select
-                        value={newRuleParams.period || ""}
+                        value={newRuleParams.period}
                         onChange={(value: any) =>
-                          setNewRuleParams({
-                            ...newRuleParams,
+                          setNewRuleParams((prev) => ({
+                            ...prev,
                             period: value
-                          })
+                          }))
                         }
                         style={{ width: "100%" }}
+                        allowClear
                       >
                         <Select.Option value="1m">1 Minute</Select.Option>
                         <Select.Option value="5m">5 Minutes</Select.Option>
@@ -1506,6 +1549,7 @@ const Rules: React.FC = () => {
                             count: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Number of transactions in the period"
                       />
                     </Form.Item>
@@ -1519,6 +1563,7 @@ const Rules: React.FC = () => {
                             amount_ceiling: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Maximum sum of transactions in period"
                       />
                     </Form.Item>
@@ -1546,6 +1591,7 @@ const Rules: React.FC = () => {
                             unique_recipients: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Max number of unique recipients in period"
                       />
                     </Form.Item>
@@ -1573,6 +1619,7 @@ const Rules: React.FC = () => {
                             velocity_limit: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Max sum of transactions from one device in period"
                       />
                     </Form.Item>
@@ -1592,6 +1639,26 @@ const Rules: React.FC = () => {
                         placeholder="e.g., v2.1"
                       />
                     </Form.Item>
+                    <Form.Item label="Model File">
+                      <Input
+                        type="file"
+                        accept=".pkl,.h5,.onnx,.pt,.pth,.joblib"
+                        onChange={(e: any) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            setNewRuleParams({
+                              ...newRuleParams,
+                              model_file_path: file.name
+                            })
+                          }
+                        }}
+                      />
+                      {newRuleParams.model_file_path && (
+                        <div style={{ marginTop: "8px", fontSize: "12px", color: "#666" }}>
+                          Selected: {newRuleParams.model_file_path}
+                        </div>
+                      )}
+                    </Form.Item>
                     <Form.Item label="Threshold (0.0 - 1.0)">
                       <Input
                         type="number"
@@ -1603,6 +1670,7 @@ const Rules: React.FC = () => {
                             threshold: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 0.75"
                       />
                     </Form.Item>
@@ -1624,12 +1692,12 @@ const Rules: React.FC = () => {
                   <>
                     <Form.Item label="Composite Operator">
                       <Select
-                        value={newRuleParams.composite_operator || "AND"}
+                        value={newRuleParams.composite_operator}
                         onChange={(value: any) =>
-                          setNewRuleParams({
-                            ...newRuleParams,
+                          setNewRuleParams((prev) => ({
+                            ...prev,
                             composite_operator: value
-                          })
+                          }))
                         }
                         style={{ width: "100%" }}
                       >
@@ -1660,6 +1728,7 @@ const Rules: React.FC = () => {
                     type="number"
                     value={newRulePriority}
                     onChange={(e: any) => setNewRulePriority(parseInt(e.target.value))}
+                    onWheel={preventNumberInputScroll}
                     placeholder="e.g., 5"
                   />
                 </Form.Item>
@@ -1738,7 +1807,7 @@ const Rules: React.FC = () => {
               <Button
                 onClick={cancelDeleteRule}
                 style={{
-                  backgroundColor: "#4caf50",
+                  backgroundColor: "#f44336",
                   color: "#ffffff",
                   padding: "10px 20px",
                   fontWeight: "bold",
@@ -1750,7 +1819,7 @@ const Rules: React.FC = () => {
               <Button
                 onClick={confirmDeleteRule}
                 style={{
-                  backgroundColor: "#f44336",
+                  backgroundColor: "#4caf50",
                   color: "#ffffff",
                   padding: "10px 20px",
                   fontWeight: "bold",
@@ -1840,6 +1909,7 @@ const Rules: React.FC = () => {
                             max_amount: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Maximum amount"
                       />
                     </Form.Item>
@@ -1853,6 +1923,7 @@ const Rules: React.FC = () => {
                             min_amount: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Minimum amount"
                       />
                     </Form.Item>
@@ -1867,12 +1938,12 @@ const Rules: React.FC = () => {
                         }
                         style={{ width: "100%" }}
                       >
-                        <Select.Option value="gt">Greater Than (gt)</Select.Option>
-                        <Select.Option value="lt">Less Than (lt)</Select.Option>
-                        <Select.Option value="eq">Equal (eq)</Select.Option>
-                        <Select.Option value="gte">Greater Than or Equal (gte)</Select.Option>
-                        <Select.Option value="lte">Less Than or Equal (lte)</Select.Option>
-                        <Select.Option value="ne">Not Equal (ne)</Select.Option>
+                        <Select.Option value="gt">&gt;</Select.Option>
+                        <Select.Option value="lt">&lt;</Select.Option>
+                        <Select.Option value="eq">=</Select.Option>
+                        <Select.Option value="gte">≥</Select.Option>
+                        <Select.Option value="lte">≤</Select.Option>
+                        <Select.Option value="ne">≠</Select.Option>
                         <Select.Option value="between">Between</Select.Option>
                         <Select.Option value="not_between">Not Between</Select.Option>
                       </Select>
@@ -1911,6 +1982,7 @@ const Rules: React.FC = () => {
                             allowed_hours_start: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 9 (9 AM)"
                       />
                     </Form.Item>
@@ -1924,6 +1996,7 @@ const Rules: React.FC = () => {
                             allowed_hours_end: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 17 (5 PM)"
                       />
                     </Form.Item>
@@ -1952,6 +2025,7 @@ const Rules: React.FC = () => {
                             max_devices_per_account: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 5"
                       />
                     </Form.Item>
@@ -1965,6 +2039,7 @@ const Rules: React.FC = () => {
                             max_ips_per_account: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 3"
                       />
                     </Form.Item>
@@ -1978,6 +2053,7 @@ const Rules: React.FC = () => {
                             max_velocity_amount: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Limit of sum transfer in period"
                       />
                     </Form.Item>
@@ -1991,6 +2067,7 @@ const Rules: React.FC = () => {
                             max_transaction_types: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 5"
                       />
                     </Form.Item>
@@ -2004,6 +2081,7 @@ const Rules: React.FC = () => {
                             max_transactions_per_account: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 100"
                       />
                     </Form.Item>
@@ -2017,6 +2095,7 @@ const Rules: React.FC = () => {
                             max_transactions_to_account: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 50"
                       />
                     </Form.Item>
@@ -2030,6 +2109,7 @@ const Rules: React.FC = () => {
                             max_transactions_per_ip: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 10"
                       />
                     </Form.Item>
@@ -2072,6 +2152,7 @@ const Rules: React.FC = () => {
                             count: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Number of transactions in the period"
                       />
                     </Form.Item>
@@ -2085,6 +2166,7 @@ const Rules: React.FC = () => {
                             amount_ceiling: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Maximum sum of transactions in period"
                       />
                     </Form.Item>
@@ -2112,6 +2194,7 @@ const Rules: React.FC = () => {
                             unique_recipients: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Max number of unique recipients in period"
                       />
                     </Form.Item>
@@ -2139,6 +2222,7 @@ const Rules: React.FC = () => {
                             velocity_limit: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Max sum of transactions from one device in period"
                       />
                     </Form.Item>
@@ -2159,6 +2243,26 @@ const Rules: React.FC = () => {
                         placeholder="e.g., v2.1"
                       />
                     </Form.Item>
+                    <Form.Item label="Model File">
+                      <Input
+                        type="file"
+                        accept=".pkl,.h5,.onnx,.pt,.pth,.joblib"
+                        onChange={(e: any) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            setEditRuleParams({
+                              ...editRuleParams,
+                              model_file_path: file.name
+                            })
+                          }
+                        }}
+                      />
+                      {editRuleParams.model_file_path && (
+                        <div style={{ marginTop: "8px", fontSize: "12px", color: "#666" }}>
+                          Current: {editRuleParams.model_file_path}
+                        </div>
+                      )}
+                    </Form.Item>
                     <Form.Item label="Threshold (0.0 - 1.0)">
                       <Input
                         type="number"
@@ -2170,6 +2274,7 @@ const Rules: React.FC = () => {
                             threshold: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 0.75"
                       />
                     </Form.Item>
@@ -2229,6 +2334,7 @@ const Rules: React.FC = () => {
                     type="number"
                     value={editRulePriority}
                     onChange={(e: any) => setEditRulePriority(parseInt(e.target.value))}
+                    onWheel={preventNumberInputScroll}
                     placeholder="e.g., 5"
                   />
                 </Form.Item>

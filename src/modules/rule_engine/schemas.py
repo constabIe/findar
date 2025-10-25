@@ -187,7 +187,7 @@ class MLRuleParams(BaseModel):
     Parameters for machine learning-based fraud detection rules.
 
     ML rules use trained models to assess transaction risk with confidence scores.
-    The model is accessed via an endpoint URL.
+    The model is accessed via an endpoint URL or uploaded as a file.
     """
 
     # Model configuration
@@ -205,6 +205,12 @@ class MLRuleParams(BaseModel):
 
     # Endpoint configuration
     endpoint_url: str = Field(description="URL of the ML model inference endpoint")
+
+    # Model file path (optional, alternative to endpoint)
+    model_file_path: str | None = Field(
+        default=None,
+        description="Path to uploaded ML model file (alternative to endpoint_url)",
+    )
 
     @field_validator("endpoint_url")
     @classmethod
