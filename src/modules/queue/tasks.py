@@ -633,9 +633,12 @@ async def _send_notifications(
         try:
             from src.modules.notifications.service import NotificationService
             from src.storage.dependencies import get_db_session
+            from src.storage.sql import get_async_session_maker
+
 
             # Get database session for notifications
-            async with get_db_session() as db_session:
+            session_maker = get_async_session_maker()
+            async with session_maker() as db_session:
                 notification_service = NotificationService(db_session)
                 delivery_ids = await notification_service.send_fraud_alert(
                     transaction, evaluation_result, correlation_id

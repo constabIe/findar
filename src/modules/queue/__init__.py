@@ -24,7 +24,7 @@ Flow:
 
 from .celery_config import celery_app
 from .enums import ErrorType, TaskPriority, TaskStatus
-from .models import QueueTask
+from src.storage.models import QueueTask
 from .repository import QueueRepository
 from .schemas import (
     QueueMetrics,

@@ -16,7 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.exceptions import DuplicateTaskError, TaskNotFoundError
-from src.modules.queue.models import QueueTask
+from src.storage.models import QueueTask
 
 from .enums import ErrorType, TaskStatus
 from .schemas import QueueMetrics, TaskCreate, TaskUpdate

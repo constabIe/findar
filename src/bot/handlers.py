@@ -25,8 +25,14 @@ async def cmd_start(message: Message) -> None:
 
     Checks if user is registered and provides appropriate response.
     """
+    if not message.from_user:
+        logger.warning("Received message without from_user", component="telegram_bot")
+        return
+
     telegram_id = message.from_user.id
     username = message.from_user.username
+    
+    print("HEREEE", username)
 
     logger.info(
         "Received /start command",
@@ -40,36 +46,59 @@ async def cmd_start(message: Message) -> None:
         async for session in get_async_session():
             user_repo = UserRepository(session)
 
-            # Check if user exists by telegram_id
-            user = await user_repo.get_user_by_telegram_id(telegram_id)
+            # Check if user exists by telegram alias (username)
+            user = await user_repo.get_user_by_telegram_alias(username)
+            print("CURR_USER", user, username)
 
             if user:
-                # User is registered
-                await message.answer(
-                    f"✅ Привет, {message.from_user.first_name}!\n\n"
-                    f"Ты уже зарегистрирован в системе Findar.\n"
-                    f"Email: {user.email}\n\n"
-                    f"Ты будешь получать уведомления о подозрительных транзакциях на этот Telegram аккаунт."
-                )
-                logger.info(
-                    "User already registered",
-                    component="telegram_bot",
-                    telegram_id=telegram_id,
-                    user_id=str(user.id),
-                )
+                # User found in DB - update telegram_id if needed
+                if user.telegram_id != telegram_id:
+                    # Update telegram_id
+                    updated_user = await user_repo.update_user_telegram_id(user.id, telegram_id)
+                    if updated_user:
+                        await message.answer(
+                            f"✅ Привет, {username}!\n\n"
+                            f"Твой Telegram ID успешно привязан к аккаунту Findar.\n"
+                            f"Email: {updated_user.email}\n\n"
+                            f"Теперь ты будешь получать уведомления о подозрительных транзакциях на этот Telegram аккаунт."
+                        )
+                        logger.info(
+                            "Telegram ID updated for user",
+                            component="telegram_bot",
+                            telegram_id=telegram_id,
+                            user_id=str(updated_user.id),
+                            telegram_alias=username,
+                        )
+                else:
+                    # telegram_id already set
+                    await message.answer(
+                        f"✅ Привет, {username}!\n\n"
+                        f"Ты уже зарегистрирован в системе Findar.\n"
+                        f"Email: {user.email}\n\n"
+                        f"Ты будешь получать уведомления о подозрительных транзакциях на этот Telegram аккаунт."
+                    )
+                    logger.info(
+                        "User already registered with correct telegram_id",
+                        component="telegram_bot",
+                        telegram_id=telegram_id,
+                        user_id=str(user.id),
+                        telegram_alias=username,
+                    )
             else:
-                # User NOT registered
+                # User NOT found in DB by alias
                 await message.answer(
-                    f"👋 Привет, {message.from_user.first_name}!\n\n"
-                    f"Ты ещё не зарегистрирован в системе Findar.\n\n"
+                    f"👋 Привет, {username}!\n\n"
+                    f"Пользователь с username @{username} не найден в системе Findar.\n\n"
                     f"Пожалуйста, пройди регистрацию на сайте:\n"
                     f"https://findar.example.com/register\n\n"
-                    f"Затем возвращайся и снова напиши /start"
+                    f"⚠️ Важно: при регистрации укажи telegram alias: @{username}\n\n"
+                    f"После регистрации возвращайся и снова напиши /start"
                 )
                 logger.info(
-                    "User not registered, sent registration instructions",
+                    "User not found by telegram alias, sent registration instructions",
                     component="telegram_bot",
                     telegram_id=telegram_id,
+                    telegram_alias=username,
                 )
 
             break  # Exit async generator

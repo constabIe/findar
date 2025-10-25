@@ -22,7 +22,7 @@ from .enums import (
     NotificationStatus,
     TemplateType,
 )
-from .models import (
+from src.storage.models import (
     NotificationChannelConfig,
     NotificationDelivery,
     NotificationDeliveryAttempt,

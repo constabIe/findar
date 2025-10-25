@@ -3,108 +3,33 @@ Enums for the rule engine module.
 
 Contains all enumeration types used in rule definitions, evaluation results,
 and rule management operations.
+
+Note: These enums are now centralized in src.storage.enums to prevent circular imports.
+This file re-exports them for backward compatibility.
 """
 
-from enum import Enum
+from src.storage.enums import (
+    CacheStatus,
+    CompositeOperator,
+    RiskLevel,
+    RuleMatchStatus,
+    RuleStatus,
+    RuleType,
+    ThresholdOperator,
+    TimeWindow,
+    TransactionStatus,
+    TransactionType,
+)
 
-
-class RuleType(str, Enum):
-    """Types of fraud detection rules."""
-
-    THRESHOLD = "threshold"
-    PATTERN = "pattern"
-    COMPOSITE = "composite"
-    ML = "ml"
-
-
-class RuleStatus(str, Enum):
-    """Rule execution status."""
-
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    DISABLED = "disabled"
-    ERROR = "error"
-
-
-class TransactionStatus(str, Enum):
-    """Transaction processing status."""
-
-    PENDING = "pending"
-    APPROVED = "approved"
-    FLAGGED = "flagged"
-    FAILED = "failed"
-    ACCEPTED = "accepted"
-    REJECTED = "rejected"
-
-
-class TransactionType(str, Enum):
-    """Types of financial transactions."""
-
-    TRANSFER = "transfer"
-    DEPOSIT = "deposit"
-    WITHDRAWAL = "withdrawal"
-    PAYMENT = "payment"
-
-
-class RuleMatchStatus(str, Enum):
-    """Result of rule evaluation."""
-
-    MATCHED = "matched"
-    NOT_MATCHED = "not_matched"
-    ERROR = "error"
-    SKIPPED = "skipped"
-
-
-class RiskLevel(str, Enum):
-    """Risk level assessment."""
-
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
-
-
-class ThresholdOperator(str, Enum):
-    """Operators for threshold comparisons."""
-
-    GREATER_THAN = "gt"
-    GREATER_EQUAL = "gte"
-    LESS_THAN = "lt"
-    LESS_EQUAL = "lte"
-    EQUAL = "eq"
-    NOT_EQUAL = "ne"
-    BETWEEN = "between"
-    NOT_BETWEEN = "not_between"
-
-
-class TimeWindow(str, Enum):
-    """Time windows for pattern and aggregation rules."""
-
-    MINUTE = "1m"
-    FIVE_MINUTES = "5m"
-    TEN_MINUTES = "10m"
-    FIFTEEN_MINUTES = "15m"
-    THIRTY_MINUTES = "30m"
-    HOUR = "1h"
-    SIX_HOURS = "6h"
-    TWELVE_HOURS = "12h"
-    DAY = "1d"
-    WEEK = "1w"
-    MONTH = "1M"
-
-
-class CompositeOperator(str, Enum):
-    """Logical operators for composite rules."""
-
-    AND = "and"
-    OR = "or"
-    NOT = "not"
-
-
-class CacheStatus(str, Enum):
-    """Cache status for Redis stored rules."""
-
-    CACHED = "cached"
-    EXPIRED = "expired"
-    MISSING = "missing"
-    INVALID = "invalid"
+__all__ = [
+    "RuleType",
+    "RuleStatus",
+    "TransactionStatus",
+    "TransactionType",
+    "RuleMatchStatus",
+    "RiskLevel",
+    "ThresholdOperator",
+    "TimeWindow",
+    "CompositeOperator",
+    "CacheStatus",
+]
