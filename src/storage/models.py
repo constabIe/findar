@@ -91,6 +91,16 @@ class Transaction(SQLModel, table=True):
         default=None, description="IP address of transaction origin"
     )
 
+    # Review fields for manual analyst decisions
+    reviewed_at: Optional[datetime] = Field(
+        default=None, description="Timestamp when transaction was reviewed by analyst"
+    )
+    review_comment: Optional[str] = Field(
+        default=None,
+        max_length=1000,
+        description="Analyst comment explaining the review decision",
+    )
+
     # Metadata for rule engine
     created_at: datetime = Field(
         default_factory=datetime.utcnow, description="Record creation timestamp"

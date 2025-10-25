@@ -72,6 +72,8 @@ def upgrade() -> None:
                 "FLAGGED",
                 "FAILED",
                 "COMPLETED",
+                "ACCEPTED",
+                "REJECTED",
                 name="transactionstatus",
             ),
             nullable=False,
