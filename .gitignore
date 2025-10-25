@@ -221,8 +221,7 @@ __marimo__/
 
 .vscode
 .idea
-# Ignore dynaconf secret files
-.secrets.*
+
 
 #github
 .github/instructions
@@ -237,3 +236,5 @@ Findar/
 findar_API
 
 node_modules
+
+.local/*
