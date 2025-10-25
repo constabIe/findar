@@ -151,20 +151,6 @@ const Transactions: React.FC = () => {
       )
 
       await fetchTransactions()
-      
-      // For testing purposes: randomly mark some transactions as FLAGGED or FAILED
-      // so we can test the review modal feature
-      setAllTransactions((prev) => {
-        if (prev.length === 0) return prev
-        const lastTransaction = prev[prev.length - 1]
-        const testStatuses = ["FLAGGED", "FAILED"]
-        const randomStatus = testStatuses[Math.floor(Math.random() * testStatuses.length)]
-        
-        return prev.map((t, index) =>
-          index === prev.length - 1 ? { ...t, status: randomStatus } : t
-        )
-      })
-      
       showNotification("Transaction created with test status for review feature", "success")
     } catch (err: any) {
       showNotification(err.response?.data?.detail || "Failed to create transaction.", "error")

@@ -324,7 +324,7 @@ const Rules: React.FC = () => {
           }
         })
       } else if (ruleToEdit.type === "ml") {
-        const mlKeys = ["model_version", "threshold", "endpoint_url"]
+        const mlKeys = ["model_version", "threshold", "endpoint_url", "model_file_path"]
         mlKeys.forEach((key) => {
           if (
             editRuleParams[key] !== undefined &&
@@ -504,7 +504,7 @@ const Rules: React.FC = () => {
         })
       } else if (newRuleType === "ml") {
         // Only include ML-specific parameters
-        const mlKeys = ["model_version", "threshold", "endpoint_url"]
+        const mlKeys = ["model_version", "threshold", "endpoint_url", "model_file_path"]
         mlKeys.forEach((key) => {
           if (
             newRuleParams[key] !== undefined &&
@@ -849,6 +849,7 @@ const Rules: React.FC = () => {
                         </th>
                         <th style={{ padding: "12px 8px", textAlign: "left" }}>Rules</th>
                         <th style={{ padding: "12px 8px", textAlign: "left" }}>Model Version</th>
+                        <th style={{ padding: "12px 8px", textAlign: "left" }}>Model File</th>
                         <th style={{ padding: "12px 8px", textAlign: "left" }}>Threshold</th>
                         <th style={{ padding: "12px 8px", textAlign: "left" }}>Endpoint URL</th>
 
@@ -1093,6 +1094,9 @@ const Rules: React.FC = () => {
                           </td>
                           <td style={{ padding: "12px 8px" }}>
                             {rule.params.model_version || "-"}
+                          </td>
+                          <td style={{ padding: "12px 8px", maxWidth: "200px", fontSize: "11px" }}>
+                            {rule.params.model_file_path || "-"}
                           </td>
                           <td style={{ padding: "12px 8px" }}>{rule.params.threshold || "-"}</td>
                           <td style={{ padding: "12px 8px", maxWidth: "200px", fontSize: "11px" }}>
@@ -1632,6 +1636,26 @@ const Rules: React.FC = () => {
                         }
                         placeholder="e.g., v2.1"
                       />
+                    </Form.Item>
+                    <Form.Item label="Model File">
+                      <Input
+                        type="file"
+                        accept=".pkl,.h5,.onnx,.pt,.pth,.joblib"
+                        onChange={(e: any) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            setNewRuleParams({
+                              ...newRuleParams,
+                              model_file_path: file.name
+                            })
+                          }
+                        }}
+                      />
+                      {newRuleParams.model_file_path && (
+                        <div style={{ marginTop: "8px", fontSize: "12px", color: "#666" }}>
+                          Selected: {newRuleParams.model_file_path}
+                        </div>
+                      )}
                     </Form.Item>
                     <Form.Item label="Threshold (0.0 - 1.0)">
                       <Input
@@ -2216,6 +2240,26 @@ const Rules: React.FC = () => {
                         }
                         placeholder="e.g., v2.1"
                       />
+                    </Form.Item>
+                    <Form.Item label="Model File">
+                      <Input
+                        type="file"
+                        accept=".pkl,.h5,.onnx,.pt,.pth,.joblib"
+                        onChange={(e: any) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            setEditRuleParams({
+                              ...editRuleParams,
+                              model_file_path: file.name
+                            })
+                          }
+                        }}
+                      />
+                      {editRuleParams.model_file_path && (
+                        <div style={{ marginTop: "8px", fontSize: "12px", color: "#666" }}>
+                          Current: {editRuleParams.model_file_path}
+                        </div>
+                      )}
                     </Form.Item>
                     <Form.Item label="Threshold (0.0 - 1.0)">
                       <Input
