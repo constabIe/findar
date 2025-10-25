@@ -88,29 +88,6 @@ services:
           cpus: "1"
           memory: 20G
 
-  pgadmin:
-    image: dpage/pgadmin4:9.9
-    container_name: pgadmin
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-      PGADMIN_CONFIG_SERVER_MODE: "False" # To allow running in desktop mode
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 1G
-    ports:
-      - "${PGADMIN_PORT}:80"
-    networks:
-      - postgres
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_started
-
   redis:
     image: redis/redis-stack:7.4.0-v7
     container_name: redis
@@ -129,19 +106,13 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.50"
-          memory: 512M
-        reservations:
-          cpus: "0.25"
-          memory: 256M
+          cpus: "2"
+          memory: "2G"
     restart: unless-stopped
     tty: true
     stdin_open: true
     networks:
       - postgres
-    depends_on:
-      postgres:
-        condition: service_healthy
 
   node-exporter:
     image: prom/node-exporter:v1.10.0
@@ -164,7 +135,7 @@ services:
     image: prom/prometheus:v3.7.1
     container_name: prometheus
     volumes:
-      - ./monitoring/prometheus:/etc/prometheus
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -181,8 +152,6 @@ services:
       postgres:
         condition: service_healthy
       node-exporter:
-        condition: service_started
-      alertmanager:
         condition: service_started
 
   grafana:
@@ -204,8 +173,6 @@ services:
     restart: unless-stopped
     depends_on:
       prometheus:
-        condition: service_started
-      loki:
         condition: service_started
       postgres:
         condition: service_healthy
@@ -234,20 +201,6 @@ services:
     depends_on:
       - loki
 
-  alertmanager:
-    image: prom/alertmanager:v0.28.1
-    container_name: alertmanager
-    volumes:
-      - ./monitoring/alertmanager:/etc/alertmanager
-    command:
-      - "--config.file=/etc/alertmanager/config.yml"
-      - "--storage.path=/alertmanager"
-    ports:
-      - "${AM_PORT}:9093"
-    networks:
-      - monitoring
-    restart: unless-stopped
-
   nginx-proxy:
     image: nginx:1.29.2-alpine
     container_name: nginx-proxy
@@ -265,10 +218,8 @@ services:
     depends_on:
       - api
       - frontend-builder
-      - pgadmin
-      - prometheus
+      - node-exporter
       - grafana
-      - alertmanager
     restart: unless-stopped
 
 volumes:

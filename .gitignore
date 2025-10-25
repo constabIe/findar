@@ -221,8 +221,7 @@ __marimo__/
 
 .vscode
 .idea
-# Ignore dynaconf secret files
-.secrets.*
+
 
 #github
 .github/instructions
@@ -238,6 +237,4 @@ findar_API
 
 node_modules
 
-
-.dockerignore
-tests
+.local/*

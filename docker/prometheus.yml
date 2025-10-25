@@ -2,13 +2,6 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
-# Alertmanager configuration
-alerting:
-  alertmanagers:
-    - static_configs:
-        - targets:
-            - alertmanager:9093
-
 # Load rules once and periodically evaluate them
 rule_files:
   - "rules/*.yml"
@@ -20,12 +13,6 @@ scrape_configs:
     scrape_interval: 10s
     static_configs:
       - targets: ["node-exporter:9100"]
-
-  # # Container metrics are also volatile
-  # - job_name: "cadvisor"
-  #   scrape_interval: 10s
-  #   static_configs:
-  #     - targets: ["cadvisor:8081"]
 
   # Prometheus itself changes slowly, scrape less frequently
   - job_name: "prometheus"
