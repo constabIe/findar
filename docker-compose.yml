@@ -98,7 +98,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 0s
     deploy:
       resources:
         limits:
@@ -117,9 +117,10 @@ services:
       - "${REDIS_PORT}:${REDIS_PORT}"
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "ping"]
-      interval: 30s
+      interval: 10s
       timeout: 10s
       retries: 5
+      start_period: 0s
     deploy:
       resources:
         limits:
