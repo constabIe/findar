@@ -37,4 +37,15 @@ scrape_configs:
     scrape_interval: 5s
     metrics_path: /metrics/
     static_configs:
+<<<<<<< HEAD
       - targets: ["api:8001"]
+=======
+      - targets: ["app:8001"]
+
+  # Celery worker metrics (from separate metrics server)
+  - job_name: "celery-metrics"
+    scrape_interval: 5s
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["celery:9091"]
+>>>>>>> 0a5bb21fa37f97cec9d23eeb8ff0c949fc7d3098

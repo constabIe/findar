@@ -70,7 +70,7 @@ class LoggingSettings(BaseSettings):
     """Logging configuration settings."""
 
     level: str = Field(default="INFO")
-    json_format: bool = Field(default=False)
+    json_format: bool = Field(default=True)
     enable_console: bool = Field(default=True)
     enable_file: bool = Field(default=False)
     file_path: str = Field(default="logs/findar.log")
