@@ -18,6 +18,8 @@ from src.modules.transactions.schemas import (
     TransactionListResponse,
     TransactionQueued,
     TransactionResponse,
+    TransactionReviewRequest,
+    TransactionReviewResponse,
 )
 from src.modules.transactions.service import enqueue_transaction
 from src.storage.dependencies import AsyncRedisDep
@@ -202,4 +204,93 @@ async def get_all_transactions(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve transactions: {str(e)}",
+        )
+
+
+@router.post(
+    "/transactions/{transaction_id}/review",
+    response_model=TransactionReviewResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Review Transaction",
+    description="Manually review a flagged or failed transaction and mark it as accepted or rejected",
+)
+async def review_transaction_endpoint(
+    transaction_id: str,
+    payload: TransactionReviewRequest,
+    session: AsyncSessionDep,
+) -> TransactionReviewResponse:
+    """
+    Review a flagged or failed transaction.
+
+    This endpoint allows analysts to manually review transactions that were
+    flagged or failed by the fraud detection system and make a decision to
+    accept or reject them.
+
+    **Business Rules:**
+    - Only transactions with status `flagged` or `failed` can be reviewed
+    - Review status must be either `accepted` or `rejected`
+    - Optional comment can be added to explain the decision
+    - Updates `reviewed_at` timestamp and stores the comment
+
+    Args:
+        transaction_id: UUID of the transaction to review
+        payload: Review request containing status and optional comment
+        session: Database session dependency
+
+    Returns:
+        TransactionReviewResponse: Updated transaction with review details
+
+    Raises:
+        HTTPException 400: Invalid transaction ID, invalid status, or transaction cannot be reviewed
+        HTTPException 404: Transaction not found
+        HTTPException 500: Internal server error
+
+    Example:
+        POST /api/v1/transactions/550e8400-e29b-41d4-a716-446655440000/review
+        {
+            "status": "accepted",
+            "comment": "Verified with customer, legitimate transaction"
+        }
+    """
+    from src.modules.transactions.service import review_transaction
+
+    logger.info(
+        "Received transaction review request",
+        event="review_request",
+        transaction_id=transaction_id,
+        status=payload.status,
+        has_comment=payload.comment is not None,
+    )
+
+    try:
+        # Call service function to perform review
+        result = await review_transaction(
+            session=session,
+            transaction_id=transaction_id,
+            new_status=payload.status,
+            comment=payload.comment,
+        )
+
+        logger.info(
+            "Transaction review endpoint completed",
+            event="review_endpoint_success",
+            transaction_id=transaction_id,
+        )
+
+        return TransactionReviewResponse(**result)
+
+    except HTTPException:
+        # Re-raise HTTP exceptions from service layer
+        raise
+
+    except Exception as e:
+        logger.error(
+            "Transaction review endpoint failed",
+            event="review_endpoint_error",
+            transaction_id=transaction_id,
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to review transaction: {str(e)}",
         )

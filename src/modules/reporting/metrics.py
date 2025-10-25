@@ -254,6 +254,19 @@ rule_match_rate = Gauge(
     ["rule_id", "rule_type"],
 )
 
+# Transaction review metrics
+transaction_reviews_total = Counter(
+    "transaction_reviews_total",
+    "Total number of transaction reviews by analysts",
+    ["status", "success"],  # status: accepted/rejected, success: true/false
+)
+
+transaction_review_duration = Histogram(
+    "transaction_review_duration_seconds",
+    "Time spent processing transaction review",
+    buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0),  # seconds
+)
+
 
 def increment_transaction_counter(status: str) -> None:
     """
@@ -327,3 +340,24 @@ def update_rule_match_rate(rule_id: str, rule_type: str, match_rate: float) -> N
         match_rate: Match rate as a float (0.0 to 1.0)
     """
     rule_match_rate.labels(rule_id=rule_id, rule_type=rule_type).set(match_rate)
+
+
+def increment_transaction_review_counter(status: str, success: bool) -> None:
+    """
+    Increment transaction review counter.
+
+    Args:
+        status: Review status (accepted or rejected)
+        success: Whether the review operation was successful
+    """
+    transaction_reviews_total.labels(status=status, success=str(success).lower()).inc()
+
+
+def observe_transaction_review_duration(duration_seconds: float) -> None:
+    """
+    Record transaction review processing time.
+
+    Args:
+        duration_seconds: Review processing duration in seconds
+    """
+    transaction_review_duration.observe(duration_seconds)

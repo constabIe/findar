@@ -39,6 +39,8 @@ def upgrade() -> None:
                 "FLAGGED",
                 "FAILED",
                 "COMPLETED",
+                "ACCEPTED",
+                "REJECTED",
                 name="taskstatus",
             ),
             nullable=False,
