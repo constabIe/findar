@@ -1,4 +1,4 @@
-# ---------- Builder ----------
+# ------------- Builder -------------
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 
 # Optimize build and avoid re-downloading Python
@@ -19,8 +19,10 @@ COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
 
-# ---------- Runtime ----------
+# ------------- Runtime --------------
 FROM python:3.12-slim-bookworm AS base
+
+COPY --from=builder /usr/local/bin/uv /usr/local/bin/uv
 
 # Create non-root user
 RUN groupadd --system --gid 999 nonroot \
@@ -40,10 +42,14 @@ ENV PYTHONUNBUFFERED=1 \
 
 USER nonroot
 
-# ----------- API -----------
-FROM base AS api
-CMD ["python", "-m", "src.api", "--host", "${HOST}", "--port", "${APP_PORT}"]
+# ------------ MIGRATIONS ------------
+FROM base AS migrations
+CMD ["uv", "run", "alembic", "upgrade", "head"]
 
-# ----------- Celery ---------
+# --------------- API ----------------
+FROM base AS api
+CMD ["uv", "run", "-m", "src.api", "--host", "${HOST}", "--port", "${APP_PORT}"]
+
+# -------------- CELERY --------------
 FROM base AS celery
-CMD ["celery", "-A", "src.modules.queue.celery_config:celery_app", "worker", "--loglevel=info", "--queues=transactions,rule_executions,celery", "--pool=solo"]
+CMD ["uv", "run", "celery", "-A", "src.modules.queue.celery_config:celery_app", "worker", "--loglevel=info", "--queues=transactions,rule_executions,celery", "--pool=solo"]

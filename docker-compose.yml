@@ -16,9 +16,24 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrations:
+        condition: service_started
     restart: unless-stopped
+    
+  migrations:
+    build:
+      context: .
+      target: migrations
+    container_name: migrations
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - postgres
+    restart: "no"
 
-  # --- Celery ---
   celery:
     build:
       context: .
