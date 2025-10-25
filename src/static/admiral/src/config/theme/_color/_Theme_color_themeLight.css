@@ -172,16 +172,16 @@
     var(--color-base-base) h(+1) l(+8%) a(75%)
   ); /* Цвет акцентного текста */
 
-    /* Disable */
-    --color-control-bg-disable: color-mod(
-        var(--color-base-phantom) a(35%)
-    ); /* Цвет фона неактивного контрола */
-    --color-control-bg-border-disable: color-mod(
-        var(--color-base-phantom) a(35%)
-    ); /* Цвет фона бордеров неактивного контрола */
+  /* Disable */
+  --color-control-bg-disable: color-mod(
+    var(--color-base-phantom) a(35%)
+  ); /* Цвет фона неактивного контрола */
+  --color-control-bg-border-disable: color-mod(
+    var(--color-base-phantom) a(35%)
+  ); /* Цвет фона бордеров неактивного контрола */
 
-    --color-control-typo-disable: color-mod(
-        var(--color-base-base) a(100%)
-    ); /* Цвет основного текста неактивного контрола */
+  --color-control-typo-disable: color-mod(
+    var(--color-base-base) a(100%)
+  ); /* Цвет основного текста неактивного контрола */
 }
 /* stylelint-enable */

@@ -1,58 +1,58 @@
 .logout-container {
-    margin-top: auto;
-    padding: 16px;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
+  margin-top: auto;
+  padding: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .logout-button {
-    width: 100%;
-    padding: 12px;
-    background-color: rgba(0, 0, 0, 0.05);
-    border: none;
-    border-radius: 8px;
-    color: #333;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: background-color 0.2s ease;
+  width: 100%;
+  padding: 12px;
+  background-color: rgba(0, 0, 0, 0.05);
+  border: none;
+  border-radius: 8px;
+  color: #333;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color 0.2s ease;
 
-    &:hover {
-        background-color: rgba(0, 0, 0, 0.1);
-    }
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+  }
 
-    &:active {
-        transform: scale(0.98);
-    }
+  &:active {
+    transform: scale(0.98);
+  }
 }
 
 // Dark mode styles - using multiple selectors for compatibility
-[data-theme='dark'],
+[data-theme="dark"],
 .dark-theme,
-:root[data-theme='dark'],
-html[data-theme='dark'] {
-    .logout-container {
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-    }
+:root[data-theme="dark"],
+html[data-theme="dark"] {
+  .logout-container {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
 
-    .logout-button {
-        background-color: rgba(255, 255, 255, 0.1);
-        color: #e0e0e0 !important;
+  .logout-button {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #e0e0e0 !important;
 
-        &:hover {
-            background-color: rgba(255, 255, 255, 0.15);
-        }
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.15);
     }
+  }
 }
 
 // Additional fallback for Admiral's dark theme
-body[class*='dark'],
-div[class*='dark'] {
-    .logout-button {
-        color: #e0e0e0 !important;
-        background-color: rgba(255, 255, 255, 0.1);
-    }
+body[class*="dark"],
+div[class*="dark"] {
+  .logout-button {
+    color: #e0e0e0 !important;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
 }

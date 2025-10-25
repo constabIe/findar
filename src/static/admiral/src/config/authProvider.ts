@@ -36,29 +36,31 @@ const authProvider = (apiUrl: string): AuthProvider => ({
   },
   logout: () => {
     const url = `${apiUrl}/users/logout`
-    return _.post(url)().then(() => {
-      storage.remove(tokenStorageKey)
-    }).catch(() => {
-      // Even if logout fails on server, remove token locally
-      storage.remove(tokenStorageKey)
-    })
+    return _.post(url)()
+      .then(() => {
+        storage.remove(tokenStorageKey)
+      })
+      .catch(() => {
+        // Even if logout fails on server, remove token locally
+        storage.remove(tokenStorageKey)
+      })
   },
   getIdentity: () => {
     const url = `${apiUrl}/users/me`
 
-        return _.get(url)()
-            .catch(() => {
-                storage.remove(tokenStorageKey)
-                return Promise.reject(new Error('Your session has expired. Please login again.'))
-            })
-            .then((user) => {
-                return { 
-                    ...user, 
-                    fullName: user.name || user.email,
-                    tg_alias: user.telegram_alias || user.tg_alias || user.tgAlias
-                }
-            })
-    },
+    return _.get(url)()
+      .catch(() => {
+        storage.remove(tokenStorageKey)
+        return Promise.reject(new Error("Your session has expired. Please login again."))
+      })
+      .then((user) => {
+        return {
+          ...user,
+          fullName: user.name || user.email,
+          tg_alias: user.telegram_alias || user.tg_alias || user.tgAlias
+        }
+      })
+  }
 })
 
 export default authProvider
