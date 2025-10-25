@@ -1,5 +1,14 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Page, Card, Button, Form, Input, Select, Switch } from '@devfamily/admiral'
+import axios from 'axios'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+
+interface Notification {
+    id: number
+    message: string
+    type: 'success' | 'error'
+}
 
 interface Rule {
     id: string
@@ -10,256 +19,317 @@ interface Rule {
     priority: number
     critical: boolean
     description: string
-    created_by: string
-    created_at: string
-    updated_at: string
+    created_by_user_id: string
     execution_count: number
     match_count: number
-    last_executed_at: string
-    average_execution_time_ms: number
-    apply: boolean
+    created_at: string
+    updated_at: string
+}
+
+interface RulesResponse {
+    rules: Rule[]
 }
 
 const Rules: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1)
     const [ruleStates, setRuleStates] = useState<Record<string, boolean>>({})
-    const [selectedType, setSelectedType] = useState<string | null>('THRESHOLD')
+    const [selectedType, setSelectedType] = useState<string | null>('threshold')
     const [isModalOpen, setIsModalOpen] = useState(false)
-    const [newRuleType, setNewRuleType] = useState('THRESHOLD')
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+    const [ruleToDelete, setRuleToDelete] = useState<{ id: string; name: string } | null>(null)
+    const [ruleToEdit, setRuleToEdit] = useState<Rule | null>(null)
+    const [editRuleName, setEditRuleName] = useState('')
+    const [editRuleDescription, setEditRuleDescription] = useState('')
+    const [editRuleEnabled, setEditRuleEnabled] = useState(true)
+    const [editRulePriority, setEditRulePriority] = useState(5)
+    const [editRuleCritical, setEditRuleCritical] = useState(false)
+    const [editRuleParams, setEditRuleParams] = useState<Record<string, any>>({})
+    const [newRuleType, setNewRuleType] = useState('threshold')
     const [newRuleName, setNewRuleName] = useState('')
     const [newRuleDescription, setNewRuleDescription] = useState('')
     const [newRuleEnabled, setNewRuleEnabled] = useState(true)
     const [newRulePriority, setNewRulePriority] = useState(5)
     const [newRuleCritical, setNewRuleCritical] = useState(false)
-    const [newRuleCreatedBy, setNewRuleCreatedBy] = useState('admin')
     const [newRuleParams, setNewRuleParams] = useState<Record<string, any>>({})
+    const [allRules, setAllRules] = useState<Rule[]>([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState('')
+    const [notifications, setNotifications] = useState<Notification[]>([])
 
     const itemsPerPage = 10
 
-    const allRules: Rule[] = [
-        {
-            id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-            name: 'High Amount Transfer',
-            type: 'THRESHOLD',
-            params: { amount_limit: 5000, currency: 'USD' },
-            enabled: true,
-            priority: 10,
-            critical: true,
-            description: 'Detects transfers exceeding $5000',
-            created_by: 'admin',
-            created_at: '2025-10-01 10:00:00',
-            updated_at: '2025-10-15 14:30:00',
-            execution_count: 1523,
-            match_count: 87,
-            last_executed_at: '2025-10-23 12:45:00',
-            average_execution_time_ms: 45.2,
-            apply: true,
-        },
-        {
-            id: 'b2c3d4e5-f6a7-8901-bcde-f23456789012',
-            name: 'Rapid Transaction Pattern',
-            type: 'PATTERN',
-            params: { time_window: 300, min_transactions: 5 },
-            enabled: true,
-            priority: 8,
-            critical: false,
-            description: 'Flags multiple transactions within 5 minutes',
-            created_by: 'security_team',
-            created_at: '2025-09-15 09:20:00',
-            updated_at: '2025-10-10 11:00:00',
-            execution_count: 2340,
-            match_count: 134,
-            last_executed_at: '2025-10-23 13:10:00',
-            average_execution_time_ms: 67.8,
-            apply: true,
-        },
-        {
-            id: 'c3d4e5f6-a7b8-9012-cdef-345678901234',
-            name: 'Unusual Location Check',
-            type: 'PATTERN',
-            params: { distance_km: 500, time_window: 3600 },
-            enabled: true,
-            priority: 7,
-            critical: false,
-            description: 'Detects transactions from geographically distant locations',
-            created_by: 'fraud_analyst',
-            created_at: '2025-08-20 15:30:00',
-            updated_at: '2025-10-05 16:45:00',
-            execution_count: 987,
-            match_count: 23,
-            last_executed_at: '2025-10-23 11:20:00',
-            average_execution_time_ms: 89.3,
-            apply: false,
-        },
-        {
-            id: 'd4e5f6a7-b8c9-0123-def4-567890123456',
-            name: 'ML Fraud Score',
-            type: 'ML',
-            params: { model_version: 'v2.1', threshold: 0.75 },
-            enabled: true,
-            priority: 9,
-            critical: true,
-            description: 'Machine learning based fraud detection',
-            created_by: 'ml_team',
-            created_at: '2025-09-01 08:00:00',
-            updated_at: '2025-10-20 09:15:00',
-            execution_count: 3456,
-            match_count: 201,
-            last_executed_at: '2025-10-23 13:45:00',
-            average_execution_time_ms: 156.7,
-            apply: true,
-        },
-        {
-            id: 'e5f6a7b8-c9d0-1234-ef56-789012345678',
-            name: 'Off-Hours Activity',
-            type: 'PATTERN',
-            params: { start_hour: 2, end_hour: 5, timezone: 'UTC' },
-            enabled: true,
-            priority: 5,
-            critical: false,
-            description: 'Monitors transactions during unusual hours',
-            created_by: 'security_team',
-            created_at: '2025-07-10 12:00:00',
-            updated_at: '2025-09-25 14:30:00',
-            execution_count: 1789,
-            match_count: 56,
-            last_executed_at: '2025-10-23 03:15:00',
-            average_execution_time_ms: 34.5,
-            apply: true,
-        },
-        {
-            id: 'f6a7b8c9-d0e1-2345-f678-90123456789a',
-            name: 'Composite Risk Assessment',
-            type: 'COMPOSITE',
-            params: { rule_ids: ['a1b2c3d4', 'b2c3d4e5', 'c3d4e5f6'], operator: 'AND' },
-            enabled: true,
-            priority: 6,
-            critical: false,
-            description: 'Combines multiple rules for comprehensive check',
-            created_by: 'admin',
-            created_at: '2025-10-10 10:30:00',
-            updated_at: '2025-10-18 11:45:00',
-            execution_count: 654,
-            match_count: 12,
-            last_executed_at: '2025-10-23 12:00:00',
-            average_execution_time_ms: 123.4,
-            apply: false,
-        },
-        {
-            id: 'a1a1a1a1-b2b2-3c3c-d4d4-e5e5e5e5e5e5',
-            name: 'New Account Activity',
-            type: 'THRESHOLD',
-            params: { account_age_days: 7, transaction_limit: 1000 },
-            enabled: false,
-            priority: 4,
-            critical: false,
-            description: 'Monitors transactions from newly created accounts',
-            created_by: 'fraud_analyst',
-            created_at: '2025-06-15 09:00:00',
-            updated_at: '2025-10-01 10:15:00',
-            execution_count: 432,
-            match_count: 18,
-            last_executed_at: '2025-10-15 14:30:00',
-            average_execution_time_ms: 41.2,
-            apply: false,
-        },
-        {
-            id: 'b2b2b2b2-c3c3-4d4d-e5e5-f6f6f6f6f6f6',
-            name: 'Currency Conversion Pattern',
-            type: 'PATTERN',
-            params: { conversion_count: 3, time_window: 1800 },
-            enabled: true,
-            priority: 5,
-            critical: false,
-            description: 'Detects multiple currency conversions in short period',
-            created_by: 'security_team',
-            created_at: '2025-08-05 11:20:00',
-            updated_at: '2025-10-12 13:00:00',
-            execution_count: 876,
-            match_count: 34,
-            last_executed_at: '2025-10-23 10:40:00',
-            average_execution_time_ms: 52.8,
-            apply: true,
-        },
-        {
-            id: 'c3c3c3c3-d4d4-5e5e-f6f6-a7a7a7a7a7a7',
-            name: 'Merchant Category Risk',
-            type: 'THRESHOLD',
-            params: { high_risk_categories: ['gambling', 'crypto'], amount_limit: 1000 },
-            enabled: true,
-            priority: 7,
-            critical: true,
-            description: 'Monitors transactions with high-risk merchants',
-            created_by: 'compliance_team',
-            created_at: '2025-09-20 14:45:00',
-            updated_at: '2025-10-19 15:30:00',
-            execution_count: 1234,
-            match_count: 67,
-            last_executed_at: '2025-10-23 13:20:00',
-            average_execution_time_ms: 58.9,
-            apply: true,
-        },
-        {
-            id: 'd4d4d4d4-e5e5-6f6f-a7a7-b8b8b8b8b8b8',
-            name: 'Velocity Check',
-            type: 'PATTERN',
-            params: { daily_limit: 10000, weekly_limit: 50000 },
-            enabled: true,
-            priority: 8,
-            critical: false,
-            description: 'Tracks transaction velocity over time periods',
-            created_by: 'risk_management',
-            created_at: '2025-07-25 10:10:00',
-            updated_at: '2025-10-08 11:25:00',
-            execution_count: 2567,
-            match_count: 145,
-            last_executed_at: '2025-10-23 13:50:00',
-            average_execution_time_ms: 78.6,
-            apply: true,
-        },
-        {
-            id: 'e5e5e5e5-f6f6-7a7a-b8b8-c9c9c9c9c9c9',
-            name: 'Device Fingerprint Mismatch',
-            type: 'PATTERN',
-            params: { check_device_history: true, threshold: 0.8 },
-            enabled: true,
-            priority: 6,
-            critical: false,
-            description: 'Detects unusual device usage patterns',
-            created_by: 'fraud_analyst',
-            created_at: '2025-08-30 13:15:00',
-            updated_at: '2025-10-14 14:50:00',
-            execution_count: 1890,
-            match_count: 92,
-            last_executed_at: '2025-10-23 12:30:00',
-            average_execution_time_ms: 64.3,
-            apply: false,
-        },
-        {
-            id: 'f6f6f6f6-a7a7-8b8b-c9c9-d0d0d0d0d0d0',
-            name: 'IP Reputation Check',
-            type: 'THRESHOLD',
-            params: { blacklist_check: true, reputation_score_min: 0.5 },
-            enabled: false,
-            priority: 3,
-            critical: false,
-            description: 'Validates IP address against reputation databases',
-            created_by: 'security_team',
-            created_at: '2025-06-01 08:30:00',
-            updated_at: '2025-09-15 09:45:00',
-            execution_count: 567,
-            match_count: 28,
-            last_executed_at: '2025-10-10 16:20:00',
-            average_execution_time_ms: 95.1,
-            apply: true,
-        },
-    ]
+    const showNotification = (message: string, type: 'success' | 'error') => {
+        const id = Date.now()
+        setNotifications(prev => [...prev, { id, message, type }])
+        
+        // Auto-remove notification after 3 seconds
+        setTimeout(() => {
+            setNotifications(prev => prev.filter(n => n.id !== id))
+        }, 3000)
+    }
 
-    const handleToggleRule = (ruleId: string, currentValue: boolean) => {
-        setRuleStates((prev) => ({
-            ...prev,
-            [ruleId]: !currentValue,
-        }))
+    useEffect(() => {
+        if (selectedType) {
+            fetchRules(selectedType)
+        }
+    }, [selectedType])
+
+    const fetchRules = async (ruleType: string) => {
+        try {
+            setLoading(true)
+            setError('')
+            
+            const token = localStorage.getItem('admiral_global_admin_session_token')
+            
+            if (!token) {
+                setError('No authentication token found. Please login again.')
+                setLoading(false)
+                return
+            }
+
+            const response = await axios.get<Rule[]>(`${API_URL}/rules/type/${ruleType}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+
+            setAllRules(response.data || [])
+        } catch (err: any) {
+            setError(err.response?.data?.detail || 'Failed to load rules.')
+            console.error('Error fetching rules:', err)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleToggleRule = async (ruleId: string, currentValue: boolean) => {
+        try {
+            const token = localStorage.getItem('admiral_global_admin_session_token')
+            
+            if (!token) {
+                showNotification('No authentication token found. Please login again.', 'error')
+                return
+            }
+
+            // Determine the endpoint based on current state
+            // If currently enabled (true), we want to deactivate, otherwise activate
+            const endpoint = currentValue 
+                ? `${API_URL}/rules/${ruleId}/deactivate`
+                : `${API_URL}/rules/${ruleId}/activate`
+
+            // Make POST request to activate or deactivate
+            await axios.post(endpoint, {}, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+
+            // Update local state after successful request
+            setRuleStates((prev) => ({
+                ...prev,
+                [ruleId]: !currentValue,
+            }))
+
+            showNotification(`Rule ${currentValue ? 'deactivated' : 'activated'} successfully!`, 'success')
+        } catch (err: any) {
+            console.error('Error toggling rule:', err)
+            showNotification(err.response?.data?.detail || 'Failed to toggle rule.', 'error')
+        }
+    }
+
+    const handleDeleteRule = (ruleId: string, ruleName: string) => {
+        setRuleToDelete({ id: ruleId, name: ruleName })
+        setIsDeleteModalOpen(true)
+    }
+
+    const confirmDeleteRule = async () => {
+        if (!ruleToDelete) return
+
+        try {
+            const token = localStorage.getItem('admiral_global_admin_session_token')
+            
+            if (!token) {
+                showNotification('No authentication token found. Please login again.', 'error')
+                setIsDeleteModalOpen(false)
+                setRuleToDelete(null)
+                return
+            }
+
+            // Make DELETE request
+            await axios.delete(`${API_URL}/rules/${ruleToDelete.id}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+
+            showNotification(`Rule "${ruleToDelete.name}" deleted successfully!`, 'success')
+
+            // Refresh the rules list after successful deletion
+            if (selectedType) {
+                await fetchRules(selectedType)
+            }
+
+            setIsDeleteModalOpen(false)
+            setRuleToDelete(null)
+        } catch (err: any) {
+            console.error('Error deleting rule:', err)
+            showNotification(err.response?.data?.detail || 'Failed to delete rule.', 'error')
+            setIsDeleteModalOpen(false)
+            setRuleToDelete(null)
+        }
+    }
+
+    const cancelDeleteRule = () => {
+        setIsDeleteModalOpen(false)
+        setRuleToDelete(null)
+    }
+
+    const handleOpenEditModal = (rule: Rule) => {
+        setRuleToEdit(rule)
+        setEditRuleName(rule.name)
+        setEditRuleDescription(rule.description)
+        setEditRuleEnabled(rule.enabled)
+        setEditRulePriority(rule.priority)
+        setEditRuleCritical(rule.critical)
+        setEditRuleParams(rule.params)
+        setIsEditModalOpen(true)
+    }
+
+    const handleCloseEditModal = () => {
+        setIsEditModalOpen(false)
+        setRuleToEdit(null)
+        setEditRuleName('')
+        setEditRuleDescription('')
+        setEditRuleEnabled(true)
+        setEditRulePriority(5)
+        setEditRuleCritical(false)
+        setEditRuleParams({})
+    }
+
+    const handleUpdateRule = async () => {
+        if (!ruleToEdit) return
+
+        const token = localStorage.getItem('admiral_global_admin_session_token')
+        
+        if (!token) {
+            showNotification('No authentication token found. Please login again.', 'error')
+            return
+        }
+
+        if (!editRuleName || editRuleName.trim() === '') {
+            showNotification('Rule Name is required.', 'error')
+            return
+        }
+
+        // Validate type-specific required fields
+        if (ruleToEdit.type === 'pattern') {
+            if (!editRuleParams.period || editRuleParams.period === '') {
+                showNotification('Period is required for Pattern rules.', 'error')
+                return
+            }
+        } else if (ruleToEdit.type === 'composite') {
+            if (!editRuleParams.rules || editRuleParams.rules.length === 0) {
+                showNotification('Rules field is required for Composite rules.', 'error')
+                return
+            }
+        }
+
+        try {
+            // Filter params based on rule type
+            let filteredParams: Record<string, any> = {}
+
+            if (ruleToEdit.type === 'threshold') {
+                const thresholdKeys = [
+                    'max_amount',
+                    'min_amount',
+                    'operator',
+                    'time_window',
+                    'allowed_hours_start',
+                    'allowed_hours_end',
+                    'allowed_locations',
+                    'max_devices_per_account',
+                    'max_ips_per_account',
+                    'max_velocity_amount',
+                    'max_transaction_types',
+                    'max_transactions_per_account',
+                    'max_transactions_to_account',
+                    'max_transactions_per_ip'
+                ]
+                thresholdKeys.forEach(key => {
+                    if (editRuleParams[key] !== undefined && editRuleParams[key] !== '' && editRuleParams[key] !== null) {
+                        filteredParams[key] = editRuleParams[key]
+                    }
+                })
+            } else if (ruleToEdit.type === 'pattern') {
+                const patternKeys = [
+                    'period',
+                    'count',
+                    'amount_ceiling',
+                    'same_recipient',
+                    'unique_recipients',
+                    'same_device',
+                    'velocity_limit'
+                ]
+                patternKeys.forEach(key => {
+                    if (editRuleParams[key] !== undefined && editRuleParams[key] !== '' && editRuleParams[key] !== null) {
+                        filteredParams[key] = editRuleParams[key]
+                    }
+                })
+            } else if (ruleToEdit.type === 'composite') {
+                const compositeKeys = [
+                    'composite_operator',
+                    'rules'
+                ]
+                compositeKeys.forEach(key => {
+                    if (editRuleParams[key] !== undefined && editRuleParams[key] !== '' && editRuleParams[key] !== null) {
+                        filteredParams[key] = editRuleParams[key]
+                    }
+                })
+            } else if (ruleToEdit.type === 'ml') {
+                const mlKeys = [
+                    'model_version',
+                    'threshold',
+                    'endpoint_url'
+                ]
+                mlKeys.forEach(key => {
+                    if (editRuleParams[key] !== undefined && editRuleParams[key] !== '' && editRuleParams[key] !== null) {
+                        filteredParams[key] = editRuleParams[key]
+                    }
+                })
+            }
+
+            // Build the request payload
+            const payload = {
+                name: editRuleName,
+                type: ruleToEdit.type,
+                params: filteredParams,
+                enabled: editRuleEnabled,
+                priority: editRulePriority,
+                critical: editRuleCritical,
+                description: editRuleDescription,
+            }
+
+            // PUT request to update rule
+            await axios.put(`${API_URL}/rules/${ruleToEdit.id}`, payload, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            })
+
+            showNotification('Rule updated successfully!', 'success')
+
+            // Refresh the rules list after successful update
+            if (selectedType) {
+                await fetchRules(selectedType)
+            }
+
+            handleCloseEditModal()
+        } catch (err: any) {
+            console.error('Error updating rule:', err)
+            showNotification(err.response?.data?.detail || 'Failed to update rule.', 'error')
+        }
     }
 
     const getRuleApplyState = (ruleId: string, defaultValue: boolean) => {
@@ -267,9 +337,10 @@ const Rules: React.FC = () => {
     }
 
     const filteredRules = useMemo(() => {
+        // Filter rules by selected type
         if (!selectedType) return []
-        return allRules.filter((rule) => rule.type === selectedType)
-    }, [selectedType])
+        return allRules.filter(rule => rule.type === selectedType)
+    }, [allRules, selectedType])
 
     const totalPages = Math.ceil(filteredRules.length / itemsPerPage)
     const paginatedRules = useMemo(() => {
@@ -284,13 +355,12 @@ const Rules: React.FC = () => {
 
     const handleOpenModal = () => {
         setIsModalOpen(true)
-        setNewRuleType('THRESHOLD')
+        setNewRuleType('threshold')
         setNewRuleName('')
         setNewRuleDescription('')
         setNewRuleEnabled(true)
         setNewRulePriority(5)
         setNewRuleCritical(false)
-        setNewRuleCreatedBy('admin')
         setNewRuleParams({})
     }
 
@@ -303,18 +373,132 @@ const Rules: React.FC = () => {
         setNewRuleParams({})
     }
 
-    const handleSaveRule = () => {
-        console.log('Saving rule:', {
-            name: newRuleName,
-            type: newRuleType,
-            description: newRuleDescription,
-            enabled: newRuleEnabled,
-            priority: newRulePriority,
-            critical: newRuleCritical,
-            created_by: newRuleCreatedBy,
-            params: newRuleParams,
-        })
-        handleCloseModal()
+    const handleSaveRule = async () => {
+        // Validate required fields BEFORE try-catch
+        const token = localStorage.getItem('admiral_global_admin_session_token')
+        
+        if (!token) {
+            showNotification('No authentication token found. Please login again.', 'error')
+            return
+        }
+
+        if (!newRuleName || newRuleName.trim() === '') {
+            showNotification('Rule Name is required.', 'error')
+            return
+        }
+
+        // Validate type-specific required fields
+        if (newRuleType === 'pattern') {
+            if (!newRuleParams.period || newRuleParams.period === '') {
+                showNotification('Period is required for Pattern rules.', 'error')
+                return
+            }
+        } else if (newRuleType === 'composite') {
+            if (!newRuleParams.rules || newRuleParams.rules.length === 0) {
+                showNotification('Rules field is required for Composite rules.', 'error')
+                return
+            }
+        }
+
+        try {
+            // Filter params based on rule type
+            let filteredParams: Record<string, any> = {}
+
+            if (newRuleType === 'threshold') {
+                // Only include threshold-specific parameters
+                const thresholdKeys = [
+                    'max_amount',
+                    'min_amount',
+                    'operator',
+                    'time_window',
+                    'allowed_hours_start',
+                    'allowed_hours_end',
+                    'allowed_locations',
+                    'max_devices_per_account',
+                    'max_ips_per_account',
+                    'max_velocity_amount',
+                    'max_transaction_types',
+                    'max_transactions_per_account',
+                    'max_transactions_to_account',
+                    'max_transactions_per_ip'
+                ]
+                thresholdKeys.forEach(key => {
+                    if (newRuleParams[key] !== undefined && newRuleParams[key] !== '' && newRuleParams[key] !== null) {
+                        filteredParams[key] = newRuleParams[key]
+                    }
+                })
+            } else if (newRuleType === 'pattern') {
+                // Only include pattern-specific parameters
+                const patternKeys = [
+                    'period',
+                    'count',
+                    'amount_ceiling',
+                    'same_recipient',
+                    'unique_recipients',
+                    'same_device',
+                    'velocity_limit'
+                ]
+                patternKeys.forEach(key => {
+                    if (newRuleParams[key] !== undefined && newRuleParams[key] !== '' && newRuleParams[key] !== null) {
+                        filteredParams[key] = newRuleParams[key]
+                    }
+                })
+            } else if (newRuleType === 'composite') {
+                // Only include composite-specific parameters
+                const compositeKeys = [
+                    'composite_operator',
+                    'rules'
+                ]
+                compositeKeys.forEach(key => {
+                    if (newRuleParams[key] !== undefined && newRuleParams[key] !== '' && newRuleParams[key] !== null) {
+                        filteredParams[key] = newRuleParams[key]
+                    }
+                })
+            } else if (newRuleType === 'ml') {
+                // Only include ML-specific parameters
+                const mlKeys = [
+                    'model_version',
+                    'threshold',
+                    'endpoint_url'
+                ]
+                mlKeys.forEach(key => {
+                    if (newRuleParams[key] !== undefined && newRuleParams[key] !== '' && newRuleParams[key] !== null) {
+                        filteredParams[key] = newRuleParams[key]
+                    }
+                })
+            }
+
+            // Build the request payload
+            const payload = {
+                name: newRuleName,
+                type: newRuleType,
+                params: filteredParams,
+                enabled: newRuleEnabled,
+                priority: newRulePriority,
+                critical: newRuleCritical,
+                description: newRuleDescription,
+            }
+
+            // POST request to create new rule
+            await axios.post(`${API_URL}/rules`, payload, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            })
+
+            showNotification('Rule created successfully!', 'success')
+
+            // Refresh the rules list after successful creation
+            if (selectedType) {
+                await fetchRules(selectedType)
+            }
+
+            handleCloseModal()
+        } catch (err: any) {
+            console.error('Error saving rule:', err)
+            showNotification(err.response?.data?.detail || 'Failed to save rule.', 'error')
+        }
     }
 
     const exportToCSV = () => {
@@ -327,13 +511,11 @@ const Rules: React.FC = () => {
             'Priority',
             'Critical',
             'Description',
-            'Created By',
+            'Created By User ID',
             'Created At',
             'Updated At',
             'Execution Count',
             'Match Count',
-            'Last Executed At',
-            'Avg Execution Time (ms)',
         ]
 
         const csvContent = [
@@ -348,13 +530,11 @@ const Rules: React.FC = () => {
                     r.priority,
                     r.critical,
                     `"${r.description}"`,
-                    r.created_by,
+                    r.created_by_user_id,
                     r.created_at,
                     r.updated_at,
                     r.execution_count,
                     r.match_count,
-                    r.last_executed_at,
-                    r.average_execution_time_ms,
                 ].join(',')
             ),
         ].join('\n')
@@ -372,9 +552,82 @@ const Rules: React.FC = () => {
 
     return (
         <Page title="Rules">
+            <div style={{
+                position: 'fixed',
+                top: '20px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 9999,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                minWidth: '300px',
+                maxWidth: '500px',
+            }}>
+                {notifications.map(notification => (
+                    <div
+                        key={notification.id}
+                        style={{
+                            backgroundColor: notification.type === 'success' ? '#2d3e2f' : '#4a2828',
+                            color: '#ffffff',
+                            padding: '16px 20px',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            animation: 'slideIn 0.3s ease-out',
+                        }}
+                    >
+                        <div style={{
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '50%',
+                            backgroundColor: notification.type === 'success' ? '#4caf50' : '#f44336',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                        }}>
+                            {notification.type === 'success' ? '✓' : '✕'}
+                        </div>
+                        <span style={{ flex: 1 }}>{notification.message}</span>
+                        <button
+                            onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#ffffff',
+                                cursor: 'pointer',
+                                fontSize: '20px',
+                                padding: 0,
+                                width: '20px',
+                                height: '20px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                        >
+                            ×
+                        </button>
+                    </div>
+                ))}
+            </div>
+
             <Card>
                 <style>
                     {`
+                        @keyframes slideIn {
+                            from {
+                                transform: translateY(-20px);
+                                opacity: 0;
+                            }
+                            to {
+                                transform: translateY(0);
+                                opacity: 1;
+                            }
+                        }
+
                         .modal-content {
                             background-color: var(--color-bg-default);
                             color: var(--color-typo-primary);
@@ -417,48 +670,48 @@ const Rules: React.FC = () => {
                             flexWrap: 'wrap',
                         }}>
                         <Button
-                            onClick={() => handleTypeSelect('THRESHOLD')}
-                            className={selectedType === 'THRESHOLD' ? 'nav-btn-active' : 'nav-btn-inactive'}
+                            onClick={() => handleTypeSelect('threshold')}
+                            className={selectedType === 'threshold' ? 'nav-btn-active' : 'nav-btn-inactive'}
                             style={{
                                 border: 'none',
                                 padding: '10px 20px',
-                                fontWeight: selectedType === 'THRESHOLD' ? 'bold' : 'normal',
+                                fontWeight: selectedType === 'threshold' ? 'bold' : 'normal',
                             }}
                         >
                             Threshold
                         </Button>
                         <Button
-                            onClick={() => handleTypeSelect('PATTERN')}
-                            className={selectedType === 'PATTERN' ? 'nav-btn-active' : 'nav-btn-inactive'}
+                            onClick={() => handleTypeSelect('composite')}
+                            className={selectedType === 'composite' ? 'nav-btn-active' : 'nav-btn-inactive'}
                             style={{
                                 border: 'none',
                                 padding: '10px 20px',
-                                fontWeight: selectedType === 'PATTERN' ? 'bold' : 'normal',
+                                fontWeight: selectedType === 'composite' ? 'bold' : 'normal',
+                            }}
+                        >
+                            Composite
+                        </Button>
+                        <Button
+                            onClick={() => handleTypeSelect('pattern')}
+                            className={selectedType === 'pattern' ? 'nav-btn-active' : 'nav-btn-inactive'}
+                            style={{
+                                border: 'none',
+                                padding: '10px 20px',
+                                fontWeight: selectedType === 'pattern' ? 'bold' : 'normal',
                             }}
                         >
                             Pattern
                         </Button>
                         <Button
-                            onClick={() => handleTypeSelect('ML')}
-                            className={selectedType === 'ML' ? 'nav-btn-active' : 'nav-btn-inactive'}
+                            onClick={() => handleTypeSelect('ml')}
+                            className={selectedType === 'ml' ? 'nav-btn-active' : 'nav-btn-inactive'}
                             style={{
                                 border: 'none',
                                 padding: '10px 20px',
-                                fontWeight: selectedType === 'ML' ? 'bold' : 'normal',
+                                fontWeight: selectedType === 'ml' ? 'bold' : 'normal',
                             }}
                         >
                             ML
-                        </Button>
-                        <Button
-                            onClick={() => handleTypeSelect('COMPOSITE')}
-                            className={selectedType === 'COMPOSITE' ? 'nav-btn-active' : 'nav-btn-inactive'}
-                            style={{
-                                border: 'none',
-                                padding: '10px 20px',
-                                fontWeight: selectedType === 'COMPOSITE' ? 'bold' : 'normal',
-                            }}
-                        >
-                            Composite
                         </Button>
                         </div>
                     <div>
@@ -479,63 +732,47 @@ const Rules: React.FC = () => {
 
                 {selectedType && (
                     <>
+                        {loading ? (
+                            <div style={{ padding: '20px', textAlign: 'center' }}>Loading rules...</div>
+                        ) : error ? (
+                            <div style={{ padding: '20px', color: 'red' }}>{error}</div>
+                        ) : (
+                            <>
                         <div style={{ overflowX: 'auto' }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                 <thead>
                                     <tr style={{ borderBottom: '2px solid #ddd' }}>
+                                        <th style={{ padding: '12px 8px', textAlign: 'center' }}>Deletion</th>
                                         <th style={{ padding: '12px 8px', textAlign: 'center' }}>Apply rule</th>
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>ID</th>
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>Name</th>
                                         
-                                        {/* THRESHOLD specific columns */}
-                                        {selectedType === 'THRESHOLD' && (
-                                            <>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Amount</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Min Amount</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Operator</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Time Window</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Allowed Hours Start</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Allowed Hours End</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Allowed Locations</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Devices/Account</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max IPs/Account</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Velocity Amount</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Transaction Types</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Transactions/Account</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Transactions to Account</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Transactions/IP</th>
-                                            </>
-                                        )}
-                                        
-                                        {/* PATTERN specific columns */}
-                                        {selectedType === 'PATTERN' && (
-                                            <>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Period*</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Count</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Amount Ceiling</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Same Recipient</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Unique Recipients</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Same Device</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Velocity Limit</th>
-                                            </>
-                                        )}
-                                        
-                                        {/* COMPOSITE specific columns */}
-                                        {selectedType === 'COMPOSITE' && (
-                                            <>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Operator</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Rules</th>
-                                            </>
-                                        )}
-                                        
-                                        {/* ML specific columns */}
-                                        {selectedType === 'ML' && (
-                                            <>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Model Version</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Threshold</th>
-                                                <th style={{ padding: '12px 8px', textAlign: 'left' }}>Endpoint URL</th>
-                                            </>
-                                        )}
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Amount</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Min Amount</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Operator</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Time Window</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Allowed Hours Start</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Allowed Hours End</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Allowed Locations</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Devices/Account</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max IPs/Account</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Velocity Amount</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Transaction Types</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Transactions/Account</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Transactions to Account</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Max Transactions/IP</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Period</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Count</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Amount Ceiling</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Same Recipient</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Unique Recipients</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Same Device</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Velocity Limit</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Composite Operator</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Rules</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Model Version</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Threshold</th>
+                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Endpoint URL</th>
                                         
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>Enabled</th>
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>Priority</th>
@@ -546,29 +783,60 @@ const Rules: React.FC = () => {
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>Updated At</th>
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>Execution Count</th>
                                         <th style={{ padding: '12px 8px', textAlign: 'left' }}>Match Count</th>
-                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Last Executed</th>
-                                        <th style={{ padding: '12px 8px', textAlign: 'left' }}>Avg Time (ms)</th>
                                     </tr>
                                 </thead>
                         <tbody>
                             {paginatedRules.map((rule) => (
                                 <tr
                                     key={rule.id}
+                                    onClick={(e) => {
+                                        // Don't open edit modal if clicking on delete button or toggle switch
+                                        if ((e.target as HTMLElement).closest('button') || 
+                                            (e.target as HTMLElement).closest('input[type="checkbox"]') ||
+                                            (e.target as HTMLElement).closest('label')) {
+                                            return
+                                        }
+                                        handleOpenEditModal(rule)
+                                    }}
                                     style={{
                                         borderBottom: '1px solid #eee',
+                                        cursor: 'pointer',
+                                        transition: 'background-color 0.2s',
                                     }}
+                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                 >
+                                    <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                                        <button
+                                            onClick={() => handleDeleteRule(rule.id, rule.name)}
+                                            style={{
+                                                backgroundColor: '#f44336',
+                                                color: '#ffffff',
+                                                border: 'none',
+                                                padding: '6px 12px',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer',
+                                                fontSize: '12px',
+                                                fontWeight: 'bold',
+                                                transition: 'background-color 0.2s',
+                                            }}
+                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d32f2f'}
+                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f44336'}
+                                        >
+                                            Delete
+                                        </button>
+                                    </td>
                                     <td style={{ padding: '12px 8px', textAlign: 'center' }}>
                                         <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
                                             <input
                                                 type="checkbox"
-                                                checked={getRuleApplyState(rule.id, rule.apply)}
-                                                onChange={() => handleToggleRule(rule.id, getRuleApplyState(rule.id, rule.apply))}
+                                                checked={getRuleApplyState(rule.id, rule.enabled)}
+                                                onChange={() => handleToggleRule(rule.id, getRuleApplyState(rule.id, rule.enabled))}
                                                 style={{
                                                     width: '40px',
                                                     height: '20px',
                                                     appearance: 'none',
-                                                    backgroundColor: getRuleApplyState(rule.id, rule.apply) ? '#4caf50' : '#ccc',
+                                                    backgroundColor: getRuleApplyState(rule.id, rule.enabled) ? '#4caf50' : '#ccc',
                                                     borderRadius: '10px',
                                                     position: 'relative',
                                                     cursor: 'pointer',
@@ -601,108 +869,92 @@ const Rules: React.FC = () => {
                                     </td>
                                     <td style={{ padding: '12px 8px', fontWeight: 'bold' }}>{rule.name}</td>
                                     
-                                    {/* THRESHOLD specific columns */}
-                                    {selectedType === 'THRESHOLD' && (
-                                        <>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.max_amount || '-'}</td>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.min_amount || '-'}</td>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.operator || '-'}</td>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.time_window || '-'}</td>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.allowed_hours_start || '-'}</td>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.allowed_hours_end || '-'}</td>
-                                            <td style={{ padding: '12px 8px', maxWidth: '150px' }}>
-                                                {rule.params.allowed_locations ? 
-                                                    (Array.isArray(rule.params.allowed_locations) ? 
-                                                        rule.params.allowed_locations.join(', ') : 
-                                                        rule.params.allowed_locations) : 
-                                                    '-'}
-                                            </td>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.max_devices_per_account || '-'}</td>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.max_ips_per_account || '-'}</td>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.max_velocity_amount || '-'}</td>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.max_transaction_types || '-'}</td>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.max_transactions_per_account || '-'}</td>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.max_transactions_to_account || '-'}</td>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.max_transactions_per_ip || '-'}</td>
-                                        </>
-                                    )}
-                                    
-                                    {/* PATTERN specific columns */}
-                                    {selectedType === 'PATTERN' && (
-                                        <>
-                                            <td style={{ padding: '12px 8px', fontWeight: 'bold' }}>{rule.params.period || '-'}</td>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.count || '-'}</td>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.amount_ceiling || '-'}</td>
-                                            <td style={{ padding: '12px 8px' }}>
-                                                <span
-                                                    style={{
-                                                        padding: '4px 8px',
-                                                        borderRadius: '4px',
-                                                        fontSize: '12px',
-                                                        backgroundColor: rule.params.same_recipient ? '#d4edda' : '#f8d7da',
-                                                        color: rule.params.same_recipient ? '#155724' : '#721c24',
-                                                    }}
-                                                >
-                                                    {rule.params.same_recipient ? 'Yes' : 'No'}
-                                                </span>
-                                            </td>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.unique_recipients || '-'}</td>
-                                            <td style={{ padding: '12px 8px' }}>
-                                                <span
-                                                    style={{
-                                                        padding: '4px 8px',
-                                                        borderRadius: '4px',
-                                                        fontSize: '12px',
-                                                        backgroundColor: rule.params.same_device ? '#d4edda' : '#f8d7da',
-                                                        color: rule.params.same_device ? '#155724' : '#721c24',
-                                                    }}
-                                                >
-                                                    {rule.params.same_device ? 'Yes' : 'No'}
-                                                </span>
-                                            </td>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.velocity_limit || '-'}</td>
-                                        </>
-                                    )}
-                                    
-                                    {/* COMPOSITE specific columns */}
-                                    {selectedType === 'COMPOSITE' && (
-                                        <>
-                                            <td style={{ padding: '12px 8px' }}>
-                                                <span
-                                                    style={{
-                                                        padding: '4px 8px',
-                                                        borderRadius: '4px',
-                                                        fontSize: '12px',
-                                                        fontWeight: 'bold',
-                                                        backgroundColor: rule.params.operator === 'AND' ? '#e3f2fd' : 
-                                                                        rule.params.operator === 'OR' ? '#fff3e0' : '#ffebee',
-                                                        color: rule.params.operator === 'AND' ? '#1565c0' : 
-                                                               rule.params.operator === 'OR' ? '#ef6c00' : '#c62828',
-                                                    }}
-                                                >
-                                                    {rule.params.operator || '-'}
-                                                </span>
-                                            </td>
-                                            <td style={{ padding: '12px 8px', maxWidth: '200px' }}>
-                                                {rule.params.rules ? 
-                                                    (Array.isArray(rule.params.rules) ? 
-                                                        rule.params.rules.join(', ') : 
-                                                        rule.params.rules) : 
-                                                    '-'}
-                                            </td>
-                                        </>
-                                    )}
-                                    
-                                    {/* ML specific columns */}
-                                    {selectedType === 'ML' && (
-                                        <>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.model_version || '-'}</td>
-                                            <td style={{ padding: '12px 8px' }}>{rule.params.threshold || '-'}</td>
-                                            <td style={{ padding: '12px 8px', maxWidth: '200px', fontSize: '11px' }}>
-                                                {rule.params.endpoint_url || '-'}
-                                            </td>
-                                        </>
-                                    )}
+                                    {/* ALL possible parameter columns - show "-" for missing values */}
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.max_amount || '-'}</td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.min_amount || '-'}</td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.operator || '-'}</td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.time_window || '-'}</td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.allowed_hours_start || '-'}</td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.allowed_hours_end || '-'}</td>
+                                    <td style={{ padding: '12px 8px', maxWidth: '150px' }}>
+                                        {rule.params.allowed_locations ? 
+                                            (Array.isArray(rule.params.allowed_locations) ? 
+                                                rule.params.allowed_locations.join(', ') : 
+                                                rule.params.allowed_locations) : 
+                                            '-'}
+                                    </td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.max_devices_per_account || '-'}</td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.max_ips_per_account || '-'}</td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.max_velocity_amount || '-'}</td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.max_transaction_types || '-'}</td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.max_transactions_per_account || '-'}</td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.max_transactions_to_account || '-'}</td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.max_transactions_per_ip || '-'}</td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.period || '-'}</td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.count || '-'}</td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.amount_ceiling || '-'}</td>
+                                    <td style={{ padding: '12px 8px' }}>
+                                        {rule.params.same_recipient !== undefined ? 
+                                            <span
+                                                style={{
+                                                    padding: '4px 8px',
+                                                    borderRadius: '4px',
+                                                    fontSize: '12px',
+                                                    backgroundColor: rule.params.same_recipient ? '#d4edda' : '#f8d7da',
+                                                    color: rule.params.same_recipient ? '#155724' : '#721c24',
+                                                }}
+                                            >
+                                                {rule.params.same_recipient ? 'Yes' : 'No'}
+                                            </span>
+                                            : '-'}
+                                    </td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.unique_recipients || '-'}</td>
+                                    <td style={{ padding: '12px 8px' }}>
+                                        {rule.params.same_device !== undefined ? 
+                                            <span
+                                                style={{
+                                                    padding: '4px 8px',
+                                                    borderRadius: '4px',
+                                                    fontSize: '12px',
+                                                    backgroundColor: rule.params.same_device ? '#d4edda' : '#f8d7da',
+                                                    color: rule.params.same_device ? '#155724' : '#721c24',
+                                                }}
+                                            >
+                                                {rule.params.same_device ? 'Yes' : 'No'}
+                                            </span>
+                                            : '-'}
+                                    </td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.velocity_limit || '-'}</td>
+                                    <td style={{ padding: '12px 8px' }}>
+                                        {rule.params.composite_operator ? 
+                                            <span
+                                                style={{
+                                                    padding: '4px 8px',
+                                                    borderRadius: '4px',
+                                                    fontSize: '12px',
+                                                    fontWeight: 'bold',
+                                                    backgroundColor: rule.params.composite_operator === 'AND' ? '#e3f2fd' : 
+                                                                    rule.params.composite_operator === 'OR' ? '#fff3e0' : '#ffebee',
+                                                    color: rule.params.composite_operator === 'AND' ? '#1565c0' : 
+                                                           rule.params.composite_operator === 'OR' ? '#ef6c00' : '#c62828',
+                                                }}
+                                            >
+                                                {rule.params.composite_operator}
+                                            </span>
+                                            : '-'}
+                                    </td>
+                                    <td style={{ padding: '12px 8px', maxWidth: '200px' }}>
+                                        {rule.params.rules ? 
+                                            (Array.isArray(rule.params.rules) ? 
+                                                rule.params.rules.join(', ') : 
+                                                rule.params.rules) : 
+                                            '-'}
+                                    </td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.model_version || '-'}</td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.params.threshold || '-'}</td>
+                                    <td style={{ padding: '12px 8px', maxWidth: '200px', fontSize: '11px' }}>
+                                        {rule.params.endpoint_url || '-'}
+                                    </td>
                                     
                                     <td style={{ padding: '12px 8px' }}>
                                         <span
@@ -753,7 +1005,7 @@ const Rules: React.FC = () => {
                                     <td style={{ padding: '12px 8px', maxWidth: '200px' }}>
                                         {rule.description}
                                     </td>
-                                    <td style={{ padding: '12px 8px' }}>{rule.created_by}</td>
+                                    <td style={{ padding: '12px 8px' }}>{rule.created_by_user_id}</td>
                                     <td style={{ padding: '12px 8px', fontSize: '12px' }}>
                                         {rule.created_at}
                                     </td>
@@ -785,12 +1037,6 @@ const Rules: React.FC = () => {
                                         >
                                             {rule.match_count.toLocaleString()}
                                         </span>
-                                    </td>
-                                    <td style={{ padding: '12px 8px', fontSize: '12px' }}>
-                                        {rule.last_executed_at}
-                                    </td>
-                                    <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                                        {rule.average_execution_time_ms.toFixed(1)}
                                     </td>
                                 </tr>
                             ))}
@@ -830,6 +1076,8 @@ const Rules: React.FC = () => {
                         </span>
                     </div>
                 </div>
+                            </>
+                        )}
                     </>
                 )}
             </Card>
@@ -864,7 +1112,8 @@ const Rules: React.FC = () => {
                     >
                         <h2 style={{ marginTop: 0, marginBottom: '24px' }}>Add New Rule</h2>
 
-                        <Form>
+                        <form onSubmit={(e) => { e.preventDefault(); handleSaveRule(); }}>
+                            <div>
                             <Form.Item label="Rule Name" required>
                                 <Input
                                     value={newRuleName}
@@ -879,10 +1128,10 @@ const Rules: React.FC = () => {
                                     onChange={handleRuleTypeChange}
                                     style={{ width: '100%' }}
                                 >
-                                    <Select.Option value="THRESHOLD">Threshold</Select.Option>
-                                    <Select.Option value="PATTERN">Pattern</Select.Option>
-                                    <Select.Option value="ML">ML</Select.Option>
-                                    <Select.Option value="COMPOSITE">Composite</Select.Option>
+                                    <Select.Option value="threshold">Threshold</Select.Option>
+                                    <Select.Option value="pattern">Pattern</Select.Option>
+                                    <Select.Option value="composite">Composite</Select.Option>
+                                    <Select.Option value="ml">ML</Select.Option>
                                 </Select>
                             </Form.Item>
 
@@ -894,7 +1143,7 @@ const Rules: React.FC = () => {
                                 />
                             </Form.Item>
 
-                            {newRuleType === 'THRESHOLD' && (
+                            {newRuleType === 'threshold' && (
                                 <>
                                     <Form.Item label="Max Amount">
                                         <Input
@@ -933,25 +1182,39 @@ const Rules: React.FC = () => {
                                             }
                                             style={{ width: '100%' }}
                                         >
-                                            <Select.Option value="GT">Greater Than</Select.Option>
-                                            <Select.Option value="LT">Less Than</Select.Option>
-                                            <Select.Option value="EQ">Equal</Select.Option>
-                                            <Select.Option value="GTE">Greater Than or Equal</Select.Option>
-                                            <Select.Option value="LTE">Less Than or Equal</Select.Option>
+                                            <Select.Option value="gt">Greater Than (gt)</Select.Option>
+                                            <Select.Option value="lt">Less Than (lt)</Select.Option>
+                                            <Select.Option value="eq">Equal (eq)</Select.Option>
+                                            <Select.Option value="gte">Greater Than or Equal (gte)</Select.Option>
+                                            <Select.Option value="lte">Less Than or Equal (lte)</Select.Option>
+                                            <Select.Option value="ne">Not Equal (ne)</Select.Option>
+                                            <Select.Option value="between">Between</Select.Option>
+                                            <Select.Option value="not_between">Not Between</Select.Option>
                                         </Select>
                                     </Form.Item>
-                                    <Form.Item label="Time Window (seconds)">
-                                        <Input
-                                            type="number"
+                                    <Form.Item label="Time Window">
+                                        <Select
                                             value={newRuleParams.time_window || ''}
-                                            onChange={(e: any) =>
+                                            onChange={(value: any) =>
                                                 setNewRuleParams({
                                                     ...newRuleParams,
-                                                    time_window: parseInt(e.target.value),
+                                                    time_window: value,
                                                 })
                                             }
-                                            placeholder="e.g., 3600"
-                                        />
+                                            style={{ width: '100%' }}
+                                        >
+                                            <Select.Option value="1m">1 Minute</Select.Option>
+                                            <Select.Option value="5m">5 Minutes</Select.Option>
+                                            <Select.Option value="10m">10 Minutes</Select.Option>
+                                            <Select.Option value="15m">15 Minutes</Select.Option>
+                                            <Select.Option value="30m">30 Minutes</Select.Option>
+                                            <Select.Option value="1h">1 Hour</Select.Option>
+                                            <Select.Option value="6h">6 Hours</Select.Option>
+                                            <Select.Option value="12h">12 Hours</Select.Option>
+                                            <Select.Option value="1d">1 Day</Select.Option>
+                                            <Select.Option value="1w">1 Week</Select.Option>
+                                            <Select.Option value="1M">1 Month</Select.Option>
+                                        </Select>
                                     </Form.Item>
                                     <Form.Item label="Allowed Hours Start">
                                         <Input
@@ -1085,20 +1348,31 @@ const Rules: React.FC = () => {
                                 </>
                             )}
 
-                            {newRuleType === 'PATTERN' && (
+                            {newRuleType === 'pattern' && (
                                 <>
                                     <Form.Item label="Period (required)" required>
-                                        <Input
-                                            type="number"
+                                        <Select
                                             value={newRuleParams.period || ''}
-                                            onChange={(e: any) =>
+                                            onChange={(value: any) =>
                                                 setNewRuleParams({
                                                     ...newRuleParams,
-                                                    period: parseInt(e.target.value),
+                                                    period: value,
                                                 })
                                             }
-                                            placeholder="Duration of time window in seconds"
-                                        />
+                                            style={{ width: '100%' }}
+                                        >
+                                            <Select.Option value="1m">1 Minute</Select.Option>
+                                            <Select.Option value="5m">5 Minutes</Select.Option>
+                                            <Select.Option value="10m">10 Minutes</Select.Option>
+                                            <Select.Option value="15m">15 Minutes</Select.Option>
+                                            <Select.Option value="30m">30 Minutes</Select.Option>
+                                            <Select.Option value="1h">1 Hour</Select.Option>
+                                            <Select.Option value="6h">6 Hours</Select.Option>
+                                            <Select.Option value="12h">12 Hours</Select.Option>
+                                            <Select.Option value="1d">1 Day</Select.Option>
+                                            <Select.Option value="1w">1 Week</Select.Option>
+                                            <Select.Option value="1M">1 Month</Select.Option>
+                                        </Select>
                                     </Form.Item>
                                     <Form.Item label="Count">
                                         <Input
@@ -1183,7 +1457,7 @@ const Rules: React.FC = () => {
                                 </>
                             )}
 
-                            {newRuleType === 'ML' && (
+                            {newRuleType === 'ml' && (
                                 <>
                                     <Form.Item label="Model Version">
                                         <Input
@@ -1226,15 +1500,15 @@ const Rules: React.FC = () => {
                                 </>
                             )}
 
-                            {newRuleType === 'COMPOSITE' && (
+                            {newRuleType === 'composite' && (
                                 <>
-                                    <Form.Item label="Operator">
+                                    <Form.Item label="Composite Operator">
                                         <Select
-                                            value={newRuleParams.operator || 'AND'}
+                                            value={newRuleParams.composite_operator || 'AND'}
                                             onChange={(value: any) =>
                                                 setNewRuleParams({
                                                     ...newRuleParams,
-                                                    operator: value,
+                                                    composite_operator: value,
                                                 })
                                             }
                                             style={{ width: '100%' }}
@@ -1244,7 +1518,7 @@ const Rules: React.FC = () => {
                                             <Select.Option value="NOT">NOT</Select.Option>
                                         </Select>
                                     </Form.Item>
-                                    <Form.Item label="Rules (comma-separated IDs or Names)">
+                                    <Form.Item label="Rules (comma-separated IDs or Names)" required>
                                         <Input
                                             value={newRuleParams.rules?.join(', ') || ''}
                                             onChange={(e: any) =>
@@ -1268,14 +1542,6 @@ const Rules: React.FC = () => {
                                 />
                             </Form.Item>
 
-                            <Form.Item label="Created By">
-                                <Input
-                                    value={newRuleCreatedBy}
-                                    onChange={(e: any) => setNewRuleCreatedBy(e.target.value)}
-                                    placeholder="Enter creator name"
-                                />
-                            </Form.Item>
-
                             <Form.Item>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <Switch checked={newRuleEnabled} onChange={setNewRuleEnabled} />
@@ -1288,14 +1554,12 @@ const Rules: React.FC = () => {
                                     <Switch checked={newRuleCritical} onChange={setNewRuleCritical} />
                                     <span>Critical</span>
                                 </div>
-                            </Form.Item>
-
-                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                            </Form.Item>                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
                                 <Button onClick={handleCloseModal} style={{ padding: '8px 16px' }}>
                                     Cancel
                                 </Button>
                                 <Button
-                                    onClick={handleSaveRule}
+                                    type="submit"
                                     style={{
                                         backgroundColor: '#1565c0',
                                         color: '#ffffff',
@@ -1306,7 +1570,562 @@ const Rules: React.FC = () => {
                                     Save Rule
                                 </Button>
                             </div>
-                        </Form>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {isDeleteModalOpen && ruleToDelete && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                    }}
+                    onClick={cancelDeleteRule}
+                >
+                    <div
+                        className="modal-content"
+                        style={{
+                            padding: '32px',
+                            borderRadius: '8px',
+                            maxWidth: '500px',
+                            width: '90%',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 style={{ marginTop: 0, marginBottom: '16px' }}>Confirm Delete</h2>
+                        <p style={{ marginBottom: '24px', fontSize: '16px' }}>
+                            Are you sure you want to delete rule "<strong>{ruleToDelete.name}</strong>"?
+                        </p>
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                            <Button 
+                                onClick={cancelDeleteRule} 
+                                style={{ 
+                                    backgroundColor: '#4caf50',
+                                    color: '#ffffff',
+                                    padding: '10px 20px',
+                                    fontWeight: 'bold',
+                                    border: 'none',
+                                }}
+                            >
+                                Отмена
+                            </Button>
+                            <Button
+                                onClick={confirmDeleteRule}
+                                style={{
+                                    backgroundColor: '#f44336',
+                                    color: '#ffffff',
+                                    padding: '10px 20px',
+                                    fontWeight: 'bold',
+                                    border: 'none',
+                                }}
+                            >
+                                OK
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isEditModalOpen && ruleToEdit && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                    }}
+                    onClick={handleCloseEditModal}
+                >
+                    <div
+                        className="modal-content"
+                        style={{
+                            padding: '32px',
+                            borderRadius: '8px',
+                            maxWidth: '600px',
+                            width: '90%',
+                            maxHeight: '90vh',
+                            overflowY: 'auto',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 style={{ marginTop: 0, marginBottom: '24px' }}>Edit Rule</h2>
+
+                        <form onSubmit={(e) => { e.preventDefault(); handleUpdateRule(); }}>
+                            <div>
+                            <Form.Item label="Rule Name" required>
+                                <Input
+                                    value={editRuleName}
+                                    onChange={(e: any) => setEditRuleName(e.target.value)}
+                                    placeholder="Enter rule name"
+                                />
+                            </Form.Item>
+
+                            <Form.Item label="Rule Type">
+                                <Input
+                                    value={ruleToEdit.type}
+                                    disabled
+                                    style={{ 
+                                        backgroundColor: 'var(--color-control-bg-disable)',
+                                        cursor: 'not-allowed' 
+                                    }}
+                                />
+                            </Form.Item>
+
+                            <Form.Item label="Description">
+                                <Input
+                                    value={editRuleDescription}
+                                    onChange={(e: any) => setEditRuleDescription(e.target.value)}
+                                    placeholder="Enter rule description"
+                                />
+                            </Form.Item>
+
+                            {ruleToEdit.type === 'threshold' && (
+                                <>
+                                    <Form.Item label="Max Amount">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.max_amount || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    max_amount: parseFloat(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Maximum amount"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Min Amount">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.min_amount || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    min_amount: parseFloat(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Minimum amount"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Operator">
+                                        <Select
+                                            value={editRuleParams.operator || ''}
+                                            onChange={(value: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    operator: value,
+                                                })
+                                            }
+                                            style={{ width: '100%' }}
+                                        >
+                                            <Select.Option value="gt">Greater Than (gt)</Select.Option>
+                                            <Select.Option value="lt">Less Than (lt)</Select.Option>
+                                            <Select.Option value="eq">Equal (eq)</Select.Option>
+                                            <Select.Option value="gte">Greater Than or Equal (gte)</Select.Option>
+                                            <Select.Option value="lte">Less Than or Equal (lte)</Select.Option>
+                                            <Select.Option value="ne">Not Equal (ne)</Select.Option>
+                                            <Select.Option value="between">Between</Select.Option>
+                                            <Select.Option value="not_between">Not Between</Select.Option>
+                                        </Select>
+                                    </Form.Item>
+                                    <Form.Item label="Time Window">
+                                        <Select
+                                            value={editRuleParams.time_window || ''}
+                                            onChange={(value: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    time_window: value,
+                                                })
+                                            }
+                                            style={{ width: '100%' }}
+                                        >
+                                            <Select.Option value="1m">1 Minute</Select.Option>
+                                            <Select.Option value="5m">5 Minutes</Select.Option>
+                                            <Select.Option value="10m">10 Minutes</Select.Option>
+                                            <Select.Option value="15m">15 Minutes</Select.Option>
+                                            <Select.Option value="30m">30 Minutes</Select.Option>
+                                            <Select.Option value="1h">1 Hour</Select.Option>
+                                            <Select.Option value="6h">6 Hours</Select.Option>
+                                            <Select.Option value="12h">12 Hours</Select.Option>
+                                            <Select.Option value="1d">1 Day</Select.Option>
+                                            <Select.Option value="1w">1 Week</Select.Option>
+                                            <Select.Option value="1M">1 Month</Select.Option>
+                                        </Select>
+                                    </Form.Item>
+                                    <Form.Item label="Allowed Hours Start">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.allowed_hours_start || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    allowed_hours_start: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 9 (9 AM)"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Allowed Hours End">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.allowed_hours_end || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    allowed_hours_end: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 17 (5 PM)"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Allowed Locations (comma-separated)">
+                                        <Input
+                                            value={editRuleParams.allowed_locations?.join(', ') || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    allowed_locations: e.target.value.split(',').map((loc: string) => loc.trim()).filter(Boolean),
+                                                })
+                                            }
+                                            placeholder="e.g., US, UK, CA"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max Devices per Account">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.max_devices_per_account || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    max_devices_per_account: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 5"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max IPs per Account">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.max_ips_per_account || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    max_ips_per_account: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 3"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max Velocity Amount">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.max_velocity_amount || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    max_velocity_amount: parseFloat(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Limit of sum transfer in period"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max Transaction Types">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.max_transaction_types || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    max_transaction_types: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 5"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max Transactions per Account">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.max_transactions_per_account || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    max_transactions_per_account: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 100"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max Transactions to Account">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.max_transactions_to_account || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    max_transactions_to_account: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 50"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Max Transactions per IP">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.max_transactions_per_ip || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    max_transactions_per_ip: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 10"
+                                        />
+                                    </Form.Item>
+                                </>
+                            )}
+
+                            {ruleToEdit.type === 'pattern' && (
+                                <>
+                                    <Form.Item label="Period (required)" required>
+                                        <Select
+                                            value={editRuleParams.period || ''}
+                                            onChange={(value: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    period: value,
+                                                })
+                                            }
+                                            style={{ width: '100%' }}
+                                        >
+                                            <Select.Option value="1m">1 Minute</Select.Option>
+                                            <Select.Option value="5m">5 Minutes</Select.Option>
+                                            <Select.Option value="10m">10 Minutes</Select.Option>
+                                            <Select.Option value="15m">15 Minutes</Select.Option>
+                                            <Select.Option value="30m">30 Minutes</Select.Option>
+                                            <Select.Option value="1h">1 Hour</Select.Option>
+                                            <Select.Option value="6h">6 Hours</Select.Option>
+                                            <Select.Option value="12h">12 Hours</Select.Option>
+                                            <Select.Option value="1d">1 Day</Select.Option>
+                                            <Select.Option value="1w">1 Week</Select.Option>
+                                            <Select.Option value="1M">1 Month</Select.Option>
+                                        </Select>
+                                    </Form.Item>
+                                    <Form.Item label="Count">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.count || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    count: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Number of transactions in the period"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Amount Ceiling">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.amount_ceiling || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    amount_ceiling: parseFloat(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Maximum sum of transactions in period"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <Switch 
+                                                checked={editRuleParams.same_recipient || false} 
+                                                onChange={(checked: boolean) =>
+                                                    setEditRuleParams({
+                                                        ...editRuleParams,
+                                                        same_recipient: checked,
+                                                    })
+                                                } 
+                                            />
+                                            <span>Same Recipient (all transactions to one recipient)</span>
+                                        </div>
+                                    </Form.Item>
+                                    <Form.Item label="Unique Recipients">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.unique_recipients || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    unique_recipients: parseInt(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Max number of unique recipients in period"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <Switch 
+                                                checked={editRuleParams.same_device || false} 
+                                                onChange={(checked: boolean) =>
+                                                    setEditRuleParams({
+                                                        ...editRuleParams,
+                                                        same_device: checked,
+                                                    })
+                                                } 
+                                            />
+                                            <span>Same Device (all transactions from one device)</span>
+                                        </div>
+                                    </Form.Item>
+                                    <Form.Item label="Velocity Limit">
+                                        <Input
+                                            type="number"
+                                            value={editRuleParams.velocity_limit || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    velocity_limit: parseFloat(e.target.value),
+                                                })
+                                            }
+                                            placeholder="Max sum of transactions from one device in period"
+                                        />
+                                    </Form.Item>
+                                </>
+                            )}
+
+                            {ruleToEdit.type === 'ml' && (
+                                <>
+                                    <Form.Item label="Model Version">
+                                        <Input
+                                            value={editRuleParams.model_version || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    model_version: e.target.value,
+                                                })
+                                            }
+                                            placeholder="e.g., v2.1"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Threshold (0.0 - 1.0)">
+                                        <Input
+                                            type="number"
+                                            step="0.01"
+                                            value={editRuleParams.threshold || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    threshold: parseFloat(e.target.value),
+                                                })
+                                            }
+                                            placeholder="e.g., 0.75"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Endpoint URL">
+                                        <Input
+                                            value={editRuleParams.endpoint_url || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    endpoint_url: e.target.value,
+                                                })
+                                            }
+                                            placeholder="https://api.example.com/ml/predict"
+                                        />
+                                    </Form.Item>
+                                </>
+                            )}
+
+                            {ruleToEdit.type === 'composite' && (
+                                <>
+                                    <Form.Item label="Composite Operator">
+                                        <Select
+                                            value={editRuleParams.composite_operator || 'AND'}
+                                            onChange={(value: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    composite_operator: value,
+                                                })
+                                            }
+                                            style={{ width: '100%' }}
+                                        >
+                                            <Select.Option value="AND">AND</Select.Option>
+                                            <Select.Option value="OR">OR</Select.Option>
+                                            <Select.Option value="NOT">NOT</Select.Option>
+                                        </Select>
+                                    </Form.Item>
+                                    <Form.Item label="Rules (comma-separated IDs or Names)" required>
+                                        <Input
+                                            value={editRuleParams.rules?.join(', ') || ''}
+                                            onChange={(e: any) =>
+                                                setEditRuleParams({
+                                                    ...editRuleParams,
+                                                    rules: e.target.value.split(',').map((id: string) => id.trim()).filter(Boolean),
+                                                })
+                                            }
+                                            placeholder="e.g., rule1, rule2, rule3"
+                                        />
+                                    </Form.Item>
+                                </>
+                            )}
+
+                            <Form.Item label="Priority">
+                                <Input
+                                    type="number"
+                                    value={editRulePriority}
+                                    onChange={(e: any) => setEditRulePriority(parseInt(e.target.value))}
+                                    placeholder="e.g., 5"
+                                />
+                            </Form.Item>
+
+                            <Form.Item>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Switch checked={editRuleEnabled} onChange={setEditRuleEnabled} />
+                                    <span>Enabled</span>
+                                </div>
+                            </Form.Item>
+
+                            <Form.Item>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Switch checked={editRuleCritical} onChange={setEditRuleCritical} />
+                                    <span>Critical</span>
+                                </div>
+                            </Form.Item>
+
+                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                                <Button onClick={handleCloseEditModal} style={{ padding: '8px 16px' }}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    style={{
+                                        backgroundColor: '#1565c0',
+                                        color: '#ffffff',
+                                        padding: '8px 16px',
+                                        border: 'none',
+                                    }}
+                                >
+                                    Update Rule
+                                </Button>
+                            </div>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

@@ -20,6 +20,7 @@ from uuid import UUID
 from celery import Task
 from celery.exceptions import MaxRetriesExceededError
 from loguru import logger
+from redis import Redis as SyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -71,10 +72,12 @@ from src.modules.reporting.metrics import (
     increment_retry_counter,
     increment_submitted_counter,
     increment_task_counter,
+    increment_transaction_counter,
     observe_db_write_time,
     observe_notification_time,
     observe_processing_time,
     observe_rule_engine_time,
+    observe_transaction_processing_time,
 )
 from src.modules.rule_engine import service as rule_engine_service
 from src.modules.rule_engine.enums import RiskLevel
@@ -186,6 +189,9 @@ def process_transaction(
     # Extract transaction_id from data
     transaction_id = transaction_data.get("id")
 
+    # Extract max_composite_depth (default to 5 if not provided)
+    max_composite_depth = int(transaction_data.get("max_composite_depth", 5))
+
     logger.info(
         f"Processing transaction {transaction_id} "
         f"(correlation_id={correlation_id}, worker={worker_hostname})"
@@ -205,6 +211,7 @@ def process_transaction(
                 queue_task_id=UUID(queue_task_id),
                 worker_id=worker_id,
                 worker_hostname=worker_hostname,
+                max_composite_depth=max_composite_depth,
             )
         )
 
@@ -265,6 +272,7 @@ async def _process_transaction_async(
     queue_task_id: UUID,
     worker_id: str,
     worker_hostname: str,
+    max_composite_depth: int = 5,
 ) -> Dict[str, Any]:
     """
     Async implementation of transaction processing.
@@ -275,6 +283,7 @@ async def _process_transaction_async(
         queue_task_id: Queue task UUID
         worker_id: Celery worker ID
         worker_hostname: Worker hostname
+        max_composite_depth: Maximum recursion depth for composite rules
 
     Returns:
         Processing results dictionary
@@ -294,7 +303,9 @@ async def _process_transaction_async(
 
         # Evaluate with rule engine
         rule_engine_start = time()
-        evaluation_result = await _evaluate_transaction(transaction_data)
+        evaluation_result = await _evaluate_transaction(
+            transaction_data, max_composite_depth=max_composite_depth
+        )
         rule_engine_time_ms = int((time() - rule_engine_start) * 1000)
         observe_rule_engine_time((time() - rule_engine_start))
 
@@ -331,12 +342,20 @@ async def _process_transaction_async(
         notification_time_ms = 0
         if evaluation_result.get("is_suspicious", False):
             notification_start = time()
-            await _send_notifications(transaction_data, evaluation_result)
+            await _send_notifications(
+                transaction_data, evaluation_result, correlation_id
+            )
             notification_time_ms = int((time() - notification_start) * 1000)
             observe_notification_time((time() - notification_start))
 
         # Mark task as completed
         total_time_ms = rule_engine_time_ms + db_write_time_ms + notification_time_ms
+
+        # Record transaction processing time metric
+        observe_transaction_processing_time(
+            total_time_ms / 1000.0
+        )  # Convert to seconds
+
         await repo.mark_completed(
             task_id=queue_task_id,
             processing_time_ms=total_time_ms,
@@ -355,12 +374,15 @@ async def _process_transaction_async(
         }
 
 
-async def _evaluate_transaction(transaction: Dict[str, Any]) -> Dict[str, Any]:
+async def _evaluate_transaction(
+    transaction: Dict[str, Any], max_composite_depth: int = 5
+) -> Dict[str, Any]:
     """
     Evaluate transaction with rule engine.
 
     Args:
         transaction: Complete transaction data from Redis
+        max_composite_depth: Maximum recursion depth for composite rules
 
     Returns:
         Evaluation results dictionary
@@ -417,7 +439,50 @@ async def _evaluate_transaction(transaction: Dict[str, Any]) -> Dict[str, Any]:
             transaction_data=transaction,
             rules=active_rules,
             correlation_id=correlation_id,
+            redis_client=redis_client,
+            max_composite_depth=max_composite_depth,
         )
+
+        # Store transaction data for pattern analysis (async, non-blocking)
+        # This allows pattern rules to analyze historical transaction patterns
+        try:
+            from src.modules.rule_engine.enums import TimeWindow
+            from src.storage.redis.pattern import store_transaction_for_pattern
+
+            # Store for multiple time windows to support different pattern rules
+            time_windows = [
+                TimeWindow.THIRTY_MINUTES,
+                TimeWindow.HOUR,
+                TimeWindow.SIX_HOURS,
+                TimeWindow.TWELVE_HOURS,
+                TimeWindow.DAY,
+            ]
+
+            from_account = transaction.get("from_account", "")
+
+            for window in time_windows:
+                await store_transaction_for_pattern(
+                    redis=redis_client,
+                    account_id=from_account,
+                    transaction_data=transaction,
+                    time_window=window,
+                )
+
+            logger.debug(
+                "Stored transaction for pattern analysis",
+                transaction_id=transaction_id,
+                from_account=from_account,
+                windows=[w.value for w in time_windows],
+            )
+
+        except Exception as pattern_error:
+            # Don't fail transaction processing if pattern storage fails
+            logger.warning(
+                "Failed to store transaction for pattern analysis",
+                transaction_id=transaction_id,
+                error=str(pattern_error),
+                event="pattern_storage_failed",
+            )
 
         # Convert to dict format expected by caller
         is_flagged = evaluation_result.final_status == TxnStatus.FLAGGED
@@ -509,6 +574,9 @@ async def _update_transaction_status(
             status=final_status,
         )
 
+        # This increments the counter for the final status
+        increment_transaction_counter(status=final_status.value)
+
         logger.info(
             f"Updated transaction {transaction_id} status to {final_status.value}",
             event="transaction_status_updated",
@@ -532,7 +600,7 @@ async def _update_transaction_status(
 
 
 async def _send_notifications(
-    transaction: Dict[str, Any], evaluation_result: Dict[str, Any]
+    transaction: Dict[str, Any], evaluation_result: Dict[str, Any], correlation_id: str
 ) -> None:
     """
     Send notifications for suspicious/flagged transactions.
@@ -540,6 +608,7 @@ async def _send_notifications(
     Args:
         transaction: Transaction data from Redis
         evaluation_result: Evaluation results from rule engine
+        correlation_id: Correlation ID for tracking
     """
     try:
         transaction_id = transaction.get("id")
@@ -569,7 +638,7 @@ async def _send_notifications(
             async with get_db_session() as db_session:
                 notification_service = NotificationService(db_session)
                 delivery_ids = await notification_service.send_fraud_alert(
-                    transaction_data, evaluation_result, correlation_id
+                    transaction, evaluation_result, correlation_id
                 )
 
                 logger.info(
@@ -581,7 +650,9 @@ async def _send_notifications(
         except ImportError:
             logger.warning("Notifications module not available, using fallback")
             # Fallback to console output
-            await _print_fraud_alert(transaction_data, evaluation_result)
+            _print_fraud_alert(
+                transaction_id or "unknown", triggered_rules, risk_level or "low"
+            )
         except Exception as e:
             logger.error(
                 f"Notification service error: {e}",
@@ -589,7 +660,9 @@ async def _send_notifications(
                 correlation_id=correlation_id,
             )
             # Fallback to console output
-            await _print_fraud_alert(transaction_data, evaluation_result)
+            _print_fraud_alert(
+                transaction_id or "unknown", triggered_rules, risk_level or "low"
+            )
 
     except Exception as e:
         logger.error(
@@ -787,10 +860,12 @@ def save_rule_executions_to_db(
     correlation_id: str,
 ) -> Dict[str, Any]:
     """
-    Save rule execution results from Redis to PostgreSQL.
+    Save rule execution results from Redis to PostgreSQL (SYNC VERSION).
 
     This task runs asynchronously after transaction processing to persist
     rule evaluation results for analytics and compliance.
+
+    Uses synchronous Redis and SQLAlchemy to avoid event loop conflicts.
 
     Args:
         correlation_id: Transaction correlation ID used as Redis key
@@ -808,8 +883,8 @@ def save_rule_executions_to_db(
     )
 
     try:
-        # Run async save using safe event loop handler
-        result = run_async(_save_rule_executions_to_db_async(correlation_id))
+        # Use synchronous implementation
+        result = _save_rule_executions_to_db_sync(correlation_id)
 
         logger.info(
             f"Rule executions saved successfully: {result['saved_count']} records",
@@ -835,11 +910,11 @@ def save_rule_executions_to_db(
             raise
 
 
-async def _save_rule_executions_to_db_async(
+def _save_rule_executions_to_db_sync(
     correlation_id: str,
 ) -> Dict[str, Any]:
     """
-    Async implementation of saving rule executions from Redis to PostgreSQL.
+    Synchronous implementation of saving rule executions from Redis to PostgreSQL.
 
     Args:
         correlation_id: Transaction correlation ID
@@ -847,17 +922,25 @@ async def _save_rule_executions_to_db_async(
     Returns:
         Dict with save results
     """
+    from src.config import settings
     from src.storage.models import RuleExecution
 
-    # Get Redis client
-    redis_gen = get_async_redis_dependency()
-    redis_client = await anext(redis_gen)
+    # Get sync Redis client
+    redis_client = SyncRedis(
+        host=settings.redis.REDIS_HOST,
+        port=settings.redis.REDIS_PORT,
+        db=settings.redis.REDIS_DB,
+        password=settings.redis.REDIS_PASSWORD
+        if settings.redis.REDIS_PASSWORD
+        else None,
+        decode_responses=True,
+    )
 
     # Read execution data from Redis
     redis_key = f"rule_executions:{correlation_id}"
 
     try:
-        cached_data = await redis_client.get(redis_key)
+        cached_data = redis_client.get(redis_key)
 
         if not cached_data:
             logger.warning(
@@ -866,6 +949,7 @@ async def _save_rule_executions_to_db_async(
                 correlation_id=correlation_id,
                 redis_key=redis_key,
             )
+            redis_client.close()
             return {
                 "saved_count": 0,
                 "status": "no_data",
@@ -879,15 +963,33 @@ async def _save_rule_executions_to_db_async(
         if not triggered_rules:
             logger.debug(f"No triggered rules to save for {correlation_id}")
             # Delete from Redis since there's nothing to save
-            await redis_client.delete(redis_key)
+            redis_client.delete(redis_key)
+            redis_client.close()
             return {
                 "saved_count": 0,
                 "status": "no_rules",
                 "correlation_id": correlation_id,
             }
 
+        # Get sync database session
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+
+        # Build sync database URL
+        db_url = (
+            f"postgresql://{settings.database.POSTGRES_USER}:"
+            f"{settings.database.POSTGRES_PASSWORD}@"
+            f"{settings.database.POSTGRES_HOST}:"
+            f"{settings.database.POSTGRES_PORT}/"
+            f"{settings.database.POSTGRES_DB}"
+        )
+
+        # Create sync engine and session
+        sync_engine = create_engine(db_url, pool_pre_ping=True)
+        SyncSessionLocal = sessionmaker(bind=sync_engine, expire_on_commit=False)
+
         # Save to PostgreSQL
-        async with AsyncSessionLocal() as session:
+        with SyncSessionLocal() as session:
             saved_count = 0
 
             for rule_result in triggered_rules:
@@ -919,7 +1021,7 @@ async def _save_rule_executions_to_db_async(
                     continue
 
             # Commit all executions
-            await session.commit()
+            session.commit()
 
             logger.info(
                 f"Saved {saved_count} rule executions to database",
@@ -929,12 +1031,16 @@ async def _save_rule_executions_to_db_async(
             )
 
         # Delete from Redis after successful save
-        await redis_client.delete(redis_key)
+        redis_client.delete(redis_key)
+        redis_client.close()
 
         logger.debug(
             f"Deleted rule executions from Redis: {redis_key}",
             redis_key=redis_key,
         )
+
+        # Dispose engine after use
+        sync_engine.dispose()
 
         return {
             "saved_count": saved_count,
@@ -944,10 +1050,11 @@ async def _save_rule_executions_to_db_async(
 
     except Exception as e:
         logger.error(
-            f"Error in _save_rule_executions_to_db_async: {e}",
+            f"Error in _save_rule_executions_to_db_sync: {e}",
             event="save_error",
             correlation_id=correlation_id,
             error=str(e),
             traceback=traceback.format_exc(),
         )
+        redis_client.close()
         raise
