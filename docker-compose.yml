@@ -135,7 +135,7 @@ services:
     image: prom/prometheus:v3.7.1
     container_name: prometheus
     volumes:
-      - ./monitoring/prometheus:/etc/prometheus
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
