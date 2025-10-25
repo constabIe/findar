@@ -50,6 +50,23 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    
+  bot:
+    build:
+      context: .
+      target: bot
+    container_name: bot
+    env_file:
+      - .env
+    networks:
+      - postgres
+      - monitoring
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+    restart: unless-stopped
 
   frontend-builder:
     container_name: frontend-builder
