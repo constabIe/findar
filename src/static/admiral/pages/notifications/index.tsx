@@ -55,7 +55,7 @@ const Notifications: React.FC = () => {
       // Load notification settings from API
       // For now, we'll use default settings
       // You can implement API call here to fetch user's notification preferences
-      
+
       setLoading(false)
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to load notification settings.")
@@ -91,15 +91,11 @@ const Notifications: React.FC = () => {
 
       // Save settings to API
       // Implement API call here
-      await axios.post(
-        `${API_URL}/notifications/settings`,
-        settings,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+      await axios.post(`${API_URL}/notifications/settings`, settings, {
+        headers: {
+          Authorization: `Bearer ${token}`
         }
-      )
+      })
 
       setSuccessMessage("Notification settings saved successfully!")
       setTimeout(() => setSuccessMessage(""), 3000)
@@ -111,10 +107,7 @@ const Notifications: React.FC = () => {
     }
   }
 
-  const renderToggleField = (
-    field: keyof Omit<NotificationSettings, "channel">,
-    label: string
-  ) => {
+  const renderToggleField = (field: keyof Omit<NotificationSettings, "channel">, label: string) => {
     return (
       <div
         style={{
@@ -125,9 +118,7 @@ const Notifications: React.FC = () => {
           borderBottom: "1px solid var(--color-bg-border)"
         }}
       >
-        <label style={{ color: "var(--color-typo-primary)", fontSize: "14px" }}>
-          {label}
-        </label>
+        <label style={{ color: "var(--color-typo-primary)", fontSize: "14px" }}>{label}</label>
         <label className="toggle-switch">
           <input
             type="checkbox"

@@ -974,7 +974,9 @@ const Rules: React.FC = () => {
                           {/* ALL possible parameter columns - show "-" for missing values */}
                           <td style={{ padding: "12px 8px" }}>{rule.params.max_amount || "-"}</td>
                           <td style={{ padding: "12px 8px" }}>{rule.params.min_amount || "-"}</td>
-                          <td style={{ padding: "12px 8px" }}>{formatOperator(rule.params.operator)}</td>
+                          <td style={{ padding: "12px 8px" }}>
+                            {formatOperator(rule.params.operator)}
+                          </td>
                           <td style={{ padding: "12px 8px" }}>{rule.params.time_window || "-"}</td>
                           <td style={{ padding: "12px 8px" }}>
                             {rule.params.allowed_hours_start || "-"}

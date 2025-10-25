@@ -413,9 +413,13 @@ const Transactions: React.FC = () => {
                           transaction.status.toUpperCase() === "FLAGGED"
                             ? "rgba(255, 152, 0, 0.15)"
                             : "transparent",
-                        borderLeft: transaction.status.toUpperCase() === "FLAGGED" ? "4px solid #ff9800" : "none",
+                        borderLeft:
+                          transaction.status.toUpperCase() === "FLAGGED"
+                            ? "4px solid #ff9800"
+                            : "none",
                         cursor:
-                          transaction.status.toUpperCase() === "FLAGGED" || transaction.status.toUpperCase() === "FAILED"
+                          transaction.status.toUpperCase() === "FLAGGED" ||
+                          transaction.status.toUpperCase() === "FAILED"
                             ? "pointer"
                             : "default",
                         transition: "background-color 0.2s"
@@ -449,9 +453,11 @@ const Transactions: React.FC = () => {
                             padding: "4px 8px",
                             borderRadius: "4px",
                             fontSize: "12px",
-                            fontWeight: transaction.status.toUpperCase() === "FLAGGED" ? "bold" : "normal",
+                            fontWeight:
+                              transaction.status.toUpperCase() === "FLAGGED" ? "bold" : "normal",
                             backgroundColor:
-                              transaction.status.toUpperCase() === "COMPLETED" || transaction.status.toUpperCase() === "APPROVED"
+                              transaction.status.toUpperCase() === "COMPLETED" ||
+                              transaction.status.toUpperCase() === "APPROVED"
                                 ? "#d4edda"
                                 : transaction.status.toUpperCase() === "PENDING"
                                   ? "#fff3cd"
@@ -459,7 +465,8 @@ const Transactions: React.FC = () => {
                                     ? "#ff9800"
                                     : "#f8d7da",
                             color:
-                              transaction.status.toUpperCase() === "COMPLETED" || transaction.status.toUpperCase() === "APPROVED"
+                              transaction.status.toUpperCase() === "COMPLETED" ||
+                              transaction.status.toUpperCase() === "APPROVED"
                                 ? "#155724"
                                 : transaction.status.toUpperCase() === "PENDING"
                                   ? "#856404"
@@ -598,7 +605,14 @@ const Transactions: React.FC = () => {
                 />
               </Form.Item>
 
-              <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "24px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "12px",
+                  justifyContent: "flex-end",
+                  marginTop: "24px"
+                }}
+              >
                 <Button
                   type="button"
                   onClick={handleCloseReviewModal}
