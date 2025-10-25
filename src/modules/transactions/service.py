@@ -364,9 +364,7 @@ async def review_transaction(
         duration = (datetime.utcnow() - start_time).total_seconds()
 
         # Record metrics
-        increment_transaction_review_counter(
-            status=new_status_lower, success=True
-        )
+        increment_transaction_review_counter(status=new_status_lower, success=True)
         observe_transaction_review_duration(duration)
 
         logger.info(
@@ -388,18 +386,14 @@ async def review_transaction(
 
     except HTTPException:
         # Re-raise HTTP exceptions as-is
-        increment_transaction_review_counter(
-            status=new_status.lower(), success=False
-        )
+        increment_transaction_review_counter(status=new_status.lower(), success=False)
         raise
 
     except Exception as e:
         # Rollback on unexpected errors
         await session.rollback()
 
-        increment_transaction_review_counter(
-            status=new_status.lower(), success=False
-        )
+        increment_transaction_review_counter(status=new_status.lower(), success=False)
 
         logger.error(
             "Transaction review failed with unexpected error",

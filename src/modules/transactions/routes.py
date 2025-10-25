@@ -205,9 +205,6 @@ async def get_all_transactions(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve transactions: {str(e)}",
         )
-        
-        
-        
 
 
 @router.post(

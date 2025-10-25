@@ -350,9 +350,7 @@ def increment_transaction_review_counter(status: str, success: bool) -> None:
         status: Review status (accepted or rejected)
         success: Whether the review operation was successful
     """
-    transaction_reviews_total.labels(
-        status=status, success=str(success).lower()
-    ).inc()
+    transaction_reviews_total.labels(status=status, success=str(success).lower()).inc()
 
 
 def observe_transaction_review_duration(duration_seconds: float) -> None:
