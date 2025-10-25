@@ -1,8 +1,14 @@
 import React, { useState, useMemo, useEffect } from "react"
-import { Page, Card, Button } from "@devfamily/admiral"
+import { Page, Card, Button, Form, Input, Switch } from "@devfamily/admiral"
 import axios from "axios"
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1"
+
+interface Notification {
+  id: number
+  message: string
+  type: "success" | "error"
+}
 
 interface Transaction {
   id: string
@@ -35,8 +41,24 @@ const Transactions: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [creating, setCreating] = useState(false)
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
+  const [transactionToReview, setTransactionToReview] = useState<Transaction | null>(null)
+  const [reviewStatus, setReviewStatus] = useState(true) // true = accepted, false = rejected
+  const [reviewComment, setReviewComment] = useState("")
+  const [submittingReview, setSubmittingReview] = useState(false)
+  const [notifications, setNotifications] = useState<Notification[]>([])
 
   const itemsPerPage = 10
+
+  const showNotification = (message: string, type: "success" | "error") => {
+    const id = Date.now()
+    setNotifications((prev) => [...prev, { id, message, type }])
+
+    // Auto-remove notification after 3 seconds
+    setTimeout(() => {
+      setNotifications((prev) => prev.filter((n) => n.id !== id))
+    }, 3000)
+  }
 
   useEffect(() => {
     fetchTransactions()
@@ -129,11 +151,76 @@ const Transactions: React.FC = () => {
       )
 
       await fetchTransactions()
+      showNotification("Transaction created with test status for review feature", "success")
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to create transaction.")
+      showNotification(err.response?.data?.detail || "Failed to create transaction.", "error")
       console.error("Error creating transaction:", err)
     } finally {
       setCreating(false)
+    }
+  }
+
+  const handleOpenReviewModal = (transaction: Transaction) => {
+    setTransactionToReview(transaction)
+    setReviewStatus(true) // Default to accepted
+    setReviewComment("")
+    setIsReviewModalOpen(true)
+  }
+
+  const handleCloseReviewModal = () => {
+    setIsReviewModalOpen(false)
+    setTransactionToReview(null)
+    setReviewStatus(true)
+    setReviewComment("")
+  }
+
+  const handleSubmitReview = async () => {
+    if (!transactionToReview) return
+
+    try {
+      setSubmittingReview(true)
+
+      const token = localStorage.getItem("admiral_global_admin_session_token")
+
+      if (!token) {
+        showNotification("No authentication token found. Please login again.", "error")
+        return
+      }
+
+      await axios.post(
+        `${API_URL}/transactions/${transactionToReview.id}/review`,
+        {
+          status: reviewStatus ? "accepted" : "rejected",
+          comment: reviewComment
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        }
+      )
+
+      // Update the transaction in the local state
+      setAllTransactions((prev) =>
+        prev.map((t) =>
+          t.id === transactionToReview.id
+            ? { ...t, status: reviewStatus ? "APPROVED" : "REJECTED" }
+            : t
+        )
+      )
+
+      showNotification(
+        `Transaction ${reviewStatus ? "accepted" : "rejected"} successfully!`,
+        "success"
+      )
+
+      handleCloseReviewModal()
+    } catch (err: any) {
+      showNotification(err.response?.data?.detail || "Failed to submit review.", "error")
+      console.error("Error submitting review:", err)
+    } finally {
+      setSubmittingReview(false)
     }
   }
 
@@ -194,7 +281,90 @@ const Transactions: React.FC = () => {
 
   return (
     <Page title="Transactions">
+      {/* Notifications */}
+      <div
+        style={{
+          position: "fixed",
+          top: "20px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 9999,
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+          minWidth: "300px",
+          maxWidth: "500px"
+        }}
+      >
+        {notifications.map((notification) => (
+          <div
+            key={notification.id}
+            style={{
+              backgroundColor: notification.type === "success" ? "#2d3e2f" : "#4a2828",
+              color: "#ffffff",
+              padding: "16px 20px",
+              borderRadius: "8px",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              animation: "slideIn 0.3s ease-out"
+            }}
+          >
+            <div
+              style={{
+                width: "24px",
+                height: "24px",
+                borderRadius: "50%",
+                backgroundColor: notification.type === "success" ? "#4caf50" : "#f44336",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0
+              }}
+            >
+              {notification.type === "success" ? "✓" : "✕"}
+            </div>
+            <span style={{ flex: 1 }}>{notification.message}</span>
+            <button
+              onClick={() =>
+                setNotifications((prev) => prev.filter((n) => n.id !== notification.id))
+              }
+              style={{
+                background: "none",
+                border: "none",
+                color: "#ffffff",
+                cursor: "pointer",
+                fontSize: "20px",
+                padding: 0,
+                width: "20px",
+                height: "20px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+
       <Card>
+        <style>
+          {`
+            @keyframes slideIn {
+              from {
+                transform: translateY(-20px);
+                opacity: 0;
+              }
+              to {
+                transform: translateY(0);
+                opacity: 1;
+              }
+            }
+          `}
+        </style>
         {loading ? (
           <div style={{ padding: "20px", textAlign: "center" }}>Loading transactions...</div>
         ) : error ? (
@@ -229,13 +399,44 @@ const Transactions: React.FC = () => {
                   {paginatedTransactions.map((transaction) => (
                     <tr
                       key={transaction.id}
+                      onClick={() => {
+                        if (
+                          transaction.status.toUpperCase() === "FLAGGED" ||
+                          transaction.status.toUpperCase() === "FAILED"
+                        ) {
+                          handleOpenReviewModal(transaction)
+                        }
+                      }}
                       style={{
                         borderBottom: "1px solid #eee",
                         backgroundColor:
-                          transaction.status === "FLAGGED"
+                          transaction.status.toUpperCase() === "FLAGGED"
                             ? "rgba(255, 152, 0, 0.15)"
                             : "transparent",
-                        borderLeft: transaction.status === "FLAGGED" ? "4px solid #ff9800" : "none"
+                        borderLeft:
+                          transaction.status.toUpperCase() === "FLAGGED"
+                            ? "4px solid #ff9800"
+                            : "none",
+                        cursor:
+                          transaction.status.toUpperCase() === "FLAGGED" ||
+                          transaction.status.toUpperCase() === "FAILED"
+                            ? "pointer"
+                            : "default",
+                        transition: "background-color 0.2s"
+                      }}
+                      onMouseEnter={(e) => {
+                        if (
+                          transaction.status.toUpperCase() === "FLAGGED" ||
+                          transaction.status.toUpperCase() === "FAILED"
+                        ) {
+                          e.currentTarget.style.backgroundColor = "rgba(255, 152, 0, 0.25)"
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor =
+                          transaction.status.toUpperCase() === "FLAGGED"
+                            ? "rgba(255, 152, 0, 0.15)"
+                            : "transparent"
                       }}
                     >
                       <td style={{ padding: "12px 8px", fontSize: "12px" }}>
@@ -252,21 +453,24 @@ const Transactions: React.FC = () => {
                             padding: "4px 8px",
                             borderRadius: "4px",
                             fontSize: "12px",
-                            fontWeight: transaction.status === "FLAGGED" ? "bold" : "normal",
+                            fontWeight:
+                              transaction.status.toUpperCase() === "FLAGGED" ? "bold" : "normal",
                             backgroundColor:
-                              transaction.status === "COMPLETED"
+                              transaction.status.toUpperCase() === "COMPLETED" ||
+                              transaction.status.toUpperCase() === "APPROVED"
                                 ? "#d4edda"
-                                : transaction.status === "PENDING"
+                                : transaction.status.toUpperCase() === "PENDING"
                                   ? "#fff3cd"
-                                  : transaction.status === "FLAGGED"
+                                  : transaction.status.toUpperCase() === "FLAGGED"
                                     ? "#ff9800"
                                     : "#f8d7da",
                             color:
-                              transaction.status === "COMPLETED"
+                              transaction.status.toUpperCase() === "COMPLETED" ||
+                              transaction.status.toUpperCase() === "APPROVED"
                                 ? "#155724"
-                                : transaction.status === "PENDING"
+                                : transaction.status.toUpperCase() === "PENDING"
                                   ? "#856404"
-                                  : transaction.status === "FLAGGED"
+                                  : transaction.status.toUpperCase() === "FLAGGED"
                                     ? "#ffffff"
                                     : "#721c24"
                           }}
@@ -324,6 +528,116 @@ const Transactions: React.FC = () => {
           </>
         )}
       </Card>
+
+      {/* Review Modal */}
+      {isReviewModalOpen && transactionToReview && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000
+          }}
+          onClick={handleCloseReviewModal}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--color-bg-default)",
+              color: "var(--color-typo-primary)",
+              padding: "32px",
+              borderRadius: "8px",
+              maxWidth: "500px",
+              width: "90%",
+              maxHeight: "90vh",
+              overflowY: "auto"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ marginTop: 0, marginBottom: "24px", color: "var(--color-typo-primary)" }}>
+              Review Transaction
+            </h2>
+
+            <div style={{ marginBottom: "16px" }}>
+              <p style={{ margin: "4px 0" }}>
+                <strong>Transaction ID:</strong> {transactionToReview.id}
+              </p>
+              <p style={{ margin: "4px 0" }}>
+                <strong>Amount:</strong> {transactionToReview.currency}{" "}
+                {transactionToReview.amount.toFixed(2)}
+              </p>
+              <p style={{ margin: "4px 0" }}>
+                <strong>From:</strong> {transactionToReview.from_account}
+              </p>
+              <p style={{ margin: "4px 0" }}>
+                <strong>To:</strong> {transactionToReview.to_account}
+              </p>
+              <p style={{ margin: "4px 0" }}>
+                <strong>Status:</strong> {transactionToReview.status}
+              </p>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleSubmitReview()
+              }}
+            >
+              <Form.Item label="Decision" required>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <span style={{ fontWeight: reviewStatus ? "normal" : "bold" }}>Reject</span>
+                  <Switch checked={reviewStatus} onChange={(checked) => setReviewStatus(checked)} />
+                  <span style={{ fontWeight: reviewStatus ? "bold" : "normal" }}>Accept</span>
+                </div>
+              </Form.Item>
+
+              <Form.Item label="Comment" required>
+                <Input
+                  value={reviewComment}
+                  onChange={(e: any) => setReviewComment(e.target.value)}
+                  placeholder="Enter your review comment"
+                  required
+                />
+              </Form.Item>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "12px",
+                  justifyContent: "flex-end",
+                  marginTop: "24px"
+                }}
+              >
+                <Button
+                  type="button"
+                  onClick={handleCloseReviewModal}
+                  style={{
+                    padding: "10px 20px"
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={submittingReview || !reviewComment.trim()}
+                  style={{
+                    padding: "10px 20px",
+                    backgroundColor: reviewStatus ? "#4caf50" : "#f44336",
+                    color: "#ffffff"
+                  }}
+                >
+                  {submittingReview ? "Submitting..." : reviewStatus ? "Accept" : "Reject"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </Page>
   )
 }

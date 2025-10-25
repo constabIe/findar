@@ -31,21 +31,13 @@ const CustomMenu = () => {
     return () => observer.disconnect()
   }, [])
 
-  const handleLogout = () => {
-    // Demo mode - redirect to login page
-    window.location.href = "/login"
-  }
-
   return (
     <Menu>
       <MenuItemLink name="Transactions" to="/transactions" icon="FiCreditCard" />
       <MenuItemLink name="Rules" to="/rules" icon="FiSettings" />
       <MenuItemLink name="Profile" to="/profile" icon="FiUser" />
+      <MenuItemLink name="Notifications" to="/notifications" icon="FiBell" />
       <MenuItemLink name="Graphics" to="/graphics" icon="FiBarChart2" />
-
-      <div style={{ marginTop: "auto" }} onClick={handleLogout}>
-        <MenuItemLink name="Logout" to="/login" icon="FiLogOut" />
-      </div>
     </Menu>
   )
 }
