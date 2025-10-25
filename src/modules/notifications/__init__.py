@@ -33,6 +33,8 @@ from .routes import router
 from .schemas import (
     NotificationChannelConfigCreate,
     NotificationChannelConfigResponse,
+    NotificationChannelsResponse,
+    NotificationChannelsUpdate,
     NotificationDeliveryCreate,
     NotificationDeliveryListResponse,
     NotificationDeliveryResponse,
@@ -43,6 +45,9 @@ from .schemas import (
     NotificationTemplateListResponse,
     NotificationTemplateResponse,
     NotificationTemplateUpdate,
+    TemplateFieldsUpdate,
+    UserNotificationTemplateResponse,
+    UserNotificationTemplatesResponse,
 )
 from .senders import BaseSender, EmailSender, TelegramSender
 from .service import NotificationService
@@ -72,6 +77,11 @@ __all__ = [
     "NotificationSendRequest",
     "NotificationSendResponse",
     "NotificationStatsResponse",
+    "TemplateFieldsUpdate",
+    "UserNotificationTemplateResponse",
+    "UserNotificationTemplatesResponse",
+    "NotificationChannelsResponse",
+    "NotificationChannelsUpdate",
     # Senders
     "BaseSender",
     "EmailSender",

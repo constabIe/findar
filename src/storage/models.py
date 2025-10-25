@@ -41,6 +41,25 @@ class User(SQLModel, table=True):
         default=None, description="Telegram user ID (filled when user starts bot)"
     )
 
+    # Notification settings and template associations
+    email_template_id: Optional[UUID] = Field(
+        default=None,
+        foreign_key="notification_templates.id",
+        description="Email notification template ID",
+    )
+    telegram_template_id: Optional[UUID] = Field(
+        default=None,
+        foreign_key="notification_templates.id",
+        description="Telegram notification template ID",
+    )
+
+    email_notifications_enabled: bool = Field(
+        default=True, description="Whether email notifications are enabled"
+    )
+    telegram_notifications_enabled: bool = Field(
+        default=True, description="Whether Telegram notifications are enabled"
+    )
+
     # Timestamps
     created_at: datetime = Field(
         default_factory=datetime.utcnow, description="User registration timestamp"

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 from src.config import settings
+from src.modules.notifications.models import *
 from src.modules.queue.models import *
 from src.storage.models import *
 
