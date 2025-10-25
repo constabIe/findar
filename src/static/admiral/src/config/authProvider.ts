@@ -16,13 +16,17 @@ export const storage = {
 
 const authProvider = (apiUrl: string): AuthProvider => ({
   login: ({ email, password }) => {
-    const url = `${apiUrl}/auth/login`
-    return _.post(url)({ data: { email, password } }).then(({ token }) => {
-      storage.set(tokenStorageKey, token)
+    const url = `${apiUrl}/users/login`
+    return _.post(url)({ data: { email, password } }).then((response) => {
+      const token = response.token || response.access_token
+      if (token) {
+        storage.set(tokenStorageKey, token)
+      }
+      return response
     })
   },
   checkAuth: ({ token }) => {
-    const url = `${apiUrl}/auth/check-auth`
+    const url = `${apiUrl}/users/me`
 
     if (storage.get(tokenStorageKey)) {
       return _.get(url)({ data: { token } })
@@ -31,21 +35,30 @@ const authProvider = (apiUrl: string): AuthProvider => ({
     }
   },
   logout: () => {
-    const url = `${apiUrl}/auth/logout`
-    return _.post(url)().then(() => {
-      storage.remove(tokenStorageKey)
-    })
+    const url = `${apiUrl}/users/logout`
+    return _.post(url)()
+      .then(() => {
+        storage.remove(tokenStorageKey)
+      })
+      .catch(() => {
+        // Even if logout fails on server, remove token locally
+        storage.remove(tokenStorageKey)
+      })
   },
   getIdentity: () => {
-    const url = `${apiUrl}/auth/get-identity`
+    const url = `${apiUrl}/users/me`
 
     return _.get(url)()
       .catch(() => {
         storage.remove(tokenStorageKey)
         return Promise.reject(new Error("Your session has expired. Please login again."))
       })
-      .then(({ user }) => {
-        return { ...user, fullName: user.name }
+      .then((user) => {
+        return {
+          ...user,
+          fullName: user.name || user.email,
+          tg_alias: user.telegram_alias || user.tg_alias || user.tgAlias
+        }
       })
   }
 })
