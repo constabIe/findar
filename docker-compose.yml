@@ -113,9 +113,6 @@ services:
     stdin_open: true
     networks:
       - postgres
-    depends_on:
-      postgres:
-        condition: service_healthy
 
   node-exporter:
     image: prom/node-exporter:v1.10.0
