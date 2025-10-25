@@ -59,6 +59,11 @@ const Rules: React.FC = () => {
 
   const itemsPerPage = 10
 
+  // Prevent scroll wheel from changing number input values
+  const preventNumberInputScroll = (e: React.WheelEvent<HTMLInputElement>) => {
+    e.currentTarget.blur()
+  }
+
   const showNotification = (message: string, type: "success" | "error") => {
     const id = Date.now()
     setNotifications((prev) => [...prev, { id, message, type }])
@@ -1275,6 +1280,7 @@ const Rules: React.FC = () => {
                             max_amount: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Maximum amount"
                       />
                     </Form.Item>
@@ -1288,6 +1294,7 @@ const Rules: React.FC = () => {
                             min_amount: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Minimum amount"
                       />
                     </Form.Item>
@@ -1346,6 +1353,7 @@ const Rules: React.FC = () => {
                             allowed_hours_start: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 9 (9 AM)"
                       />
                     </Form.Item>
@@ -1359,6 +1367,7 @@ const Rules: React.FC = () => {
                             allowed_hours_end: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 17 (5 PM)"
                       />
                     </Form.Item>
@@ -1387,6 +1396,7 @@ const Rules: React.FC = () => {
                             max_devices_per_account: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 5"
                       />
                     </Form.Item>
@@ -1400,6 +1410,7 @@ const Rules: React.FC = () => {
                             max_ips_per_account: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 3"
                       />
                     </Form.Item>
@@ -1413,6 +1424,7 @@ const Rules: React.FC = () => {
                             max_velocity_amount: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Limit of sum transfer in period"
                       />
                     </Form.Item>
@@ -1426,6 +1438,7 @@ const Rules: React.FC = () => {
                             max_transaction_types: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 5"
                       />
                     </Form.Item>
@@ -1439,6 +1452,7 @@ const Rules: React.FC = () => {
                             max_transactions_per_account: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 100"
                       />
                     </Form.Item>
@@ -1452,6 +1466,7 @@ const Rules: React.FC = () => {
                             max_transactions_to_account: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 50"
                       />
                     </Form.Item>
@@ -1465,6 +1480,7 @@ const Rules: React.FC = () => {
                             max_transactions_per_ip: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 10"
                       />
                     </Form.Item>
@@ -1506,6 +1522,7 @@ const Rules: React.FC = () => {
                             count: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Number of transactions in the period"
                       />
                     </Form.Item>
@@ -1519,6 +1536,7 @@ const Rules: React.FC = () => {
                             amount_ceiling: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Maximum sum of transactions in period"
                       />
                     </Form.Item>
@@ -1546,6 +1564,7 @@ const Rules: React.FC = () => {
                             unique_recipients: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Max number of unique recipients in period"
                       />
                     </Form.Item>
@@ -1573,6 +1592,7 @@ const Rules: React.FC = () => {
                             velocity_limit: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Max sum of transactions from one device in period"
                       />
                     </Form.Item>
@@ -1603,6 +1623,7 @@ const Rules: React.FC = () => {
                             threshold: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 0.75"
                       />
                     </Form.Item>
@@ -1660,6 +1681,7 @@ const Rules: React.FC = () => {
                     type="number"
                     value={newRulePriority}
                     onChange={(e: any) => setNewRulePriority(parseInt(e.target.value))}
+                    onWheel={preventNumberInputScroll}
                     placeholder="e.g., 5"
                   />
                 </Form.Item>
@@ -1840,6 +1862,7 @@ const Rules: React.FC = () => {
                             max_amount: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Maximum amount"
                       />
                     </Form.Item>
@@ -1853,6 +1876,7 @@ const Rules: React.FC = () => {
                             min_amount: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Minimum amount"
                       />
                     </Form.Item>
@@ -1911,6 +1935,7 @@ const Rules: React.FC = () => {
                             allowed_hours_start: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 9 (9 AM)"
                       />
                     </Form.Item>
@@ -1924,6 +1949,7 @@ const Rules: React.FC = () => {
                             allowed_hours_end: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 17 (5 PM)"
                       />
                     </Form.Item>
@@ -1952,6 +1978,7 @@ const Rules: React.FC = () => {
                             max_devices_per_account: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 5"
                       />
                     </Form.Item>
@@ -1965,6 +1992,7 @@ const Rules: React.FC = () => {
                             max_ips_per_account: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 3"
                       />
                     </Form.Item>
@@ -1978,6 +2006,7 @@ const Rules: React.FC = () => {
                             max_velocity_amount: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Limit of sum transfer in period"
                       />
                     </Form.Item>
@@ -1991,6 +2020,7 @@ const Rules: React.FC = () => {
                             max_transaction_types: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 5"
                       />
                     </Form.Item>
@@ -2004,6 +2034,7 @@ const Rules: React.FC = () => {
                             max_transactions_per_account: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 100"
                       />
                     </Form.Item>
@@ -2017,6 +2048,7 @@ const Rules: React.FC = () => {
                             max_transactions_to_account: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 50"
                       />
                     </Form.Item>
@@ -2030,6 +2062,7 @@ const Rules: React.FC = () => {
                             max_transactions_per_ip: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 10"
                       />
                     </Form.Item>
@@ -2072,6 +2105,7 @@ const Rules: React.FC = () => {
                             count: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Number of transactions in the period"
                       />
                     </Form.Item>
@@ -2085,6 +2119,7 @@ const Rules: React.FC = () => {
                             amount_ceiling: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Maximum sum of transactions in period"
                       />
                     </Form.Item>
@@ -2112,6 +2147,7 @@ const Rules: React.FC = () => {
                             unique_recipients: parseInt(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Max number of unique recipients in period"
                       />
                     </Form.Item>
@@ -2139,6 +2175,7 @@ const Rules: React.FC = () => {
                             velocity_limit: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="Max sum of transactions from one device in period"
                       />
                     </Form.Item>
@@ -2170,6 +2207,7 @@ const Rules: React.FC = () => {
                             threshold: parseFloat(e.target.value)
                           })
                         }
+                        onWheel={preventNumberInputScroll}
                         placeholder="e.g., 0.75"
                       />
                     </Form.Item>
@@ -2229,6 +2267,7 @@ const Rules: React.FC = () => {
                     type="number"
                     value={editRulePriority}
                     onChange={(e: any) => setEditRulePriority(parseInt(e.target.value))}
+                    onWheel={preventNumberInputScroll}
                     placeholder="e.g., 5"
                   />
                 </Form.Item>

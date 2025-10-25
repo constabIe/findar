@@ -268,14 +268,14 @@ const Notifications: React.FC = () => {
                   onClick={() => handleChannelChange("email")}
                   disabled={saving}
                 >
-                  📧 Email
+                  Email
                 </button>
                 <button
                   className={`channel-button ${channel === "telegram" ? "active" : ""}`}
                   onClick={() => handleChannelChange("telegram")}
                   disabled={saving}
                 >
-                  ✈️ Telegram
+                  Telegram
                 </button>
               </div>
             </div>
