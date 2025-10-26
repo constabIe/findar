@@ -572,11 +572,37 @@ async def evaluate_threshold_rule(
             )
 
     # Check time window restrictions
-    if params.allowed_hours_start is not None and params.allowed_hours_end is not None:
+    # Support single-sided bounds and wrap-around windows (start > end)
+    if params.allowed_hours_start is not None or params.allowed_hours_end is not None:
         current_hour = timestamp.hour
-        if not (params.allowed_hours_start <= current_hour < params.allowed_hours_end):
+        start = params.allowed_hours_start
+        end = params.allowed_hours_end
+
+        # Determine whether current hour is within allowed window
+        allowed = True
+        if start is not None and end is not None:
+            # Normal window
+            if start < end:
+                allowed = start <= current_hour < end
+            # Wrap-around window (e.g., 22..6)
+            elif start > end:
+                allowed = current_hour >= start or current_hour < end
+            else:
+                # start == end handled by schema validator; treat as disallowed
+                allowed = False
+        elif start is not None:
+            # Only start provided: allowed from start..23:59
+            allowed = current_hour >= start
+        elif end is not None:
+            # Only end provided: allowed from 00:00..end-1
+            allowed = current_hour < end
+
+        if not allowed:
             matched = True
-            match_reason = f"Transaction at hour {current_hour} outside allowed window {params.allowed_hours_start}-{params.allowed_hours_end}"
+            match_reason = (
+                f"Transaction at hour {current_hour} outside allowed window "
+                f"{start if start is not None else '-'}-{end if end is not None else '-'}"
+            )
             risk_level = RiskLevel.MEDIUM
 
     # Check location restrictions
@@ -1063,8 +1089,8 @@ async def evaluate_composite_rule(
         )
 
     try:
-        # Parse composite rule parameters
-        params_dict = rule_dict.get("parameters", {})
+        # Parse composite rule parameters (cache stores params under "params")
+        params_dict = rule_dict.get("params", {})
         params = CompositeRuleParams(**params_dict)
 
         operator = params.operator
@@ -1101,9 +1127,10 @@ async def evaluate_composite_rule(
             # Note: We evaluate sub-rules regardless of their is_active status
             # because composite rules should work with any referenced rule
             sub_rule_id = UUID(sub_rule_dict.get("id"))
-            sub_rule_type = RuleType(sub_rule_dict.get("rule_type"))
+            # The repository/cache uses keys: 'type', 'params', 'enabled'
+            sub_rule_type = RuleType(sub_rule_dict.get("type"))
             actual_sub_rule_name = sub_rule_dict.get("name", sub_rule_name)
-            is_active = sub_rule_dict.get("is_active", False)
+            is_active = sub_rule_dict.get("enabled", False)
 
             logger.debug(
                 f"Evaluating sub-rule '{sub_rule_name}'",
@@ -1178,7 +1205,9 @@ async def evaluate_composite_rule(
 
         # Apply logical operator
         matched_sub_rules = [r for r in sub_results if r.matched]
-        all_confidences = [r.confidence_score for r in sub_results]
+
+        # Normalize confidences to avoid None values
+        all_confidences = [float(r.confidence_score or 0.0) for r in sub_results]
         all_risk_levels = [r.risk_level for r in sub_results]
 
         if operator == CompositeOperator.AND:

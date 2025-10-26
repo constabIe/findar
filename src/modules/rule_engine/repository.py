@@ -195,6 +195,7 @@ class RuleRepository:
         limit: int = 100,
         enabled_only: bool = False,
         rule_type: Optional[RuleType] = None,
+        created_by_user_id: Optional[UUID] = None,
     ) -> tuple[Sequence[Rule], int]:
         """
         Get all rules with optional filtering.
@@ -204,6 +205,7 @@ class RuleRepository:
             limit: Maximum number of rules to return
             enabled_only: Only return enabled rules
             rule_type: Filter by rule type
+            created_by_user_id: Filter by user who created the rule
 
         Returns:
             Tuple of (rules list, total count)
@@ -216,12 +218,15 @@ class RuleRepository:
                 query = query.where(Rule.enabled == True)  # type: ignore
             if rule_type:
                 query = query.where(Rule.type == rule_type)  # type: ignore
+            if created_by_user_id:
+                query = query.where(Rule.created_by_user_id == created_by_user_id)  # type: ignore
 
             # Get total count
             count_result = await self.db.execute(
                 select(Rule).where(
                     (Rule.enabled == True) if enabled_only else True,  # type: ignore
                     (Rule.type == rule_type) if rule_type else True,  # type: ignore
+                    (Rule.created_by_user_id == created_by_user_id) if created_by_user_id else True,  # type: ignore
                 )
             )
             total = len(count_result.scalars().all())
@@ -264,17 +269,25 @@ class RuleRepository:
         rules, _ = await self.get_all_rules(skip=0, limit=10000, enabled_only=True)
         return list(rules)
 
-    async def get_rules_by_type(self, rule_type: RuleType) -> Sequence[Rule]:
+    async def get_rules_by_type(
+        self, rule_type: RuleType, created_by_user_id: Optional[UUID] = None
+    ) -> Sequence[Rule]:
         """
         Get all rules of a specific type.
 
         Args:
             rule_type: Type of rules to retrieve
+            created_by_user_id: Filter by user who created the rule (optional)
 
         Returns:
             List of rules matching the type
         """
-        rules, _ = await self.get_all_rules(skip=0, limit=10000, rule_type=rule_type)
+        rules, _ = await self.get_all_rules(
+            skip=0,
+            limit=10000,
+            rule_type=rule_type,
+            created_by_user_id=created_by_user_id,
+        )
         return list(rules)
 
     async def update_rule(

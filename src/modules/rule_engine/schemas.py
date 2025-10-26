@@ -97,9 +97,11 @@ class ThresholdRuleParams(BaseModel):
         """Validate that end hour is after start hour."""
         # In Pydantic v2, use info.data to access other field values
         start = info.data.get("allowed_hours_start")
-        if start is not None and v is not None and v <= start:
+        # Allow wrap-around windows (start > end) and single-sided bounds.
+        # Only reject if both bounds are present and equal (zero-length window).
+        if start is not None and v is not None and v == start:
             raise ValueError(
-                "allowed_hours_end must be greater than allowed_hours_start"
+                "allowed_hours_end must be different from allowed_hours_start"
             )
         return v
 
