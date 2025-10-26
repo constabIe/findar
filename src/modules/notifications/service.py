@@ -496,16 +496,38 @@ class NotificationService:
         """
         Render a template string using simple replacement:
         converts '{{var}}' to '{var}' and uses str.format.
-        Missing keys fall back to original template to avoid crashes.
+        Lines with missing/unresolved variables are removed from the output.
         """
         try:
             safe = template_string.replace("{{", "{").replace("}}", "}")
-            return safe.format(**variables)
-        except KeyError as exc:
-            logger.warning(
-                "Missing template variable", component="notifications", detail=str(exc)
-            )
-            return template_string
+            
+            # Split into lines to handle each separately
+            lines = safe.split('\n')
+            rendered_lines = []
+            
+            for line in lines:
+                try:
+                    # Try to format the line
+                    rendered_line = line.format(**variables)
+                    
+                    # Check if line still contains unresolved placeholders
+                    # (happens when variable is not in variables dict)
+                    if '{' in rendered_line and '}' in rendered_line:
+                        # Skip lines with unresolved placeholders
+                        continue
+                    
+                    rendered_lines.append(rendered_line)
+                except KeyError:
+                    # Skip lines with missing variables
+                    logger.debug(
+                        "Skipping line with missing variable",
+                        component="notifications",
+                        line=line[:50]  # Log first 50 chars
+                    )
+                    continue
+            
+            return '\n'.join(rendered_lines)
+            
         except Exception:
             logger.exception(
                 "Unexpected template rendering error", component="notifications"
