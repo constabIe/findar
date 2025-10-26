@@ -48,6 +48,17 @@ const Transactions: React.FC = () => {
   const [submittingReview, setSubmittingReview] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
 
+  // Filter states
+  const [showFilters, setShowFilters] = useState(false)
+  const [statusFilter, setStatusFilter] = useState("")
+  const [typeFilter, setTypeFilter] = useState("")
+  const [fromAccount, setFromAccount] = useState("")
+  const [toAccount, setToAccount] = useState("")
+  const [currencyFilter, setCurrencyFilter] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+
   const itemsPerPage = 10
 
   const showNotification = (message: string, type: "success" | "error") => {
@@ -63,6 +74,45 @@ const Transactions: React.FC = () => {
   useEffect(() => {
     fetchTransactions()
   }, [])
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [
+    statusFilter,
+    typeFilter,
+    currencyFilter,
+    fromAccount,
+    toAccount,
+    searchQuery,
+    startDate,
+    endDate
+  ])
+
+  const clearFilters = () => {
+    setStatusFilter("")
+    setTypeFilter("")
+    setFromAccount("")
+    setToAccount("")
+    setCurrencyFilter("")
+    setSearchQuery("")
+    setStartDate("")
+    setEndDate("")
+    setCurrentPage(1)
+  }
+
+  const hasActiveFilters = () => {
+    return !!(
+      statusFilter ||
+      typeFilter ||
+      fromAccount ||
+      toAccount ||
+      currencyFilter ||
+      searchQuery ||
+      startDate ||
+      endDate
+    )
+  }
 
   const fetchTransactions = async () => {
     try {
@@ -91,6 +141,82 @@ const Transactions: React.FC = () => {
       setLoading(false)
     }
   }
+
+  // Client-side filtering
+  const filteredTransactions = useMemo(() => {
+    let filtered = [...allTransactions]
+
+    // Status filter
+    if (statusFilter) {
+      filtered = filtered.filter((t) =>
+        t.status.toLowerCase().includes(statusFilter.toLowerCase())
+      )
+    }
+
+    // Type filter
+    if (typeFilter) {
+      filtered = filtered.filter((t) =>
+        t.type.toLowerCase().includes(typeFilter.toLowerCase())
+      )
+    }
+
+    // Currency filter
+    if (currencyFilter) {
+      filtered = filtered.filter((t) =>
+        t.currency.toLowerCase().includes(currencyFilter.toLowerCase())
+      )
+    }
+
+    // From account filter
+    if (fromAccount) {
+      filtered = filtered.filter((t) =>
+        t.from_account.toLowerCase().includes(fromAccount.toLowerCase())
+      )
+    }
+
+    // To account filter
+    if (toAccount) {
+      filtered = filtered.filter((t) =>
+        t.to_account.toLowerCase().includes(toAccount.toLowerCase())
+      )
+    }
+
+    // Search filter (across multiple fields)
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(
+        (t) =>
+          t.description?.toLowerCase().includes(query) ||
+          t.merchant_id?.toLowerCase().includes(query) ||
+          t.location?.toLowerCase().includes(query) ||
+          t.device_id?.toLowerCase().includes(query) ||
+          t.ip_address?.toLowerCase().includes(query)
+      )
+    }
+
+    // Date range filters
+    if (startDate) {
+      const start = new Date(startDate)
+      filtered = filtered.filter((t) => new Date(t.timestamp) >= start)
+    }
+
+    if (endDate) {
+      const end = new Date(endDate)
+      filtered = filtered.filter((t) => new Date(t.timestamp) <= end)
+    }
+
+    return filtered
+  }, [
+    allTransactions,
+    statusFilter,
+    typeFilter,
+    currencyFilter,
+    fromAccount,
+    toAccount,
+    searchQuery,
+    startDate,
+    endDate
+  ])
 
   const createTransaction = async () => {
     try {
@@ -224,11 +350,11 @@ const Transactions: React.FC = () => {
     }
   }
 
-  const totalPages = Math.ceil(allTransactions.length / itemsPerPage)
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage)
   const paginatedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage
-    return allTransactions.slice(startIndex, startIndex + itemsPerPage)
-  }, [currentPage, allTransactions])
+    return filteredTransactions.slice(startIndex, startIndex + itemsPerPage)
+  }, [currentPage, filteredTransactions])
 
   const exportToCSV = () => {
     const headers = [
@@ -249,7 +375,7 @@ const Transactions: React.FC = () => {
 
     const csvContent = [
       headers.join(","),
-      ...allTransactions.map((t) =>
+      ...filteredTransactions.map((t) =>
         [
           t.id,
           t.amount,
@@ -371,11 +497,166 @@ const Transactions: React.FC = () => {
           <div style={{ padding: "20px", color: "red" }}>{error}</div>
         ) : (
           <>
-            <div style={{ marginBottom: "20px" }}>
+            <div style={{ marginBottom: "20px", display: "flex", gap: "12px", flexWrap: "wrap" }}>
               <Button onClick={createTransaction} disabled={creating}>
                 {creating ? "Creating..." : "Create New Transaction"}
               </Button>
+              <Button
+                onClick={() => setShowFilters(!showFilters)}
+                style={{
+                  backgroundColor: hasActiveFilters() ? "#4caf50" : undefined,
+                  color: hasActiveFilters() ? "#ffffff" : undefined
+                }}
+              >
+                {showFilters ? "Hide Filters" : "Show Filters"}
+                {hasActiveFilters() && " ✓"}
+              </Button>
+              {hasActiveFilters() && (
+                <Button onClick={clearFilters} style={{ backgroundColor: "#ff9800" }}>
+                  Clear All Filters
+                </Button>
+              )}
+              <Button onClick={exportToCSV} style={{ marginLeft: "auto" }}>
+                Export to CSV
+              </Button>
             </div>
+
+            {/* Filter Panel */}
+            {showFilters && (
+              <Card
+                style={{
+                  marginBottom: "20px",
+                  padding: "20px",
+                  backgroundColor: "var(--color-bg-secondary)"
+                }}
+              >
+                <h3 style={{ marginTop: 0, marginBottom: "16px" }}>Filter Transactions</h3>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+                    gap: "16px"
+                  }}
+                >
+                  {/* Search */}
+                  <Form.Item label="Search">
+                    <Input
+                      value={searchQuery}
+                      onChange={(e: any) => setSearchQuery(e.target.value)}
+                      placeholder="Search description, merchant, location..."
+                    />
+                  </Form.Item>
+
+                  {/* Status Filter */}
+                  <Form.Item label="Status">
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        borderRadius: "4px",
+                        border: "1px solid var(--color-border-default)",
+                        backgroundColor: "var(--color-bg-default)",
+                        color: "var(--color-typo-primary)"
+                      }}
+                    >
+                      <option value="">All Statuses</option>
+                      <option value="pending">Pending</option>
+                      <option value="completed">Completed</option>
+                      <option value="approved">Approved</option>
+                      <option value="flagged">Flagged</option>
+                      <option value="failed">Failed</option>
+                      <option value="rejected">Rejected</option>
+                      <option value="accepted">Accepted</option>
+                    </select>
+                  </Form.Item>
+
+                  {/* Type Filter */}
+                  <Form.Item label="Type">
+                    <select
+                      value={typeFilter}
+                      onChange={(e) => setTypeFilter(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        borderRadius: "4px",
+                        border: "1px solid var(--color-border-default)",
+                        backgroundColor: "var(--color-bg-default)",
+                        color: "var(--color-typo-primary)"
+                      }}
+                    >
+                      <option value="">All Types</option>
+                      <option value="TRANSFER">Transfer</option>
+                      <option value="PAYMENT">Payment</option>
+                      <option value="WITHDRAWAL">Withdrawal</option>
+                    </select>
+                  </Form.Item>
+
+                  {/* Currency Filter */}
+                  <Form.Item label="Currency">
+                    <select
+                      value={currencyFilter}
+                      onChange={(e) => setCurrencyFilter(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        borderRadius: "4px",
+                        border: "1px solid var(--color-border-default)",
+                        backgroundColor: "var(--color-bg-default)",
+                        color: "var(--color-typo-primary)"
+                      }}
+                    >
+                      <option value="">All Currencies</option>
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="GBP">GBP</option>
+                    </select>
+                  </Form.Item>
+
+                  {/* Accounts */}
+                  <Form.Item label="From Account">
+                    <Input
+                      value={fromAccount}
+                      onChange={(e: any) => setFromAccount(e.target.value)}
+                      placeholder="e.g., ACC-1234"
+                    />
+                  </Form.Item>
+
+                  <Form.Item label="To Account">
+                    <Input
+                      value={toAccount}
+                      onChange={(e: any) => setToAccount(e.target.value)}
+                      placeholder="e.g., ACC-5678"
+                    />
+                  </Form.Item>
+
+                  {/* Date Range */}
+                  <Form.Item label="Start Date">
+                    <Input
+                      type="datetime-local"
+                      value={startDate}
+                      onChange={(e: any) => setStartDate(e.target.value)}
+                    />
+                  </Form.Item>
+
+                  <Form.Item label="End Date">
+                    <Input
+                      type="datetime-local"
+                      value={endDate}
+                      onChange={(e: any) => setEndDate(e.target.value)}
+                    />
+                  </Form.Item>
+                </div>
+
+                <div style={{ marginTop: "16px", textAlign: "right" }}>
+                  <span style={{ fontSize: "14px", color: "var(--color-typo-secondary)" }}>
+                    {filteredTransactions.length} of {allTransactions.length} transaction(s) shown
+                  </span>
+                </div>
+              </Card>
+            )}
+
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
@@ -528,12 +809,9 @@ const Transactions: React.FC = () => {
                 </Button>
               </div>
               <div>
-                <span style={{ marginRight: "12px" }}>
-                  Total: {allTransactions.length} transactions
+                <span>
+                  Showing {filteredTransactions.length} of {allTransactions.length} transactions
                 </span>
-                <Button style={{ marginTop: "12px" }} onClick={exportToCSV}>
-                  Export to CSV
-                </Button>
               </div>
             </div>
           </>
