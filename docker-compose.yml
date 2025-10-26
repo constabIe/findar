@@ -184,7 +184,7 @@ services:
     env_file:
       - .env
     ports:
-      - "${GF_PORT}:3000"
+      - "${GF_PORT}:4000"
     networks:
       - monitoring
       - postgres
