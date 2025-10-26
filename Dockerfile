@@ -35,6 +35,7 @@ COPY --from=builder --chown=nonroot:nonroot /app /app
 
 # Make folders accessible by dependent services
 RUN mkdir -p /app/logs && chown -R nonroot:nonroot /app/logs
+RUN mkdir -p /app/models && chown -R nonroot:nonroot /app/models
 
 # Add venv binaries to PATH
 ENV PATH="/app/.venv/bin:$PATH"
