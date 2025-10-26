@@ -43,7 +43,7 @@
 
 [data-theme="dark"] {
   .auth-container {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
   }
 
   .theme-toggle {
@@ -56,7 +56,7 @@
   }
 
   .auth-title {
-    color: #fff;
+    color: #4ecca3;
   }
 
   .auth-label {
@@ -64,17 +64,22 @@
   }
 
   .auth-input {
-    background: #2a2a2a;
+    background: #2a2a2a !important;
     border-color: #444;
-    color: #fff;
+    color: #fff !important;
 
     &::placeholder {
       color: #666;
     }
 
     &:focus {
-      border-color: #667eea;
-      background: #333;
+      border-color: #4ecca3;
+      background: #2a2a2a !important;
+    }
+
+    &:disabled {
+      background: #2a2a2a !important;
+      opacity: 0.6;
     }
   }
 
@@ -89,9 +94,39 @@
   }
 
   .auth-success {
-    background-color: #1a3d1a;
-    color: #51cf66;
-    border-color: #2a5a2a;
+    background-color: #1a3d2e;
+    color: #4ecca3;
+    border-color: #2a5a47;
+  }
+
+  .auth-button-primary {
+    background: linear-gradient(135deg, #4ecca3 0%, #3ba378 100%);
+    color: #1a1a1a;
+
+    &:hover {
+      background: linear-gradient(135deg, #3ba378 0%, #2d8a5f 100%);
+    }
+
+    &:disabled {
+      background: linear-gradient(135deg, #3a9977 0%, #2d7a5f 100%);
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  .auth-button-secondary {
+    background: transparent;
+    color: #4ecca3;
+    border: 2px solid #4ecca3;
+
+    &:hover {
+      background: #4ecca3;
+      color: #1a1a1a;
+    }
+  }
+
+  .auth-footer {
+    border-top-color: #333;
   }
 }
 

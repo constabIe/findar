@@ -24,7 +24,7 @@ from src.storage.models import User
 
 logger = get_logger("users.notifications_routes")
 
-router = APIRouter(prefix="/users/notifications", tags=["user-notifications"])
+router = APIRouter(prefix="/users/notifications", tags=["User Notifications"])
 
 
 @router.get(

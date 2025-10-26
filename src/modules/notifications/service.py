@@ -12,7 +12,6 @@ Notes:
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import UUID
@@ -31,9 +30,6 @@ from src.modules.notifications.enums import (
     NotificationChannel,
     NotificationStatus,
 )
-from src.modules.notifications.models import (
-    NotificationTemplate,
-)
 from src.modules.notifications.repository import NotificationRepository
 from src.modules.notifications.schemas import NotificationDeliveryCreate
 from src.modules.notifications.senders import EmailSender, TelegramSender
@@ -42,6 +38,9 @@ from src.modules.reporting.metrics import (
     observe_notification_time,
 )
 from src.modules.users.repository import UserRepository
+from src.storage.models import (
+    NotificationTemplate,
+)
 from src.storage.models import Rule as RuleModel
 
 logger = get_logger("notifications")
@@ -245,6 +244,8 @@ class NotificationService:
                     telegram_template_id = getattr(user, "telegram_template_id", None)
                     tg_recipient = None
 
+                    print("Telegram recipient determined:", tg_recipient)
+
                     # Determine telegram recipient
                     if getattr(user, "telegram_id", None):
                         tg_recipient = [str(user.telegram_id)]
@@ -293,9 +294,9 @@ class NotificationService:
                                     user_id=str(author_id),
                                     template_id=str(telegram_template_id),
                                 )
-                        except Exception:
+                        except Exception as e:
                             logger.exception(
-                                "Failed to create/send telegram delivery for rule author",
+                                f"Failed to create/send telegram delivery for rule author: {e}",
                                 component="notifications",
                                 user_id=str(author_id),
                                 rule_id=str(rule_id),
@@ -340,17 +341,35 @@ class NotificationService:
     ) -> Optional[UUID]:
         """
         Create a delivery record via repository, append its id to created_ids
-        and schedule the asynchronous send task. Returns the delivery id on
-        success or None on failure.
+        and send the notification immediately (not in background).
         """
+        logger.info(
+            "🔍 DELIVERY: Creating delivery",
+            channel=payload.channel,
+            recipients=payload.recipients,
+            component="notifications",
+        )
         try:
             delivery = await self.repo.create_delivery(payload)
             created_ids.append(delivery.id)
-            asyncio.create_task(self._send_notification_async(delivery.id))
+            logger.info(
+                "✅ DELIVERY: Created, sending now",
+                delivery_id=str(delivery.id),
+                component="notifications",
+            )
+
+            # Send immediately instead of background task
+            await self._send_notification_async(delivery.id)
+
+            logger.info(
+                "✅ DELIVERY: Send completed",
+                delivery_id=str(delivery.id),
+                component="notifications",
+            )
             return delivery.id
         except Exception:
             logger.exception(
-                "Failed to create/send delivery",
+                "❌ DELIVERY: Failed",
                 component="notifications",
                 metadata=getattr(payload, "metadata", {}),
             )
@@ -476,16 +495,38 @@ class NotificationService:
         """
         Render a template string using simple replacement:
         converts '{{var}}' to '{var}' and uses str.format.
-        Missing keys fall back to original template to avoid crashes.
+        Lines with missing/unresolved variables are removed from the output.
         """
         try:
             safe = template_string.replace("{{", "{").replace("}}", "}")
-            return safe.format(**variables)
-        except KeyError as exc:
-            logger.warning(
-                "Missing template variable", component="notifications", detail=str(exc)
-            )
-            return template_string
+
+            # Split into lines to handle each separately
+            lines = safe.split("\n")
+            rendered_lines = []
+
+            for line in lines:
+                try:
+                    # Try to format the line
+                    rendered_line = line.format(**variables)
+
+                    # Check if line still contains unresolved placeholders
+                    # (happens when variable is not in variables dict)
+                    if "{" in rendered_line and "}" in rendered_line:
+                        # Skip lines with unresolved placeholders
+                        continue
+
+                    rendered_lines.append(rendered_line)
+                except KeyError:
+                    # Skip lines with missing variables
+                    logger.debug(
+                        "Skipping line with missing variable",
+                        component="notifications",
+                        line=line[:50],  # Log first 50 chars
+                    )
+                    continue
+
+            return "\n".join(rendered_lines)
+
         except Exception:
             logger.exception(
                 "Unexpected template rendering error", component="notifications"
@@ -497,125 +538,137 @@ class NotificationService:
         Perform actual send for a delivery, persist attempt and update status.
 
         Fault-tolerant: any exception is recorded and converted into a recorded failed attempt.
+
+        Note: Creates its own database session to avoid conflicts with the parent session.
         """
+        # Import here to avoid circular dependencies
+        from src.storage.sql import get_async_session_maker
+
         try:
-            delivery = await self.repo.get_delivery(delivery_id)
-            if not delivery:
-                logger.warning(
-                    "Delivery not found",
-                    component="notifications",
-                    delivery_id=str(delivery_id),
-                )
-                return
+            # Create a new session for this async task
+            session_maker = get_async_session_maker()
+            async with session_maker() as session:
+                # Create a new repository with the new session
+                repo = NotificationRepository(session)
 
-            attempt_no = (delivery.attempts or 0) + 1
-
-            channel_cfg = await self.repo.get_channel_config(delivery.channel)
-            if not channel_cfg:
-                err = "channel_configuration_missing"
-                await self.repo.create_delivery_attempt(
-                    delivery_id=delivery_id,
-                    attempt_number=attempt_no,
-                    success=False,
-                    error_message=err,
-                )
-                await self.repo.update_delivery_status(
-                    delivery_id, NotificationStatus.FAILED, error_message=err
-                )
-                logger.error(
-                    "Missing channel configuration",
-                    component="notifications",
-                    delivery_id=str(delivery_id),
-                )
-                increment_error_counter("channel_config_missing")
-                return
-
-            send_ok = False
-            send_err: Optional[str] = None
-
-            try:
-                if delivery.channel == NotificationChannel.EMAIL:
-                    cfg = channel_cfg.config or {}
-                    send_ok, send_err = await self.email_sender.send(
-                        recipients=delivery.recipients,
-                        message=delivery.body,
-                        config=cfg,
-                        subject=delivery.subject,
-                    )
-                elif delivery.channel == NotificationChannel.TELEGRAM:
-                    cfg = channel_cfg.config or {}
-                    send_ok, send_err = await self.telegram_sender.send(
-                        recipients=delivery.recipients,
-                        message=delivery.body,
-                        config=cfg,
-                    )
-                else:
-                    send_ok = False
-                    send_err = f"unsupported_channel:{delivery.channel}"
-            except Exception as exc:
-                send_ok = False
-                send_err = str(exc)
-
-            # persist attempt
-            try:
-                await self.repo.create_delivery_attempt(
-                    delivery_id=delivery_id,
-                    attempt_number=attempt_no,
-                    success=send_ok,
-                    error_message=send_err,
-                    metadata={"channel": str(delivery.channel)},
-                )
-                await self.repo.increment_delivery_attempt(delivery_id)
-            except Exception:
-                logger.exception(
-                    "Failed to persist delivery attempt", delivery_id=str(delivery_id)
-                )
-
-            # update status based on result and attempts
-            try:
-                updated = await self.repo.get_delivery(delivery_id)
-                if not updated:
-                    logger.error(
-                        "Delivery not found after send",
+                delivery = await repo.get_delivery(delivery_id)
+                if not delivery:
+                    logger.warning(
+                        "Delivery not found",
+                        component="notifications",
                         delivery_id=str(delivery_id),
                     )
                     return
 
-                attempts_now = updated.attempts or attempt_no
-                max_attempts = updated.max_attempts or 1
+                attempt_no = (delivery.attempts or 0) + 1
 
-                if send_ok:
-                    await self.repo.update_delivery_status(
-                        delivery_id, NotificationStatus.DELIVERED
+                channel_cfg = await repo.get_channel_config(delivery.channel)
+                if not channel_cfg:
+                    err = "channel_configuration_missing"
+                    await repo.create_delivery_attempt(
+                        delivery_id=delivery_id,
+                        attempt_number=attempt_no,
+                        success=False,
+                        error_message=err,
                     )
-                    logger.info(
-                        "Delivery delivered",
+                    await repo.update_delivery_status(
+                        delivery_id, NotificationStatus.FAILED, error_message=err
+                    )
+                    logger.error(
+                        "Missing channel configuration",
                         component="notifications",
                         delivery_id=str(delivery_id),
                     )
-                else:
-                    new_status = (
-                        NotificationStatus.FAILED
-                        if attempts_now >= max_attempts
-                        else NotificationStatus.RETRYING
+                    increment_error_counter("channel_config_missing")
+                    return
+
+                send_ok = False
+                send_err: Optional[str] = None
+
+                try:
+                    if delivery.channel == NotificationChannel.EMAIL:
+                        cfg = channel_cfg.config or {}
+                        send_ok, send_err = await self.email_sender.send(
+                            recipients=delivery.recipients,
+                            message=delivery.body,
+                            config=cfg,
+                            subject=delivery.subject,
+                        )
+                    elif delivery.channel == NotificationChannel.TELEGRAM:
+                        cfg = channel_cfg.config or {}
+                        send_ok, send_err = await self.telegram_sender.send(
+                            recipients=delivery.recipients,
+                            message=delivery.body,
+                            config=cfg,
+                        )
+                    else:
+                        send_ok = False
+                        send_err = f"unsupported_channel:{delivery.channel}"
+                except Exception as exc:
+                    send_ok = False
+                    send_err = str(exc)
+
+                # persist attempt
+                try:
+                    await repo.create_delivery_attempt(
+                        delivery_id=delivery_id,
+                        attempt_number=attempt_no,
+                        success=send_ok,
+                        error_message=send_err,
+                        metadata={"channel": str(delivery.channel)},
                     )
-                    await self.repo.update_delivery_status(
-                        delivery_id, new_status, error_message=send_err
-                    )
-                    logger.warning(
-                        "Delivery send failed",
-                        component="notifications",
+                    await repo.increment_delivery_attempt(delivery_id)
+                except Exception:
+                    logger.exception(
+                        "Failed to persist delivery attempt",
                         delivery_id=str(delivery_id),
-                        attempts=attempts_now,
-                        max_attempts=max_attempts,
-                        error=send_err,
                     )
-                    increment_error_counter("delivery_send_error")
-            except Exception:
-                logger.exception(
-                    "Failed to update delivery status", delivery_id=str(delivery_id)
-                )
-                increment_error_counter("delivery_update_error")
+
+                # update status based on result and attempts
+                try:
+                    updated = await repo.get_delivery(delivery_id)
+                    if not updated:
+                        logger.error(
+                            "Delivery not found after send",
+                            delivery_id=str(delivery_id),
+                        )
+                        return
+
+                    attempts_now = updated.attempts or attempt_no
+                    max_attempts = updated.max_attempts or 1
+
+                    if send_ok:
+                        await repo.update_delivery_status(
+                            delivery_id, NotificationStatus.DELIVERED
+                        )
+                        logger.info(
+                            "Delivery delivered",
+                            component="notifications",
+                            delivery_id=str(delivery_id),
+                        )
+                    else:
+                        new_status = (
+                            NotificationStatus.FAILED
+                            if attempts_now >= max_attempts
+                            else NotificationStatus.RETRYING
+                        )
+                        await repo.update_delivery_status(
+                            delivery_id, new_status, error_message=send_err
+                        )
+                        logger.warning(
+                            "Delivery send failed",
+                            component="notifications",
+                            delivery_id=str(delivery_id),
+                            attempts=attempts_now,
+                            max_attempts=max_attempts,
+                            error=send_err,
+                        )
+                        increment_error_counter("delivery_send_error")
+                except Exception:
+                    logger.exception(
+                        "Failed to update delivery status", delivery_id=str(delivery_id)
+                    )
+                    increment_error_counter("delivery_update_error")
 
         except Exception:
             logger.exception(

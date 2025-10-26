@@ -9,32 +9,29 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import UUID
 
+from sqlalchemy import and_, desc, update
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select as sqlmodel_select
+
 if TYPE_CHECKING:
-    from sqlalchemy import and_, desc, func, select, update  # pragma: no cover
-    from sqlalchemy.ext.asyncio import AsyncSession  # pragma: no cover
-    from sqlmodel import select as sqlmodel_select  # pragma: no cover
-else:
-    # Runtime imports are available in the app environment; provide fallbacks for editors
-    and_ = desc = func = select = update = object
-    AsyncSession = Any
-    sqlmodel_select = lambda *a, **k: None
+    pass  # All imports are now available at runtime
 
 from src.modules.notifications.enums import (
     NotificationChannel,
     NotificationStatus,
     TemplateType,
 )
-from src.modules.notifications.models import (
-    NotificationChannelConfig,
-    NotificationDelivery,
-    NotificationDeliveryAttempt,
-    NotificationTemplate,
-)
 from src.modules.notifications.schemas import (
     NotificationChannelConfigCreate,
     NotificationDeliveryCreate,
     NotificationTemplateCreate,
     NotificationTemplateUpdate,
+)
+from src.storage.models import (
+    NotificationChannelConfig,
+    NotificationDelivery,
+    NotificationDeliveryAttempt,
+    NotificationTemplate,
 )
 
 

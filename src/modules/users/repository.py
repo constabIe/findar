@@ -192,7 +192,7 @@ class UserRepository:
             Tuple of (email_template_id, telegram_template_id)
         """
         from src.modules.notifications.enums import NotificationChannel, TemplateType
-        from src.modules.notifications.models import NotificationTemplate
+        from src.storage.models import NotificationTemplate
 
         # Create default email template
         email_template = NotificationTemplate(
