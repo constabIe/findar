@@ -498,9 +498,6 @@ const Transactions: React.FC = () => {
         ) : (
           <>
             <div style={{ marginBottom: "20px", display: "flex", gap: "12px", flexWrap: "wrap" }}>
-              <Button onClick={createTransaction} disabled={creating}>
-                {creating ? "Creating..." : "Create New Transaction"}
-              </Button>
               <Button
                 onClick={() => setShowFilters(!showFilters)}
                 style={{
