@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react"
-import { Page, Card, Button } from "@devfamily/admiral"
+import { Page, Card } from "@devfamily/admiral"
 import axios from "axios"
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1"
@@ -48,7 +48,7 @@ const Notifications: React.FC = () => {
   const [channel, setChannel] = useState<"email" | "telegram">("email")
   const [emailEnabled, setEmailEnabled] = useState(true)
   const [telegramEnabled, setTelegramEnabled] = useState(true)
-  
+
   // Separate templates for email and telegram
   const [emailTemplate, setEmailTemplate] = useState<NotificationTemplate>({
     show_transaction_id: true,
@@ -61,7 +61,7 @@ const Notifications: React.FC = () => {
     show_location: true,
     show_device_info: true
   })
-  
+
   const [telegramTemplate, setTelegramTemplate] = useState<NotificationTemplate>({
     show_transaction_id: true,
     show_amount: true,
@@ -73,7 +73,7 @@ const Notifications: React.FC = () => {
     show_location: true,
     show_device_info: true
   })
-  
+
   const [settings, setSettings] = useState<NotificationSettings>({
     channel: "email",
     show_transaction_id: true,
@@ -87,46 +87,59 @@ const Notifications: React.FC = () => {
     show_device_info: true
   })
   const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
 
   useEffect(() => {
-    loadSettings()
-    loadChannelSettings()
-    loadTemplates()
+    const initializeSettings = async () => {
+      setLoading(true)
+      const activeChannel = await loadChannelSettings()
+      await loadTemplates(activeChannel)
+      setLoading(false)
+    }
+    
+    initializeSettings()
   }, [])
 
-  const loadTemplates = async () => {
+  const loadTemplates = async (currentChannel?: "email" | "telegram") => {
     try {
       const token = localStorage.getItem("admiral_global_admin_session_token")
       if (!token) {
         return
       }
 
-      const response = await axios.get<TemplatesResponse>(`${API_URL}/users/notifications/templates`, {
-        headers: {
-          Authorization: `Bearer ${token}`
+      const response = await axios.get<TemplatesResponse>(
+        `${API_URL}/users/notifications/templates`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
         }
-      })
+      )
+
+      // Use provided channel or fall back to state
+      const activeChannel = currentChannel || channel
 
       // Update email template
       if (response.data.email_template) {
-        const { id, channel, ...emailTemplateData } = response.data.email_template
+        const { id, channel: ch, ...emailTemplateData } = response.data.email_template
         setEmailTemplate(emailTemplateData)
+        
+        // If email is the active channel, update settings immediately
+        if (activeChannel === "email") {
+          setSettings((prev) => ({ ...prev, ...emailTemplateData }))
+        }
       }
 
       // Update telegram template
       if (response.data.telegram_template) {
-        const { id, channel, ...telegramTemplateData } = response.data.telegram_template
+        const { id, channel: ch, ...telegramTemplateData } = response.data.telegram_template
         setTelegramTemplate(telegramTemplateData)
-      }
-
-      // Sync current settings with active channel's template
-      if (channel === "email") {
-        setSettings(prev => ({ ...prev, ...emailTemplate }))
-      } else {
-        setSettings(prev => ({ ...prev, ...telegramTemplate }))
+        
+        // If telegram is the active channel, update settings immediately
+        if (activeChannel === "telegram") {
+          setSettings((prev) => ({ ...prev, ...telegramTemplateData }))
+        }
       }
     } catch (err: any) {
       console.error("Error loading templates:", err)
@@ -151,39 +164,21 @@ const Notifications: React.FC = () => {
       setEmailEnabled(response.data.email_enabled)
       setTelegramEnabled(response.data.telegram_enabled)
 
-      // Set active channel based on what's enabled
+      // Set active channel based on what's enabled and return it
+      let activeChannel: "email" | "telegram" = "email"
       if (response.data.email_enabled) {
+        activeChannel = "email"
         setChannel("email")
       } else if (response.data.telegram_enabled) {
+        activeChannel = "telegram"
         setChannel("telegram")
       }
+      
+      return activeChannel
     } catch (err: any) {
       console.error("Error loading channel settings:", err)
       // Don't show error to user on initial load, use defaults
-    }
-  }
-
-  const loadSettings = async () => {
-    try {
-      setLoading(true)
-      setError("")
-
-      const token = localStorage.getItem("admiral_global_admin_session_token")
-      if (!token) {
-        setError("No authentication token found. Please login again.")
-        setLoading(false)
-        return
-      }
-
-      // Load notification settings from API
-      // For now, we'll use default settings
-      // You can implement API call here to fetch user's notification preferences
-
-      setLoading(false)
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to load notification settings.")
-      console.error("Error loading settings:", err)
-      setLoading(false)
+      return "email" as "email" | "telegram"
     }
   }
 
@@ -201,7 +196,7 @@ const Notifications: React.FC = () => {
         telegram_enabled: newChannel === "telegram"
       }
 
-      await axios.post(`${API_URL}/users/notifications/channels`, channelData, {
+      await axios.patch(`${API_URL}/users/notifications/channels`, channelData, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -211,14 +206,14 @@ const Notifications: React.FC = () => {
       setChannel(newChannel)
       setEmailEnabled(channelData.email_enabled)
       setTelegramEnabled(channelData.telegram_enabled)
-      
+
       // Switch to the appropriate template
       const template = newChannel === "email" ? emailTemplate : telegramTemplate
       setSettings((prev) => ({ ...prev, channel: newChannel, ...template }))
 
       // Reload settings from server to confirm
       await loadChannelSettings()
-      
+
       setSuccessMessage(`Switched to ${newChannel} notifications successfully!`)
       setTimeout(() => setSuccessMessage(""), 3000)
     } catch (err: any) {
@@ -234,35 +229,32 @@ const Notifications: React.FC = () => {
       return
     }
 
-    // Calculate new value outside try block for error handling
-    const newValue = !settings[field]
+    // Get current template based on active channel
+    const currentTemplate = channel === "email" ? emailTemplate : telegramTemplate
     
+    // Calculate new value
+    const newValue = !currentTemplate[field]
+
     try {
+      // Prepare template data with updated field
+      const templateData: NotificationTemplate = {
+        ...currentTemplate,
+        [field]: newValue
+      }
+
       // Update local state first for immediate UI feedback
       setSettings((prev) => ({
         ...prev,
         [field]: newValue
       }))
 
-      // Prepare template data
-      const templateData: NotificationTemplate = {
-        show_transaction_id: field === "show_transaction_id" ? newValue : settings.show_transaction_id,
-        show_amount: field === "show_amount" ? newValue : settings.show_amount,
-        show_timestamp: field === "show_timestamp" ? newValue : settings.show_timestamp,
-        show_from_account: field === "show_from_account" ? newValue : settings.show_from_account,
-        show_to_account: field === "show_to_account" ? newValue : settings.show_to_account,
-        show_triggered_rules: field === "show_triggered_rules" ? newValue : settings.show_triggered_rules,
-        show_fraud_probability: field === "show_fraud_probability" ? newValue : settings.show_fraud_probability,
-        show_location: field === "show_location" ? newValue : settings.show_location,
-        show_device_info: field === "show_device_info" ? newValue : settings.show_device_info
-      }
+      // Send PATCH request to the appropriate endpoint based on active channel
+      const endpoint =
+        channel === "email"
+          ? `${API_URL}/users/notifications/templates/email`
+          : `${API_URL}/users/notifications/templates/telegram`
 
-      // Send POST request to the appropriate endpoint based on active channel
-      const endpoint = channel === "email" 
-        ? `${API_URL}/users/notifications/templates/email`
-        : `${API_URL}/users/notifications/templates/telegram`
-
-      await axios.post(endpoint, templateData, {
+      await axios.patch(endpoint, templateData, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -275,10 +267,9 @@ const Notifications: React.FC = () => {
         setTelegramTemplate(templateData)
       }
 
-      // Reload templates to confirm
-      await loadTemplates()
-
-      setSuccessMessage(`${channel.charAt(0).toUpperCase() + channel.slice(1)} template updated successfully!`)
+      setSuccessMessage(
+        `${channel.charAt(0).toUpperCase() + channel.slice(1)} template updated successfully!`
+      )
       setTimeout(() => setSuccessMessage(""), 2000)
     } catch (err: any) {
       // Revert the change on error
@@ -289,30 +280,6 @@ const Notifications: React.FC = () => {
       setError(err.response?.data?.detail || "Failed to update template.")
       console.error("Error updating template:", err)
       setTimeout(() => setError(""), 3000)
-    }
-  }
-
-  const handleSave = async () => {
-    try {
-      setSaving(true)
-      setError("")
-      setSuccessMessage("")
-
-      const token = localStorage.getItem("admiral_global_admin_session_token")
-      if (!token) {
-        setError("No authentication token found. Please login again.")
-        setSaving(false)
-        return
-      }
-
-      // Templates are already saved on each toggle, but keep this for consistency
-      setSuccessMessage("All notification settings are saved!")
-      setTimeout(() => setSuccessMessage(""), 3000)
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to save notification settings.")
-      console.error("Error saving settings:", err)
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -333,7 +300,6 @@ const Notifications: React.FC = () => {
             type="checkbox"
             checked={settings[field]}
             onChange={() => handleToggle(field)}
-            disabled={saving}
           />
           <span className="toggle-slider"></span>
         </label>
@@ -466,14 +432,12 @@ const Notifications: React.FC = () => {
                 <button
                   className={`channel-button ${emailEnabled ? "active" : ""}`}
                   onClick={() => handleChannelChange("email")}
-                  disabled={saving}
                 >
                   Email {emailEnabled && "✓"}
                 </button>
                 <button
                   className={`channel-button ${telegramEnabled ? "active" : ""}`}
                   onClick={() => handleChannelChange("telegram")}
-                  disabled={saving}
                 >
                   Telegram {telegramEnabled && "✓"}
                 </button>
@@ -505,12 +469,6 @@ const Notifications: React.FC = () => {
                 {renderToggleField("show_location", "Show Transaction Location")}
                 {renderToggleField("show_device_info", "Show Device Information")}
               </div>
-            </div>
-
-            <div>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? "Saving..." : "Save Settings"}
-              </Button>
             </div>
           </div>
         )}

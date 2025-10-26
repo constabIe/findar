@@ -205,7 +205,7 @@ const Transactions: React.FC = () => {
       setAllTransactions((prev) =>
         prev.map((t) =>
           t.id === transactionToReview.id
-            ? { ...t, status: reviewStatus ? "APPROVED" : "REJECTED" }
+            ? { ...t, status: reviewStatus ? "accepted" : "rejected" }
             : t
         )
       )
@@ -456,26 +456,37 @@ const Transactions: React.FC = () => {
                             fontWeight:
                               transaction.status.toUpperCase() === "FLAGGED" ? "bold" : "normal",
                             backgroundColor:
-                              transaction.status.toUpperCase() === "COMPLETED" ||
-                              transaction.status.toUpperCase() === "APPROVED"
-                                ? "#d4edda"
-                                : transaction.status.toUpperCase() === "PENDING"
-                                  ? "#fff3cd"
-                                  : transaction.status.toUpperCase() === "FLAGGED"
-                                    ? "#ff9800"
-                                    : "#f8d7da",
+                              transaction.status.toLowerCase() === "accepted"
+                                ? "#c3e6cb"  // Light green for accepted
+                                : transaction.status.toLowerCase() === "rejected"
+                                  ? "#f5c6cb"  // Light red for rejected
+                                  : transaction.status.toUpperCase() === "COMPLETED" ||
+                                      transaction.status.toUpperCase() === "APPROVED"
+                                    ? "#d4edda"
+                                    : transaction.status.toUpperCase() === "PENDING"
+                                      ? "#fff3cd"
+                                      : transaction.status.toUpperCase() === "FLAGGED"
+                                        ? "#ff9800"
+                                        : "#f8d7da",
                             color:
-                              transaction.status.toUpperCase() === "COMPLETED" ||
-                              transaction.status.toUpperCase() === "APPROVED"
-                                ? "#155724"
-                                : transaction.status.toUpperCase() === "PENDING"
-                                  ? "#856404"
-                                  : transaction.status.toUpperCase() === "FLAGGED"
-                                    ? "#ffffff"
-                                    : "#721c24"
+                              transaction.status.toLowerCase() === "accepted"
+                                ? "#155724"  // Dark green for accepted
+                                : transaction.status.toLowerCase() === "rejected"
+                                  ? "#721c24"  // Dark red for rejected
+                                  : transaction.status.toUpperCase() === "COMPLETED" ||
+                                      transaction.status.toUpperCase() === "APPROVED"
+                                    ? "#155724"
+                                    : transaction.status.toUpperCase() === "PENDING"
+                                      ? "#856404"
+                                      : transaction.status.toUpperCase() === "FLAGGED"
+                                        ? "#ffffff"
+                                        : "#721c24"
                           }}
                         >
-                          {transaction.status}
+                          {transaction.status.toLowerCase() === "accepted" ||
+                          transaction.status.toLowerCase() === "rejected"
+                            ? transaction.status.toLowerCase()
+                            : transaction.status}
                         </span>
                       </td>
                       <td style={{ padding: "12px 8px" }}>{transaction.currency}</td>
