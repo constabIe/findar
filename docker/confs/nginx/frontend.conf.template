@@ -2,9 +2,7 @@ server {
     listen 80;
     server_name ${FRONTEND_DOMAIN};
 
-    # -----------------------
-    # FRONTEND (основной сайт)
-    # -----------------------
+    # Frontend
     root /usr/share/nginx/html;
     index index.html;
 
@@ -12,9 +10,7 @@ server {
         try_files $uri /index.html;
     }
 
-    # -----------------------
-    # GRAFANA (доступно также на основном домене)
-    # -----------------------
+    # Grafana (also accessible from metrics.domain/grafana)
     location /grafana/ {
         proxy_pass http://grafana:${GF_PORT}/;
         proxy_http_version 1.1;
