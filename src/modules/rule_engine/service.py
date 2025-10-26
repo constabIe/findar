@@ -502,7 +502,11 @@ async def evaluate_threshold_rule(
             target_val = (
                 params.target
                 if params.target is not None
-                else (params.max_amount if params.max_amount is not None else params.min_amount)
+                else (
+                    params.max_amount
+                    if params.max_amount is not None
+                    else params.min_amount
+                )
             )
             if target_val is not None and amount > target_val:
                 amount_matched = True
@@ -513,7 +517,11 @@ async def evaluate_threshold_rule(
             target_val = (
                 params.target
                 if params.target is not None
-                else (params.max_amount if params.max_amount is not None else params.min_amount)
+                else (
+                    params.max_amount
+                    if params.max_amount is not None
+                    else params.min_amount
+                )
             )
             if target_val is not None and amount >= target_val:
                 amount_matched = True
@@ -524,7 +532,11 @@ async def evaluate_threshold_rule(
             target_val = (
                 params.target
                 if params.target is not None
-                else (params.min_amount if params.min_amount is not None else params.max_amount)
+                else (
+                    params.min_amount
+                    if params.min_amount is not None
+                    else params.max_amount
+                )
             )
             if target_val is not None and amount < target_val:
                 amount_matched = True
@@ -535,7 +547,11 @@ async def evaluate_threshold_rule(
             target_val = (
                 params.target
                 if params.target is not None
-                else (params.min_amount if params.min_amount is not None else params.max_amount)
+                else (
+                    params.min_amount
+                    if params.min_amount is not None
+                    else params.max_amount
+                )
             )
             if target_val is not None and amount <= target_val:
                 amount_matched = True
@@ -546,7 +562,11 @@ async def evaluate_threshold_rule(
             target_val = (
                 params.target
                 if params.target is not None
-                else (params.max_amount if params.max_amount is not None else params.min_amount)
+                else (
+                    params.max_amount
+                    if params.max_amount is not None
+                    else params.min_amount
+                )
             )
             if target_val is not None and amount == target_val:
                 amount_matched = True
@@ -557,7 +577,11 @@ async def evaluate_threshold_rule(
             target_val = (
                 params.target
                 if params.target is not None
-                else (params.max_amount if params.max_amount is not None else params.min_amount)
+                else (
+                    params.max_amount
+                    if params.max_amount is not None
+                    else params.min_amount
+                )
             )
             if target_val is not None and amount != target_val:
                 amount_matched = True
