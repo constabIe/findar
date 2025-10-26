@@ -148,16 +148,12 @@ const Transactions: React.FC = () => {
 
     // Status filter
     if (statusFilter) {
-      filtered = filtered.filter((t) =>
-        t.status.toLowerCase().includes(statusFilter.toLowerCase())
-      )
+      filtered = filtered.filter((t) => t.status.toLowerCase().includes(statusFilter.toLowerCase()))
     }
 
     // Type filter
     if (typeFilter) {
-      filtered = filtered.filter((t) =>
-        t.type.toLowerCase().includes(typeFilter.toLowerCase())
-      )
+      filtered = filtered.filter((t) => t.type.toLowerCase().includes(typeFilter.toLowerCase()))
     }
 
     // Currency filter

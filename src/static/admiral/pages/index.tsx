@@ -7,7 +7,8 @@ const Home: React.FC = () => {
       <Card>
         <h2>Findar</h2>
         <p>
-          Findar is a lightweight admin interface to manage rules, show transactions and monitor the fraud detection system.
+          Findar is a lightweight admin interface to manage rules, show transactions and monitor the
+          fraud detection system.
         </p>
       </Card>
     </Page>
