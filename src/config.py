@@ -117,6 +117,9 @@ class NotificationSettings(BaseSettings):
 
     TELEGRAM_BOT_TOKEN: str = Field(default="")
     EMAIL_SMTP_USER: str = Field(default="")
+    EMAIL_SMTP_PASSWORD: str = Field(default="")
+    EMAIL_SMTP_HOST: str = Field(default="smtp.gmail.com")
+    EMAIL_SMTP_PORT: int = Field(default=465)
 
     model_config = SettingsConfigDict(
         env_file=str(PROJECT_ROOT / ".env"),

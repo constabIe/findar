@@ -261,6 +261,30 @@ const Rules: React.FC = () => {
         showNotification("Rules field is required for Composite rules.", "error")
         return
       }
+    } else if (ruleToEdit.type === "ml") {
+      if (!editRuleParams.model_version || editRuleParams.model_version.trim() === "") {
+        showNotification("Model Version is required for ML rules.", "error")
+        return
+      }
+      // Either endpoint_url or model_file_path must be provided
+      const hasEndpoint = editRuleParams.endpoint_url && editRuleParams.endpoint_url.trim() !== "" && editRuleParams.endpoint_url !== "-"
+      const hasFilePath = editRuleParams.model_file_path && editRuleParams.model_file_path.trim() !== ""
+      
+      if (!hasEndpoint && !hasFilePath) {
+        showNotification("Either Endpoint URL or Model File Path is required for ML rules.", "error")
+        return
+      }
+      
+      if (editRuleParams.threshold === undefined || editRuleParams.threshold === null || editRuleParams.threshold === "") {
+        showNotification("Threshold is required for ML rules.", "error")
+        return
+      }
+      // Validate threshold range
+      const threshold = parseFloat(editRuleParams.threshold)
+      if (isNaN(threshold) || threshold < 0 || threshold > 1) {
+        showNotification("Threshold must be a number between 0.0 and 1.0.", "error")
+        return
+      }
     }
 
     try {
@@ -314,16 +338,21 @@ const Rules: React.FC = () => {
           }
         })
       } else if (ruleToEdit.type === "composite") {
-        const compositeKeys = ["composite_operator", "rules"]
-        compositeKeys.forEach((key) => {
-          if (
-            editRuleParams[key] !== undefined &&
-            editRuleParams[key] !== "" &&
-            editRuleParams[key] !== null
-          ) {
-            filteredParams[key] = editRuleParams[key]
-          }
-        })
+        // Map composite_operator to operator for backend API
+        if (
+          editRuleParams["composite_operator"] !== undefined &&
+          editRuleParams["composite_operator"] !== "" &&
+          editRuleParams["composite_operator"] !== null
+        ) {
+          filteredParams["operator"] = editRuleParams["composite_operator"]
+        }
+        if (
+          editRuleParams["rules"] !== undefined &&
+          editRuleParams["rules"] !== "" &&
+          editRuleParams["rules"] !== null
+        ) {
+          filteredParams["rules"] = editRuleParams["rules"]
+        }
       } else if (ruleToEdit.type === "ml") {
         const mlKeys = ["model_version", "threshold", "endpoint_url", "model_file_path"]
         mlKeys.forEach((key) => {
@@ -470,6 +499,30 @@ const Rules: React.FC = () => {
         showNotification("Rules field is required for Composite rules.", "error")
         return
       }
+    } else if (newRuleType === "ml") {
+      if (!newRuleParams.model_version || newRuleParams.model_version.trim() === "") {
+        showNotification("Model Version is required for ML rules.", "error")
+        return
+      }
+      // Either endpoint_url or model_file_path must be provided
+      const hasEndpoint = newRuleParams.endpoint_url && newRuleParams.endpoint_url.trim() !== "" && newRuleParams.endpoint_url !== "-"
+      const hasFilePath = newRuleParams.model_file_path && newRuleParams.model_file_path.trim() !== ""
+      
+      if (!hasEndpoint && !hasFilePath) {
+        showNotification("Either Endpoint URL or Model File Path is required for ML rules.", "error")
+        return
+      }
+      
+      if (newRuleParams.threshold === undefined || newRuleParams.threshold === null || newRuleParams.threshold === "") {
+        showNotification("Threshold is required for ML rules.", "error")
+        return
+      }
+      // Validate threshold range
+      const threshold = parseFloat(newRuleParams.threshold)
+      if (isNaN(threshold) || threshold < 0 || threshold > 1) {
+        showNotification("Threshold must be a number between 0.0 and 1.0.", "error")
+        return
+      }
     }
 
     try {
@@ -525,17 +578,21 @@ const Rules: React.FC = () => {
           }
         })
       } else if (newRuleType === "composite") {
-        // Only include composite-specific parameters
-        const compositeKeys = ["composite_operator", "rules"]
-        compositeKeys.forEach((key) => {
-          if (
-            newRuleParams[key] !== undefined &&
-            newRuleParams[key] !== "" &&
-            newRuleParams[key] !== null
-          ) {
-            filteredParams[key] = newRuleParams[key]
-          }
-        })
+        // Map composite_operator to operator for backend API
+        if (
+          newRuleParams["composite_operator"] !== undefined &&
+          newRuleParams["composite_operator"] !== "" &&
+          newRuleParams["composite_operator"] !== null
+        ) {
+          filteredParams["operator"] = newRuleParams["composite_operator"]
+        }
+        if (
+          newRuleParams["rules"] !== undefined &&
+          newRuleParams["rules"] !== "" &&
+          newRuleParams["rules"] !== null
+        ) {
+          filteredParams["rules"] = newRuleParams["rules"]
+        }
       } else if (newRuleType === "ml") {
         // Only include ML-specific parameters
         const mlKeys = ["model_version", "threshold", "endpoint_url", "model_file_path"]

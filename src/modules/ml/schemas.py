@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, HttpUrl
+import datetime
 
 
 class MLModelCreateLocal(BaseModel):
@@ -39,7 +40,7 @@ class MLModelResponse(BaseModel):
     size_mb: Optional[float]
     description: Optional[str]
     created_by: Optional[UUID]
-    created_at: str
+    created_at: datetime.datetime
 
 
 class MLModelListResponse(BaseModel):

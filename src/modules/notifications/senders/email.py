@@ -125,8 +125,8 @@ class EmailSender(BaseSender):
 
             # Set email headers
             # "From" header - can include display name: "Name <email@domain.com>"
-            from_address = config.get("username", "noreply@company.com")
-            from_name = config.get("from_name", "")
+            from_address = config.get("SMTP_HOST", "noreply@company.com")
+            from_name = config.get("SMTP_USER", "")
             if from_name:
                 mime_message["From"] = f"{from_name} <{from_address}>"
             else:
@@ -204,7 +204,7 @@ class EmailSender(BaseSender):
             # Unexpected error
             error_msg = f"email_unexpected_error: {str(e)}"
             logger.exception(
-                "Unexpected error sending email",
+                f"Unexpected error sending email {e}",
                 component="notifications",
                 event="email_unexpected_error",
             )
@@ -265,11 +265,11 @@ class EmailSender(BaseSender):
             smtplib.SMTPException: Other SMTP errors
         """
         # Extract configuration
-        smtp_server = config["smtp_server"]
-        smtp_port = config["smtp_port"]
-        use_tls = config.get("use_tls", True)
-        username = config.get("username")
-        password = config.get("password")
+        smtp_server = config["SMTP_HOST"]
+        smtp_port = config["SMTP_PORT"]
+        use_tls = config.get("USE_TLS", True)
+        username = config.get("SMTP_USER")
+        password = config.get("SMTP_PASSWORD")
 
         # Step 1: Create SSL context for secure communication
         # ----------------------------------------------------

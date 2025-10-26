@@ -607,6 +607,7 @@ class NotificationService:
                 except Exception as exc:
                     send_ok = False
                     send_err = str(exc)
+                    print("EX1", str(exc))
 
                 # persist attempt
                 try:

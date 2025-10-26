@@ -1352,11 +1352,9 @@ async def evaluate_ml_rule(
     """
     Evaluate an ML-based rule against a transaction.
 
-    TODO: Implement ML model integration
-    - Load trained model
-    - Feature extraction
-    - Risk scoring
-    - Threshold comparison
+    STUB IMPLEMENTATION: Returns deterministic pseudo-random confidence score
+    between 0.7 and 1.0 based on transaction_id hash. In production, this would
+    call a real ML model endpoint.
 
     Args:
         transaction_data: Transaction data
@@ -1367,22 +1365,84 @@ async def evaluate_ml_rule(
     Returns:
         RuleEvaluationResult with evaluation outcome
     """
-    is_critical = rule_dict.get("critical", False)
+    import hashlib
+    from .schemas import MLRuleParams
 
-    # TODO: Implement ML model inference
-    logger.debug(
-        f"ML rule evaluation not fully implemented: {rule_name}",
+    is_critical = rule_dict.get("critical", False)
+    
+    # Parse ML rule parameters
+    try:
+        ml_params = MLRuleParams(**rule_dict["params"])
+    except Exception as e:
+        logger.error(
+            f"Failed to parse ML rule params: {rule_name}",
+            rule_id=str(rule_id),
+            error=str(e),
+        )
+        return RuleEvaluationResult(
+            rule_id=rule_id,
+            rule_name=rule_name,
+            rule_type=RuleType.ML,
+            matched=False,
+            confidence_score=0.0,
+            risk_level=RiskLevel.LOW,
+            error_message=f"Invalid ML params: {str(e)}",
+        )
+
+    # Extract transaction_id for deterministic hashing
+    transaction_id = transaction_data.get("id") or transaction_data.get("transaction_id", "")
+    
+    # Generate deterministic pseudo-random confidence between 0.7 and 1.0
+    # Using MD5 hash of transaction_id to ensure same transaction always gets same score
+    hash_input = f"{transaction_id}:{rule_id}".encode()
+    hash_digest = hashlib.md5(hash_input).hexdigest()
+    hash_int = int(hash_digest[:8], 16)  # Use first 8 hex chars
+    
+    # Map to 0.7-1.0 range (31 possible values: 0.70, 0.71, ..., 1.00)
+    confidence = 0.70 + (hash_int % 31) / 100.0
+    
+    # Compare with threshold to determine match
+    matched = confidence >= ml_params.threshold
+    
+    # Determine risk level
+    if matched:
+        if is_critical:
+            risk_level = RiskLevel.CRITICAL
+        elif confidence >= 0.9:
+            risk_level = RiskLevel.HIGH
+        elif confidence >= 0.8:
+            risk_level = RiskLevel.MEDIUM
+        else:
+            risk_level = RiskLevel.LOW
+    else:
+        risk_level = RiskLevel.LOW
+    
+    match_reason = (
+        f"ML confidence: {confidence:.3f} >= threshold: {ml_params.threshold:.3f} "
+        f"(model: {ml_params.model_version}, stub evaluation)"
+        if matched
+        else None
+    )
+    
+    logger.info(
+        f"ML rule evaluated (STUB): {rule_name}",
         rule_id=str(rule_id),
+        transaction_id=str(transaction_id),
+        confidence=confidence,
+        threshold=ml_params.threshold,
+        matched=matched,
+        model_version=ml_params.model_version,
+        endpoint_url=ml_params.endpoint_url,
     )
 
     return RuleEvaluationResult(
         rule_id=rule_id,
         rule_name=rule_name,
         rule_type=RuleType.ML,
-        matched=False,
-        confidence_score=0.0,
-        risk_level=RiskLevel.LOW,
-        match_reason="ML rules not yet implemented",
+        matched=matched,
+        confidence_score=confidence,
+        risk_level=risk_level,
+        match_reason=match_reason,
     )
 
 
