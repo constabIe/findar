@@ -405,6 +405,38 @@ const Rules: React.FC = () => {
     setIsModalOpen(false)
   }
 
+  const handleHotReload = async () => {
+    try {
+      const token = localStorage.getItem("admiral_global_admin_session_token")
+
+      if (!token) {
+        showNotification("No authentication token found. Please login again.", "error")
+        return
+      }
+
+      // POST request to refresh cache
+      await axios.post(
+        `${API_URL}/rules/cache/refresh`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      )
+
+      showNotification("Cache refreshed successfully!", "success")
+
+      // Refresh the rules list after successful cache reload
+      if (selectedType) {
+        await fetchRules(selectedType)
+      }
+    } catch (err: any) {
+      console.error("Error refreshing cache:", err)
+      showNotification(err.response?.data?.detail || "Failed to refresh cache.", "error")
+    }
+  }
+
   const handleRuleTypeChange = (value: string) => {
     setNewRuleType(value)
     // Keep existing params instead of clearing them completely
@@ -770,7 +802,19 @@ const Rules: React.FC = () => {
                 ML
               </Button>
             </div>
-            <div>
+            <div style={{ display: "flex", gap: "12px" }}>
+              <Button
+                onClick={handleHotReload}
+                style={{
+                  backgroundColor: "#f57c00",
+                  color: "#ffffff",
+                  padding: "10px 20px",
+                  fontWeight: "bold",
+                  border: "none"
+                }}
+              >
+                HOT RELOAD
+              </Button>
               <Button
                 onClick={handleOpenModal}
                 style={{
