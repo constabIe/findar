@@ -12,8 +12,8 @@ services:
       - postgres
       - monitoring
     depends_on:
-      postgres:
-        condition: service_healthy
+      # postgres:
+      #   condition: service_healthy
       redis:
         condition: service_healthy
       migrations:
@@ -195,6 +195,10 @@ services:
         condition: service_started
       postgres:
         condition: service_healthy
+      api:
+        condition: service_started
+      celery:
+        condition: service_started
 
   loki:
     image: grafana/loki:3.5.7
@@ -207,7 +211,10 @@ services:
       - "${LOKI_PORT}:3100"
     restart: unless-stopped
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      grafana:
+        condition: service_started
 
   promtail:
     image: grafana/promtail:3.5.7
