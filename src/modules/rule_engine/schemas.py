@@ -212,8 +212,7 @@ class MLRuleParams(BaseModel):
 
     # Endpoint configuration (optional, mutually exclusive with model_file_path)
     endpoint_url: Optional[str] = Field(
-        default=None,
-        description="URL of the ML model inference endpoint"
+        default=None, description="URL of the ML model inference endpoint"
     )
 
     # Model file path (optional, alternative to endpoint)
@@ -228,7 +227,7 @@ class MLRuleParams(BaseModel):
         """Validate that endpoint URL has valid format if provided."""
         if v is None or v == "" or v == "-":
             return None
-            
+
         # Basic URL validation
         if not (v.startswith("http://") or v.startswith("https://")):
             raise ValueError("Endpoint URL must start with http:// or https://")

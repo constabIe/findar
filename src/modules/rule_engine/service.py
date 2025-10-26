@@ -1366,10 +1366,11 @@ async def evaluate_ml_rule(
         RuleEvaluationResult with evaluation outcome
     """
     import hashlib
+
     from .schemas import MLRuleParams
 
     is_critical = rule_dict.get("critical", False)
-    
+
     # Parse ML rule parameters
     try:
         ml_params = MLRuleParams(**rule_dict["params"])
@@ -1390,20 +1391,22 @@ async def evaluate_ml_rule(
         )
 
     # Extract transaction_id for deterministic hashing
-    transaction_id = transaction_data.get("id") or transaction_data.get("transaction_id", "")
-    
+    transaction_id = transaction_data.get("id") or transaction_data.get(
+        "transaction_id", ""
+    )
+
     # Generate deterministic pseudo-random confidence between 0.7 and 1.0
     # Using MD5 hash of transaction_id to ensure same transaction always gets same score
     hash_input = f"{transaction_id}:{rule_id}".encode()
     hash_digest = hashlib.md5(hash_input).hexdigest()
     hash_int = int(hash_digest[:8], 16)  # Use first 8 hex chars
-    
+
     # Map to 0.7-1.0 range (31 possible values: 0.70, 0.71, ..., 1.00)
     confidence = 0.70 + (hash_int % 31) / 100.0
-    
+
     # Compare with threshold to determine match
     matched = confidence >= ml_params.threshold
-    
+
     # Determine risk level
     if matched:
         if is_critical:
@@ -1416,14 +1419,14 @@ async def evaluate_ml_rule(
             risk_level = RiskLevel.LOW
     else:
         risk_level = RiskLevel.LOW
-    
+
     match_reason = (
         f"ML confidence: {confidence:.3f} >= threshold: {ml_params.threshold:.3f} "
         f"(model: {ml_params.model_version}, stub evaluation)"
         if matched
         else None
     )
-    
+
     logger.info(
         f"ML rule evaluated (STUB): {rule_name}",
         rule_id=str(rule_id),

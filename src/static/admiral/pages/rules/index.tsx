@@ -267,15 +267,26 @@ const Rules: React.FC = () => {
         return
       }
       // Either endpoint_url or model_file_path must be provided
-      const hasEndpoint = editRuleParams.endpoint_url && editRuleParams.endpoint_url.trim() !== "" && editRuleParams.endpoint_url !== "-"
-      const hasFilePath = editRuleParams.model_file_path && editRuleParams.model_file_path.trim() !== ""
-      
+      const hasEndpoint =
+        editRuleParams.endpoint_url &&
+        editRuleParams.endpoint_url.trim() !== "" &&
+        editRuleParams.endpoint_url !== "-"
+      const hasFilePath =
+        editRuleParams.model_file_path && editRuleParams.model_file_path.trim() !== ""
+
       if (!hasEndpoint && !hasFilePath) {
-        showNotification("Either Endpoint URL or Model File Path is required for ML rules.", "error")
+        showNotification(
+          "Either Endpoint URL or Model File Path is required for ML rules.",
+          "error"
+        )
         return
       }
-      
-      if (editRuleParams.threshold === undefined || editRuleParams.threshold === null || editRuleParams.threshold === "") {
+
+      if (
+        editRuleParams.threshold === undefined ||
+        editRuleParams.threshold === null ||
+        editRuleParams.threshold === ""
+      ) {
         showNotification("Threshold is required for ML rules.", "error")
         return
       }
@@ -505,15 +516,26 @@ const Rules: React.FC = () => {
         return
       }
       // Either endpoint_url or model_file_path must be provided
-      const hasEndpoint = newRuleParams.endpoint_url && newRuleParams.endpoint_url.trim() !== "" && newRuleParams.endpoint_url !== "-"
-      const hasFilePath = newRuleParams.model_file_path && newRuleParams.model_file_path.trim() !== ""
-      
+      const hasEndpoint =
+        newRuleParams.endpoint_url &&
+        newRuleParams.endpoint_url.trim() !== "" &&
+        newRuleParams.endpoint_url !== "-"
+      const hasFilePath =
+        newRuleParams.model_file_path && newRuleParams.model_file_path.trim() !== ""
+
       if (!hasEndpoint && !hasFilePath) {
-        showNotification("Either Endpoint URL or Model File Path is required for ML rules.", "error")
+        showNotification(
+          "Either Endpoint URL or Model File Path is required for ML rules.",
+          "error"
+        )
         return
       }
-      
-      if (newRuleParams.threshold === undefined || newRuleParams.threshold === null || newRuleParams.threshold === "") {
+
+      if (
+        newRuleParams.threshold === undefined ||
+        newRuleParams.threshold === null ||
+        newRuleParams.threshold === ""
+      ) {
         showNotification("Threshold is required for ML rules.", "error")
         return
       }

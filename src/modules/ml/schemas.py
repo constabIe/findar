@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import datetime
 from typing import Dict, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, HttpUrl
-import datetime
 
 
 class MLModelCreateLocal(BaseModel):
