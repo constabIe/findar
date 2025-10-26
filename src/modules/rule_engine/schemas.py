@@ -41,6 +41,11 @@ class ThresholdRuleParams(BaseModel):
     min_amount: Optional[float] = Field(
         None, description="Minimum transaction amount allowed"
     )
+    # Single target value for comparison operators (>, <, ==, !=, >=, <=)
+    # Use this field when rule uses a single comparison operator.
+    target: Optional[float] = Field(
+        None, description="Single target value for comparison operators"
+    )
 
     # Comparison operator for numeric thresholds
     operator: ThresholdOperator = Field(
@@ -97,9 +102,11 @@ class ThresholdRuleParams(BaseModel):
         """Validate that end hour is after start hour."""
         # In Pydantic v2, use info.data to access other field values
         start = info.data.get("allowed_hours_start")
-        if start is not None and v is not None and v <= start:
+        # Allow wrap-around windows (start > end) and single-sided bounds.
+        # Only reject if both bounds are present and equal (zero-length window).
+        if start is not None and v is not None and v == start:
             raise ValueError(
-                "allowed_hours_end must be greater than allowed_hours_start"
+                "allowed_hours_end must be different from allowed_hours_start"
             )
         return v
 
@@ -187,7 +194,7 @@ class MLRuleParams(BaseModel):
     Parameters for machine learning-based fraud detection rules.
 
     ML rules use trained models to assess transaction risk with confidence scores.
-    The model is accessed via an endpoint URL.
+    The model is accessed via an endpoint URL or uploaded as a file.
     """
 
     # Model configuration
@@ -203,21 +210,36 @@ class MLRuleParams(BaseModel):
         description="Minimum confidence score for positive match (0.0-1.0)",
     )
 
-    # Endpoint configuration
-    endpoint_url: str = Field(description="URL of the ML model inference endpoint")
+    # Endpoint configuration (optional, mutually exclusive with model_file_path)
+    endpoint_url: Optional[str] = Field(
+        default=None, description="URL of the ML model inference endpoint"
+    )
+
+    # Model file path (optional, alternative to endpoint)
+    model_file_path: Optional[str] = Field(
+        default=None,
+        description="Path to uploaded ML model file (alternative to endpoint_url)",
+    )
 
     @field_validator("endpoint_url")
     @classmethod
     def validate_endpoint_url(cls, v):
-        """Validate that endpoint URL is not empty and has valid format."""
-        if not v or not v.strip():
-            raise ValueError("Endpoint URL cannot be empty")
+        """Validate that endpoint URL has valid format if provided."""
+        if v is None or v == "" or v == "-":
+            return None
 
         # Basic URL validation
         if not (v.startswith("http://") or v.startswith("https://")):
             raise ValueError("Endpoint URL must start with http:// or https://")
 
         return v.strip()
+
+    def model_post_init(self, __context):
+        """Validate that at least one of endpoint_url or model_file_path is provided."""
+        if not self.endpoint_url and not self.model_file_path:
+            raise ValueError(
+                "Either endpoint_url or model_file_path must be provided for ML rules"
+            )
 
 
 class RuleEvaluationRequest(BaseModel):

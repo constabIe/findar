@@ -128,7 +128,7 @@ async def create_transaction(
     response_model=TransactionListResponse,
     status_code=status.HTTP_200_OK,
     summary="Get All Transactions",
-    description="Retrieve all transactions from database with optional limit",
+    description="Retrieve all transactions from database with filtering and pagination",
 )
 async def get_all_transactions(
     session: AsyncSessionDep,
@@ -137,20 +137,59 @@ async def get_all_transactions(
         ge=1,
         description="Maximum number of transactions to return (default: all)",
     ),
+    status_filter: Optional[str] = Query(
+        None,
+        description="Filter by transaction status (e.g., pending, completed, flagged, rejected, accepted)",
+    ),
+    type_filter: Optional[str] = Query(
+        None,
+        description="Filter by transaction type (e.g., TRANSFER, PAYMENT, WITHDRAWAL)",
+    ),
+    from_account: Optional[str] = Query(
+        None,
+        description="Filter by source account",
+    ),
+    to_account: Optional[str] = Query(
+        None,
+        description="Filter by destination account",
+    ),
+    currency: Optional[str] = Query(
+        None,
+        description="Filter by currency (e.g., USD, EUR, GBP)",
+    ),
+    search: Optional[str] = Query(
+        None,
+        description="Search in description, merchant_id, location, or device_id",
+    ),
+    start_date: Optional[datetime] = Query(
+        None,
+        description="Filter transactions after this date (ISO format)",
+    ),
+    end_date: Optional[datetime] = Query(
+        None,
+        description="Filter transactions before this date (ISO format)",
+    ),
 ) -> TransactionListResponse:
     """
-    Get all transactions from the database.
+    Get all transactions from the database with advanced filtering.
 
     This endpoint:
     1. Retrieves transactions from PostgreSQL
-    2. Supports optional limit parameter for pagination
+    2. Supports multiple filter parameters for precise queries
     3. Returns transactions ordered by timestamp (newest first)
-    4. Returns empty list if no transactions found (not an error)
+    4. Returns empty list if no transactions match filters
 
     Args:
         session: Async database session dependency
-        limit: Optional maximum number of transactions to return.
-               If not specified, returns all transactions.
+        limit: Optional maximum number of transactions to return
+        status_filter: Filter by transaction status
+        type_filter: Filter by transaction type
+        from_account: Filter by source account
+        to_account: Filter by destination account
+        currency: Filter by currency
+        search: Search across multiple text fields
+        start_date: Filter transactions after this date
+        end_date: Filter transactions before this date
 
     Returns:
         TransactionListResponse: List of transactions with metadata
@@ -159,21 +198,33 @@ async def get_all_transactions(
         HTTPException 500: If database query fails
 
     Example:
-        GET /api/v1/transactions
-        GET /api/v1/transactions?limit=10
+        GET /api/v1/transactions?status_filter=flagged&currency=USD
     """
     logger.info(
-        "Retrieving transactions",
+        "Retrieving transactions with filters",
         event="get_transactions_request",
         limit=limit,
+        status_filter=status_filter,
+        type_filter=type_filter,
+        currency=currency,
     )
 
     try:
         # Create repository instance
         repo = TransactionRepository(session)
 
-        # Get transactions from database
-        transactions = await repo.get_all_transactions(limit=limit)
+        # Get transactions from database with filters
+        transactions = await repo.get_all_transactions(
+            limit=limit,
+            status_filter=status_filter,
+            type_filter=type_filter,
+            from_account=from_account,
+            to_account=to_account,
+            currency=currency,
+            search=search,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         # Convert to response models
         transaction_responses = [

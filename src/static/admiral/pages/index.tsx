@@ -5,8 +5,11 @@ const Home: React.FC = () => {
   return (
     <Page title="Welcome to the Findar project!">
       <Card>
-        <h2>Admin Panel</h2>
-        <p>Use the sidebar menu to navigate between sections</p>
+        <h2>Findar</h2>
+        <p>
+          Findar is a lightweight admin interface to manage rules, show transactions and monitor the
+          fraud detection system.
+        </p>
       </Card>
     </Page>
   )

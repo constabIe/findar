@@ -361,3 +361,92 @@ def observe_transaction_review_duration(duration_seconds: float) -> None:
         duration_seconds: Review processing duration in seconds
     """
     transaction_review_duration.observe(duration_seconds)
+
+
+# Notification counters
+notifications_sent_total = Counter(
+    "notifications_sent_total",
+    "Total number of notifications sent",
+    ["channel", "status"],  # channel: telegram, email, sms; status: sent, failed
+)
+
+notifications_delivered_total = Counter(
+    "notifications_delivered_total",
+    "Total number of successfully delivered notifications",
+    ["channel"],  # channel: telegram, email, sms
+)
+
+notifications_failed_total = Counter(
+    "notifications_failed_total",
+    "Total number of failed notification deliveries",
+    ["channel", "error_type"],  # channel, error_type
+)
+
+# Notification delivery time
+notification_delivery_duration = Histogram(
+    "notification_delivery_duration_seconds",
+    "Time spent delivering a notification",
+    ["channel"],  # channel: telegram, email, sms
+    buckets=(0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0),  # seconds
+)
+
+# Notification queue metrics
+notifications_pending = Gauge(
+    "notifications_pending",
+    "Number of notifications pending delivery",
+    ["channel"],
+)
+
+
+def increment_notification_sent_counter(channel: str, status: str) -> None:
+    """
+    Increment notification sent counter.
+
+    Args:
+        channel: Notification channel (telegram, email, sms)
+        status: Delivery status (sent, failed)
+    """
+    notifications_sent_total.labels(channel=channel, status=status).inc()
+
+
+def increment_notification_delivered_counter(channel: str) -> None:
+    """
+    Increment successfully delivered notifications counter.
+
+    Args:
+        channel: Notification channel (telegram, email, sms)
+    """
+    notifications_delivered_total.labels(channel=channel).inc()
+
+
+def increment_notification_failed_counter(channel: str, error_type: str) -> None:
+    """
+    Increment failed notifications counter.
+
+    Args:
+        channel: Notification channel (telegram, email, sms)
+        error_type: Type of error that caused failure
+    """
+    notifications_failed_total.labels(channel=channel, error_type=error_type).inc()
+
+
+def observe_notification_delivery_time(channel: str, duration_seconds: float) -> None:
+    """
+    Record notification delivery time observation.
+
+    Args:
+        channel: Notification channel (telegram, email, sms)
+        duration_seconds: Delivery duration in seconds
+    """
+    notification_delivery_duration.labels(channel=channel).observe(duration_seconds)
+
+
+def set_notifications_pending(channel: str, count: int) -> None:
+    """
+    Set number of pending notifications.
+
+    Args:
+        channel: Notification channel (telegram, email, sms)
+        count: Number of pending notifications
+    """
+    notifications_pending.labels(channel=channel).set(count)

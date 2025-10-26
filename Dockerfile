@@ -33,6 +33,10 @@ WORKDIR /app
 # Copy environment from builder
 COPY --from=builder --chown=nonroot:nonroot /app /app
 
+# Make folders accessible by dependent services
+RUN mkdir -p /app/logs && chown -R nonroot:nonroot /app/logs
+RUN mkdir -p /app/models && chown -R nonroot:nonroot /app/models
+
 # Add venv binaries to PATH
 ENV PATH="/app/.venv/bin:$PATH"
 
@@ -48,8 +52,12 @@ CMD ["uv", "run", "alembic", "upgrade", "head"]
 
 # --------------- API ----------------
 FROM base AS api
-CMD ["uv", "run", "-m", "src.api", "--host", "${HOST}", "--port", "${APP_PORT}"]
+CMD ["uv", "run", "-m", "src.api"]
 
 # -------------- CELERY --------------
 FROM base AS celery
 CMD ["uv", "run", "celery", "-A", "src.modules.queue.celery_config:celery_app", "worker", "--loglevel=info", "--queues=transactions,rule_executions,celery", "--pool=solo"]
+
+# -------------- TG BOT --------------
+FROM base AS bot
+CMD ["uv", "run", "-m", "src.bot"]

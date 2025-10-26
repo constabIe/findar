@@ -31,6 +31,7 @@ const CustomMenu = () => {
     return () => observer.disconnect()
   }, [])
 
+<<<<<<< HEAD
   const handleLogout = () => {
     // Clear authentication token
     localStorage.removeItem("admiral_global_admin_session_token")
@@ -38,16 +39,15 @@ const CustomMenu = () => {
     window.location.href = "/login"
   }
 
+=======
+>>>>>>> 9d7e7d9c862ca0ddbfbb724981d065be1dc9bd39
   return (
     <Menu>
       <MenuItemLink name="Transactions" to="/transactions" icon="FiCreditCard" />
       <MenuItemLink name="Rules" to="/rules" icon="FiSettings" />
       <MenuItemLink name="Profile" to="/profile" icon="FiUser" />
+      <MenuItemLink name="Notifications" to="/notifications" icon="FiBell" />
       <MenuItemLink name="Graphics" to="/graphics" icon="FiBarChart2" />
-
-      <div style={{ marginTop: "auto" }} onClick={handleLogout}>
-        <MenuItemLink name="Logout" to="/login" icon="FiLogOut" />
-      </div>
     </Menu>
   )
 }

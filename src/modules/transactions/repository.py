@@ -237,14 +237,30 @@ class TransactionRepository:
             )
 
     async def get_all_transactions(
-        self, limit: Optional[int] = None
+        self,
+        limit: Optional[int] = None,
+        status_filter: Optional[str] = None,
+        type_filter: Optional[str] = None,
+        from_account: Optional[str] = None,
+        to_account: Optional[str] = None,
+        currency: Optional[str] = None,
+        search: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> list[Transaction]:
         """
-        Get all transactions from database with optional limit.
+        Get all transactions from database with advanced filtering.
 
         Args:
-            limit: Optional limit for number of transactions to return.
-                   If None, returns all transactions.
+            limit: Optional limit for number of transactions to return
+            status_filter: Filter by transaction status
+            type_filter: Filter by transaction type
+            from_account: Filter by source account
+            to_account: Filter by destination account
+            currency: Filter by currency
+            search: Search across multiple text fields
+            start_date: Filter transactions after this date
+            end_date: Filter transactions before this date
 
         Returns:
             List of Transaction instances ordered by timestamp (newest first)
@@ -256,6 +272,48 @@ class TransactionRepository:
             # Build query with sorting by timestamp (descending - newest first)
             stmt = select(Transaction).order_by(Transaction.timestamp.desc())  # type: ignore
 
+            # Apply filters
+            if status_filter:
+                stmt = stmt.where(
+                    Transaction.status.ilike(f"%{status_filter}%")  # type: ignore
+                )
+
+            if type_filter:
+                stmt = stmt.where(
+                    Transaction.type.ilike(f"%{type_filter}%")  # type: ignore
+                )
+
+            if from_account:
+                stmt = stmt.where(
+                    Transaction.from_account.ilike(f"%{from_account}%")  # type: ignore
+                )
+
+            if to_account:
+                stmt = stmt.where(
+                    Transaction.to_account.ilike(f"%{to_account}%")  # type: ignore
+                )
+
+            if currency:
+                stmt = stmt.where(
+                    Transaction.currency.ilike(f"%{currency}%")  # type: ignore
+                )
+
+            if search:
+                # Search across multiple text fields
+                search_pattern = f"%{search}%"
+                stmt = stmt.where(
+                    (Transaction.description.ilike(search_pattern))  # type: ignore
+                    | (Transaction.merchant_id.ilike(search_pattern))  # type: ignore
+                    | (Transaction.location.ilike(search_pattern))  # type: ignore
+                    | (Transaction.device_id.ilike(search_pattern))  # type: ignore
+                )
+
+            if start_date:
+                stmt = stmt.where(Transaction.timestamp >= start_date)  # type: ignore
+
+            if end_date:
+                stmt = stmt.where(Transaction.timestamp <= end_date)  # type: ignore
+
             # Apply limit if specified
             if limit is not None:
                 stmt = stmt.limit(limit)
@@ -263,9 +321,20 @@ class TransactionRepository:
             result = await self.session.execute(stmt)
             transactions = list(result.scalars().all())
 
+            filter_info = []
+            if status_filter:
+                filter_info.append(f"status={status_filter}")
+            if type_filter:
+                filter_info.append(f"type={type_filter}")
+            if currency:
+                filter_info.append(f"currency={currency}")
+            if search:
+                filter_info.append(f"search={search}")
+
             logger.info(
                 f"Retrieved {len(transactions)} transaction(s)"
-                + (f" with limit={limit}" if limit else " (no limit)")
+                + (f" with filters: {', '.join(filter_info)}" if filter_info else "")
+                + (f" and limit={limit}" if limit else " (no limit)")
             )
 
             return transactions

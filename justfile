@@ -4,10 +4,11 @@
 default:
   @just --list
 
-
 # Initialize environment variables
 env:
-  
+  cp .env.example .env
+  cd ./src/static/admiral && cp .env.example .env
+  ./scripts/envsubst.sh docker
 
 # Confirm auto lint action
 confirm-lint:

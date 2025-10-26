@@ -149,7 +149,7 @@ class ReportingRepository:
         )
 
         # Import QueueTask here to avoid circular imports
-        from src.modules.queue.models import QueueTask
+        from src.storage.models import QueueTask
 
         # Build query filters
         filters = [QueueTask.processing_time_ms.isnot(None)]  # type: ignore

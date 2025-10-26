@@ -472,6 +472,7 @@ async def evaluate_threshold_rule(
         transaction_amount=amount,
         transaction_amount_type=type(amount).__name__,
         rule_max_amount=params.max_amount,
+        rule_target=params.target,
         rule_max_amount_type=type(params.max_amount).__name__
         if params.max_amount
         else None,
@@ -485,63 +486,106 @@ async def evaluate_threshold_rule(
     risk_level = RiskLevel.LOW
 
     # Check amount thresholds with operator support
-    if params.max_amount is not None or params.min_amount is not None:
+    # Use `target` for single-value comparisons; fall back to min/max when needed
+    if (
+        params.target is not None
+        or params.max_amount is not None
+        or params.min_amount is not None
+    ):
         from .enums import ThresholdOperator
 
         amount_matched = False
 
         # Apply operator logic
         if params.operator == ThresholdOperator.GREATER_THAN:
-            # amount > max_amount
-            if params.max_amount is not None and amount > params.max_amount:
+            # amount > target (preferred) or > max/min as fallback
+            target_val = (
+                params.target
+                if params.target is not None
+                else (
+                    params.max_amount
+                    if params.max_amount is not None
+                    else params.min_amount
+                )
+            )
+            if target_val is not None and amount > target_val:
                 amount_matched = True
-                match_reason = f"Amount {amount} > {params.max_amount}"
+                match_reason = f"Amount {amount} > {target_val}"
 
         elif params.operator == ThresholdOperator.GREATER_EQUAL:
-            # amount >= max_amount
-            if params.max_amount is not None and amount >= params.max_amount:
+            # amount >= target (preferred) or >= max/min as fallback
+            target_val = (
+                params.target
+                if params.target is not None
+                else (
+                    params.max_amount
+                    if params.max_amount is not None
+                    else params.min_amount
+                )
+            )
+            if target_val is not None and amount >= target_val:
                 amount_matched = True
-                match_reason = f"Amount {amount} >= {params.max_amount}"
+                match_reason = f"Amount {amount} >= {target_val}"
 
         elif params.operator == ThresholdOperator.LESS_THAN:
-            # amount < min_amount (for detecting suspiciously small transactions)
-            if params.min_amount is not None and amount < params.min_amount:
+            # amount < target (preferred) or < min/max as fallback
+            target_val = (
+                params.target
+                if params.target is not None
+                else (
+                    params.min_amount
+                    if params.min_amount is not None
+                    else params.max_amount
+                )
+            )
+            if target_val is not None and amount < target_val:
                 amount_matched = True
-                match_reason = f"Amount {amount} < {params.min_amount}"
-            elif params.max_amount is not None and amount < params.max_amount:
-                amount_matched = True
-                match_reason = f"Amount {amount} < {params.max_amount}"
+                match_reason = f"Amount {amount} < {target_val}"
 
         elif params.operator == ThresholdOperator.LESS_EQUAL:
-            # amount <= min_amount
-            if params.min_amount is not None and amount <= params.min_amount:
+            # amount <= target (preferred) or <= min/max as fallback
+            target_val = (
+                params.target
+                if params.target is not None
+                else (
+                    params.min_amount
+                    if params.min_amount is not None
+                    else params.max_amount
+                )
+            )
+            if target_val is not None and amount <= target_val:
                 amount_matched = True
-                match_reason = f"Amount {amount} <= {params.min_amount}"
-            elif params.max_amount is not None and amount <= params.max_amount:
-                amount_matched = True
-                match_reason = f"Amount {amount} <= {params.max_amount}"
+                match_reason = f"Amount {amount} <= {target_val}"
 
         elif params.operator == ThresholdOperator.EQUAL:
-            # amount == target
-            target = (
-                params.max_amount
-                if params.max_amount is not None
-                else params.min_amount
+            # amount == target (preferred) or fallback
+            target_val = (
+                params.target
+                if params.target is not None
+                else (
+                    params.max_amount
+                    if params.max_amount is not None
+                    else params.min_amount
+                )
             )
-            if target is not None and amount == target:
+            if target_val is not None and amount == target_val:
                 amount_matched = True
-                match_reason = f"Amount {amount} == {target}"
+                match_reason = f"Amount {amount} == {target_val}"
 
         elif params.operator == ThresholdOperator.NOT_EQUAL:
-            # amount != target
-            target = (
-                params.max_amount
-                if params.max_amount is not None
-                else params.min_amount
+            # amount != target (preferred) or fallback
+            target_val = (
+                params.target
+                if params.target is not None
+                else (
+                    params.max_amount
+                    if params.max_amount is not None
+                    else params.min_amount
+                )
             )
-            if target is not None and amount != target:
+            if target_val is not None and amount != target_val:
                 amount_matched = True
-                match_reason = f"Amount {amount} != {target}"
+                match_reason = f"Amount {amount} != {target_val}"
 
         elif params.operator == ThresholdOperator.BETWEEN:
             # min_amount <= amount <= max_amount
@@ -572,11 +616,37 @@ async def evaluate_threshold_rule(
             )
 
     # Check time window restrictions
-    if params.allowed_hours_start is not None and params.allowed_hours_end is not None:
+    # Support single-sided bounds and wrap-around windows (start > end)
+    if params.allowed_hours_start is not None or params.allowed_hours_end is not None:
         current_hour = timestamp.hour
-        if not (params.allowed_hours_start <= current_hour < params.allowed_hours_end):
+        start = params.allowed_hours_start
+        end = params.allowed_hours_end
+
+        # Determine whether current hour is within allowed window
+        allowed = True
+        if start is not None and end is not None:
+            # Normal window
+            if start < end:
+                allowed = start <= current_hour < end
+            # Wrap-around window (e.g., 22..6)
+            elif start > end:
+                allowed = current_hour >= start or current_hour < end
+            else:
+                # start == end handled by schema validator; treat as disallowed
+                allowed = False
+        elif start is not None:
+            # Only start provided: allowed from start..23:59
+            allowed = current_hour >= start
+        elif end is not None:
+            # Only end provided: allowed from 00:00..end-1
+            allowed = current_hour < end
+
+        if not allowed:
             matched = True
-            match_reason = f"Transaction at hour {current_hour} outside allowed window {params.allowed_hours_start}-{params.allowed_hours_end}"
+            match_reason = (
+                f"Transaction at hour {current_hour} outside allowed window "
+                f"{start if start is not None else '-'}-{end if end is not None else '-'}"
+            )
             risk_level = RiskLevel.MEDIUM
 
     # Check location restrictions
@@ -1063,8 +1133,8 @@ async def evaluate_composite_rule(
         )
 
     try:
-        # Parse composite rule parameters
-        params_dict = rule_dict.get("parameters", {})
+        # Parse composite rule parameters (cache stores params under "params")
+        params_dict = rule_dict.get("params", {})
         params = CompositeRuleParams(**params_dict)
 
         operator = params.operator
@@ -1101,9 +1171,10 @@ async def evaluate_composite_rule(
             # Note: We evaluate sub-rules regardless of their is_active status
             # because composite rules should work with any referenced rule
             sub_rule_id = UUID(sub_rule_dict.get("id"))
-            sub_rule_type = RuleType(sub_rule_dict.get("rule_type"))
+            # The repository/cache uses keys: 'type', 'params', 'enabled'
+            sub_rule_type = RuleType(sub_rule_dict.get("type"))
             actual_sub_rule_name = sub_rule_dict.get("name", sub_rule_name)
-            is_active = sub_rule_dict.get("is_active", False)
+            is_active = sub_rule_dict.get("enabled", False)
 
             logger.debug(
                 f"Evaluating sub-rule '{sub_rule_name}'",
@@ -1178,7 +1249,9 @@ async def evaluate_composite_rule(
 
         # Apply logical operator
         matched_sub_rules = [r for r in sub_results if r.matched]
-        all_confidences = [r.confidence_score for r in sub_results]
+
+        # Normalize confidences to avoid None values
+        all_confidences = [float(r.confidence_score or 0.0) for r in sub_results]
         all_risk_levels = [r.risk_level for r in sub_results]
 
         if operator == CompositeOperator.AND:
@@ -1279,11 +1352,9 @@ async def evaluate_ml_rule(
     """
     Evaluate an ML-based rule against a transaction.
 
-    TODO: Implement ML model integration
-    - Load trained model
-    - Feature extraction
-    - Risk scoring
-    - Threshold comparison
+    STUB IMPLEMENTATION: Returns deterministic pseudo-random confidence score
+    between 0.7 and 1.0 based on transaction_id hash. In production, this would
+    call a real ML model endpoint.
 
     Args:
         transaction_data: Transaction data
@@ -1294,22 +1365,87 @@ async def evaluate_ml_rule(
     Returns:
         RuleEvaluationResult with evaluation outcome
     """
+    import hashlib
+
+    from .schemas import MLRuleParams
+
     is_critical = rule_dict.get("critical", False)
 
-    # TODO: Implement ML model inference
-    logger.debug(
-        f"ML rule evaluation not fully implemented: {rule_name}",
+    # Parse ML rule parameters
+    try:
+        ml_params = MLRuleParams(**rule_dict["params"])
+    except Exception as e:
+        logger.error(
+            f"Failed to parse ML rule params: {rule_name}",
+            rule_id=str(rule_id),
+            error=str(e),
+        )
+        return RuleEvaluationResult(
+            rule_id=rule_id,
+            rule_name=rule_name,
+            rule_type=RuleType.ML,
+            matched=False,
+            confidence_score=0.0,
+            risk_level=RiskLevel.LOW,
+            error_message=f"Invalid ML params: {str(e)}",
+        )
+
+    # Extract transaction_id for deterministic hashing
+    transaction_id = transaction_data.get("id") or transaction_data.get(
+        "transaction_id", ""
+    )
+
+    # Generate deterministic pseudo-random confidence between 0.7 and 1.0
+    # Using MD5 hash of transaction_id to ensure same transaction always gets same score
+    hash_input = f"{transaction_id}:{rule_id}".encode()
+    hash_digest = hashlib.md5(hash_input).hexdigest()
+    hash_int = int(hash_digest[:8], 16)  # Use first 8 hex chars
+
+    # Map to 0.7-1.0 range (31 possible values: 0.70, 0.71, ..., 1.00)
+    confidence = 0.70 + (hash_int % 31) / 100.0
+
+    # Compare with threshold to determine match
+    matched = confidence >= ml_params.threshold
+
+    # Determine risk level
+    if matched:
+        if is_critical:
+            risk_level = RiskLevel.CRITICAL
+        elif confidence >= 0.9:
+            risk_level = RiskLevel.HIGH
+        elif confidence >= 0.8:
+            risk_level = RiskLevel.MEDIUM
+        else:
+            risk_level = RiskLevel.LOW
+    else:
+        risk_level = RiskLevel.LOW
+
+    match_reason = (
+        f"ML confidence: {confidence:.3f} >= threshold: {ml_params.threshold:.3f} "
+        f"(model: {ml_params.model_version}, stub evaluation)"
+        if matched
+        else None
+    )
+
+    logger.info(
+        f"ML rule evaluated (STUB): {rule_name}",
         rule_id=str(rule_id),
+        transaction_id=str(transaction_id),
+        confidence=confidence,
+        threshold=ml_params.threshold,
+        matched=matched,
+        model_version=ml_params.model_version,
+        endpoint_url=ml_params.endpoint_url,
     )
 
     return RuleEvaluationResult(
         rule_id=rule_id,
         rule_name=rule_name,
         rule_type=RuleType.ML,
-        matched=False,
-        confidence_score=0.0,
-        risk_level=RiskLevel.LOW,
-        match_reason="ML rules not yet implemented",
+        matched=matched,
+        confidence_score=confidence,
+        risk_level=risk_level,
+        match_reason=match_reason,
     )
 
 

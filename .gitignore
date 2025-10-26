@@ -222,7 +222,6 @@ __marimo__/
 .vscode
 .idea
 
-
 #github
 .github/instructions
 
@@ -231,10 +230,9 @@ logs/
 
 #Bruno
 Findar/
-
 #bruno
 findar_API
 
 node_modules
 
-.local/*
+.localfiles

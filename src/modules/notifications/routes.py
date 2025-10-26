@@ -9,7 +9,8 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import status as http_status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.notifications.enums import (
@@ -57,7 +58,7 @@ async def get_notification_service(
 @router.post(
     "/templates",
     response_model=NotificationTemplateResponse,
-    status_code=status.HTTP_201_CREATED,
+    status_code=http_status.HTTP_201_CREATED,
     summary="Create notification template",
 )
 async def create_template(
@@ -75,7 +76,7 @@ async def create_template(
         return NotificationTemplateResponse.model_validate(template)
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to create template: {str(e)}",
         )
 
@@ -123,7 +124,7 @@ async def list_templates(
         )
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list templates: {str(e)}",
         )
 
@@ -141,7 +142,7 @@ async def get_template(
     template = await repository.get_template(template_id)
     if not template:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Template not found",
         )
 
@@ -162,7 +163,7 @@ async def update_template(
     template = await repository.update_template(template_id, update_data)
     if not template:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Template not found",
         )
 
@@ -171,7 +172,7 @@ async def update_template(
 
 @router.delete(
     "/templates/{template_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=http_status.HTTP_204_NO_CONTENT,
     summary="Delete notification template",
 )
 async def delete_template(
@@ -182,7 +183,7 @@ async def delete_template(
     success = await repository.delete_template(template_id)
     if not success:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Template not found",
         )
 
@@ -191,7 +192,7 @@ async def delete_template(
 @router.post(
     "/channels",
     response_model=NotificationChannelConfigResponse,
-    status_code=status.HTTP_201_CREATED,
+    status_code=http_status.HTTP_201_CREATED,
     summary="Create channel configuration",
 )
 async def create_channel_config(
@@ -204,7 +205,7 @@ async def create_channel_config(
         return NotificationChannelConfigResponse.model_validate(config)
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to create channel config: {str(e)}",
         )
 
@@ -223,7 +224,7 @@ async def list_channel_configs(
         return [NotificationChannelConfigResponse.model_validate(c) for c in configs]
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list channel configs: {str(e)}",
         )
 
@@ -241,7 +242,7 @@ async def get_channel_config(
     config = await repository.get_channel_config(channel)
     if not config:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Channel configuration not found",
         )
 
@@ -262,7 +263,7 @@ async def update_channel_config(
     config = await repository.update_channel_config(channel, config_data)
     if not config:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Channel configuration not found",
         )
 
@@ -315,7 +316,7 @@ async def list_deliveries(
         )
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list deliveries: {str(e)}",
         )
 
@@ -333,7 +334,7 @@ async def get_delivery(
     delivery = await repository.get_delivery(delivery_id)
     if not delivery:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Delivery not found",
         )
 
@@ -367,7 +368,7 @@ async def send_notifications(
         )
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to send notifications: {str(e)}",
         )
 
@@ -406,7 +407,7 @@ async def get_notification_stats(
         )
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get statistics: {str(e)}",
         )
 
@@ -432,6 +433,6 @@ async def health_check(
         }
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Service unhealthy: {str(e)}",
         )

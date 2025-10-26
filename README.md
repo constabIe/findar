@@ -5,8 +5,6 @@
 ## Требования
 
 - Python 3.13+
-- PostgreSQL 15+
-- Redis
 - [uv](https://docs.astral.sh/uv/)
 
 ## Установка
@@ -31,10 +29,7 @@ uv sync
 cp docker/.env.example .env
 ```
 
-Отредактируйте `.env` с вашими настройками базы данных и Redis.
-
-5. Создайте `.secrets.toml` в корне проекта. Подробная структура в
-   `.example.secrets.toml`.
+5. Отредактируйте `.env` с вашими настройками базы данных и Redis.
 
 6. Примените миграции базы данных:
 
@@ -47,3 +42,34 @@ uv run alembic upgrade head
 ```bash
 uv run python -m src.api
 ```
+
+## Тест нагрузка
+
+```bash
+uv run scripts/test.py
+```
+
+Чтобы запустить проект с помощью Docker:
+
+1. Инициализируйте переменные окружения:
+
+   cp .env.example .env cd ./src/static/admiral && cp .env.example .env
+
+2. Инициализируйте конфигурации сервисов:
+
+   chmod a+x ./scripts/envsubst.sh ./scripts/envsubst.sh docker
+
+3. Соберите контейнеры:
+
+   docker compose build
+
+4. Запустите проект:
+
+   docker compose up -d
+
+После запуска следующие сервисы будут доступны:
+
+- Админ-панель: [http://localhost](http://localhost)
+- Grafana: [http://metrics.localhost](http://metrics.localhost) или
+  [http://localhost:4000](http://localhost:4000)
+- API: [http://api.localhost](http://api.localhost)

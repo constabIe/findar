@@ -56,7 +56,7 @@ const authProvider = (apiUrl: string): AuthProvider => ({
       .then((user) => {
         return {
           ...user,
-          fullName: user.name || user.email,
+          fullName: user.name || user.telegram_alias || "User",
           tg_alias: user.telegram_alias || user.tg_alias || user.tgAlias
         }
       })
