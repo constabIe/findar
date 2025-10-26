@@ -4,10 +4,13 @@ services:
       context: .
       target: api
     container_name: api
-    ports:
-      - "${API_PORT}:${API_PORT}"
+    # user: "999:999"
+    # volumes:
+    #   - shared_data:/app/data
     env_file:
       - .env
+    ports:
+      - "${API_PORT}:${API_PORT}"
     networks:
       - postgres
       - monitoring
@@ -17,7 +20,7 @@ services:
       redis:
         condition: service_healthy
       migrations:
-        condition: service_started
+        condition: service_completed_successfully
     restart: unless-stopped
 
   migrations:
@@ -32,7 +35,7 @@ services:
         condition: service_healthy
     networks:
       - postgres
-    restart: "no"
+    restart: no
 
   celery:
     build:
@@ -69,9 +72,9 @@ services:
     restart: unless-stopped
 
   frontend-builder:
-    container_name: frontend-builder
     build:
       context: ./src/static/admiral
+    container_name: frontend-builder
     volumes:
       - frontend_dist:/app/dist
 
@@ -250,10 +253,14 @@ services:
       - postgres
       - monitoring
     depends_on:
-      - api
-      - frontend-builder
-      - node-exporter
-      - grafana
+      api:
+        condition: service_started
+      frontend-builder:
+        condition: service_completed_successfully
+      node-exporter:
+        condition: service_started
+      grafana:
+        condition: service_started
     restart: unless-stopped
 
 volumes:
