@@ -16,14 +16,14 @@ Usage: python test.py --url http://127.0.0.1:8080/api/v1/transactions
 
 import argparse
 import asyncio
+import json
 import random
-import time
 import sys
+import time
 from collections import Counter
 from urllib.parse import urlparse
 
 import aiohttp
-import json
 
 # Defaults
 DEFAULT_TOTAL = 1000
@@ -121,9 +121,18 @@ def percentile(lat_list, p: float):
 async def main():
     parser = argparse.ArgumentParser(description="Simple load tester")
     parser.add_argument("--url", default=DEFAULT_URL, help="Target URL")
-    parser.add_argument("--total", type=int, default=DEFAULT_TOTAL, help="Total requests")
-    parser.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY, help="Concurrent requests")
-    parser.add_argument("--verbose", action="store_true", help="Print each payload being sent")
+    parser.add_argument(
+        "--total", type=int, default=DEFAULT_TOTAL, help="Total requests"
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=DEFAULT_CONCURRENCY,
+        help="Concurrent requests",
+    )
+    parser.add_argument(
+        "--verbose", action="store_true", help="Print each payload being sent"
+    )
     args = parser.parse_args()
 
     URL = args.url
@@ -143,12 +152,16 @@ async def main():
         if await tcp_check(host, port, timeout=2.0):
             ok = True
             break
-        print(f"Connection to {host}:{port} failed (attempt {attempt}/{max_retries}), retrying in {backoff}s...")
+        print(
+            f"Connection to {host}:{port} failed (attempt {attempt}/{max_retries}), retrying in {backoff}s..."
+        )
         await asyncio.sleep(backoff)
         backoff *= 2
 
     if not ok:
-        print(f"Cannot reach {host}:{port}. Check that the server is running and the URL is correct: {URL}")
+        print(
+            f"Cannot reach {host}:{port}. Check that the server is running and the URL is correct: {URL}"
+        )
         sys.exit(1)
 
     stats = {
@@ -171,7 +184,9 @@ async def main():
 
         for i in range(TOTAL):
             # jitter target rps to spread requests
-            target_rps = max(1.0, random.gauss(DEFAULT_MEAN_RPS, DEFAULT_RPS_JITTER / 2.0))
+            target_rps = max(
+                1.0, random.gauss(DEFAULT_MEAN_RPS, DEFAULT_RPS_JITTER / 2.0)
+            )
             interval = 1.0 / target_rps
             await asyncio.sleep(interval)
 
@@ -212,7 +227,7 @@ async def main():
         p95 = p95_v * 1000 if p95_v is not None else None
         print(
             "Latency ms (avg/p50/p95/min/max): "
-            f"{avg_latency_ms:.1f} / {p50:.1f} / {p95:.1f} / {min(lat_list)*1000:.1f} / {max(lat_list)*1000:.1f}"
+            f"{avg_latency_ms:.1f} / {p50:.1f} / {p95:.1f} / {min(lat_list) * 1000:.1f} / {max(lat_list) * 1000:.1f}"
         )
     print("Status counts:", dict(stats["status_counts"]))
     if stats["errors"]:
