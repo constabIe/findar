@@ -164,16 +164,20 @@ async def create_rule(
     responses={
         HTTPStatus.OK: {"description": "Rule found"},
         HTTPStatus.NOT_FOUND: {"description": "Rule not found"},
+        HTTPStatus.FORBIDDEN: {"description": "Access denied to this rule"},
         HTTPStatus.INTERNAL_SERVER_ERROR: {"description": "Database error"},
     },
 )
 async def get_rule(
-    rule_id: UUID, repository: RuleRepository = Depends(get_rule_repository)
+    current_user: CurrentUser,
+    rule_id: UUID,
+    repository: RuleRepository = Depends(get_rule_repository),
 ) -> RuleResponse:
     """
     Retrieve a specific fraud detection rule by its UUID.
 
     Args:
+        current_user: Current authenticated user
         rule_id: UUID of the rule to retrieve
         repository: Injected rule repository
 
@@ -184,7 +188,12 @@ async def get_rule(
         HTTPException: If rule not found or database error occurs
     """
     try:
-        logger.debug("Retrieving rule", rule_id=str(rule_id), event="rule_get_request")
+        logger.debug(
+            "Retrieving rule",
+            rule_id=str(rule_id),
+            user_id=str(current_user.id),
+            event="rule_get_request",
+        )
 
         rule = await repository.get_rule_by_id(rule_id)
 
@@ -195,6 +204,20 @@ async def get_rule(
             raise HTTPException(
                 status_code=HTTPStatus.NOT_FOUND,
                 detail=f"Rule with ID {rule_id} not found",
+            )
+
+        # Check if rule belongs to current user
+        if rule.created_by_user_id != current_user.id:
+            logger.warning(
+                "Access denied to rule",
+                rule_id=str(rule_id),
+                user_id=str(current_user.id),
+                rule_owner_id=str(rule.created_by_user_id),
+                event="rule_access_denied",
+            )
+            raise HTTPException(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail="You don't have access to this rule",
             )
 
         logger.debug(
@@ -243,6 +266,7 @@ async def get_rule(
     },
 )
 async def list_rules(
+    current_user: CurrentUser,
     skip: int = Query(0, ge=0, description="Number of rules to skip"),
     limit: int = Query(
         50, ge=1, le=100, description="Maximum number of rules to return"
@@ -255,6 +279,7 @@ async def list_rules(
     List fraud detection rules with pagination and filtering.
 
     Args:
+        current_user: Current authenticated user
         skip: Number of records to skip for pagination
         limit: Maximum number of records to return
         enabled_only: Filter to only enabled rules
@@ -274,11 +299,16 @@ async def list_rules(
             limit=limit,
             enabled_only=enabled_only,
             rule_type=rule_type.value if rule_type else None,
+            user_id=str(current_user.id),
             event="rule_list_request",
         )
 
         rules, total = await repository.get_all_rules(
-            skip=skip, limit=limit, enabled_only=enabled_only, rule_type=rule_type
+            skip=skip,
+            limit=limit,
+            enabled_only=enabled_only,
+            rule_type=rule_type,
+            created_by_user_id=current_user.id,
         )
 
         logger.debug(
@@ -340,12 +370,15 @@ async def list_rules(
     },
 )
 async def get_rules_by_type(
-    rule_type: RuleType, repository: RuleRepository = Depends(get_rule_repository)
+    current_user: CurrentUser,
+    rule_type: RuleType,
+    repository: RuleRepository = Depends(get_rule_repository),
 ) -> List[RuleResponse]:
     """
     Get all fraud detection rules of a specific type.
 
     Args:
+        current_user: Current authenticated user
         rule_type: Type of rules to retrieve
         repository: Injected rule repository
 
@@ -359,10 +392,13 @@ async def get_rules_by_type(
         logger.debug(
             "Retrieving rules by type",
             rule_type=rule_type.value,
+            user_id=str(current_user.id),
             event="rules_by_type_request",
         )
 
-        rules = await repository.get_rules_by_type(rule_type)
+        rules = await repository.get_rules_by_type(
+            rule_type, created_by_user_id=current_user.id
+        )
 
         logger.debug(
             "Rules by type retrieved successfully",
@@ -404,11 +440,13 @@ async def get_rules_by_type(
     responses={
         HTTPStatus.OK: {"description": "Rule updated successfully"},
         HTTPStatus.NOT_FOUND: {"description": "Rule not found"},
+        HTTPStatus.FORBIDDEN: {"description": "Access denied to this rule"},
         HTTPStatus.BAD_REQUEST: {"description": "Invalid rule parameters"},
         HTTPStatus.INTERNAL_SERVER_ERROR: {"description": "Database error"},
     },
 )
 async def update_rule(
+    current_user: CurrentUser,
     rule_id: UUID,
     rule_data: RuleUpdateRequest = Body(..., description="Rule update parameters"),
     repository: RuleRepository = Depends(get_rule_repository),
@@ -419,6 +457,7 @@ async def update_rule(
     Updates both database and Redis cache if the rule is active.
 
     Args:
+        current_user: Current authenticated user
         rule_id: UUID of the rule to update
         rule_data: Rule update request with new parameters
         repository: Injected rule repository
@@ -430,7 +469,38 @@ async def update_rule(
         HTTPException: If rule not found, validation fails, or database error occurs
     """
     try:
-        logger.info("Updating rule", rule_id=str(rule_id), event="rule_update_request")
+        logger.info(
+            "Updating rule",
+            rule_id=str(rule_id),
+            user_id=str(current_user.id),
+            event="rule_update_request",
+        )
+
+        # First, check if rule exists and belongs to current user
+        existing_rule = await repository.get_rule_by_id(rule_id)
+        if not existing_rule:
+            logger.warning(
+                "Rule not found for update",
+                rule_id=str(rule_id),
+                event="rule_not_found_for_update",
+            )
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=f"Rule with ID {rule_id} not found",
+            )
+
+        if existing_rule.created_by_user_id != current_user.id:
+            logger.warning(
+                "Access denied to update rule",
+                rule_id=str(rule_id),
+                user_id=str(current_user.id),
+                rule_owner_id=str(existing_rule.created_by_user_id),
+                event="rule_update_access_denied",
+            )
+            raise HTTPException(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail="You don't have access to update this rule",
+            )
 
         # Update rule in repository
         updated_rule = await repository.update_rule(rule_id, rule_data)
@@ -496,11 +566,14 @@ async def update_rule(
     responses={
         HTTPStatus.NO_CONTENT: {"description": "Rule deleted successfully"},
         HTTPStatus.NOT_FOUND: {"description": "Rule not found"},
+        HTTPStatus.FORBIDDEN: {"description": "Access denied to this rule"},
         HTTPStatus.INTERNAL_SERVER_ERROR: {"description": "Database error"},
     },
 )
 async def delete_rule(
-    rule_id: UUID, repository: RuleRepository = Depends(get_rule_repository)
+    current_user: CurrentUser,
+    rule_id: UUID,
+    repository: RuleRepository = Depends(get_rule_repository),
 ) -> None:
     """
     Delete a fraud detection rule.
@@ -508,6 +581,7 @@ async def delete_rule(
     Removes from both database and Redis cache.
 
     Args:
+        current_user: Current authenticated user
         rule_id: UUID of the rule to delete
         repository: Injected rule repository
 
@@ -515,7 +589,38 @@ async def delete_rule(
         HTTPException: If rule not found or database error occurs
     """
     try:
-        logger.info("Deleting rule", rule_id=str(rule_id), event="rule_delete_request")
+        logger.info(
+            "Deleting rule",
+            rule_id=str(rule_id),
+            user_id=str(current_user.id),
+            event="rule_delete_request",
+        )
+
+        # First, check if rule exists and belongs to current user
+        existing_rule = await repository.get_rule_by_id(rule_id)
+        if not existing_rule:
+            logger.warning(
+                "Rule not found for deletion",
+                rule_id=str(rule_id),
+                event="rule_not_found_for_delete",
+            )
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=f"Rule with ID {rule_id} not found",
+            )
+
+        if existing_rule.created_by_user_id != current_user.id:
+            logger.warning(
+                "Access denied to delete rule",
+                rule_id=str(rule_id),
+                user_id=str(current_user.id),
+                rule_owner_id=str(existing_rule.created_by_user_id),
+                event="rule_delete_access_denied",
+            )
+            raise HTTPException(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail="You don't have access to delete this rule",
+            )
 
         # Delete rule from repository
         deleted = await repository.delete_rule(rule_id)
@@ -567,11 +672,14 @@ async def delete_rule(
     responses={
         HTTPStatus.OK: {"description": "Rule activated successfully"},
         HTTPStatus.NOT_FOUND: {"description": "Rule not found"},
+        HTTPStatus.FORBIDDEN: {"description": "Access denied to this rule"},
         HTTPStatus.INTERNAL_SERVER_ERROR: {"description": "Database or cache error"},
     },
 )
 async def activate_rule(
-    rule_id: UUID, repository: RuleRepository = Depends(get_rule_repository)
+    current_user: CurrentUser,
+    rule_id: UUID,
+    repository: RuleRepository = Depends(get_rule_repository),
 ) -> RuleResponse:
     """
     Activate a fraud detection rule.
@@ -579,6 +687,7 @@ async def activate_rule(
     Enables the rule and adds it to the Redis cache for active rules.
 
     Args:
+        current_user: Current authenticated user
         rule_id: UUID of the rule to activate
         repository: Injected rule repository
 
@@ -590,8 +699,37 @@ async def activate_rule(
     """
     try:
         logger.info(
-            "Activating rule", rule_id=str(rule_id), event="rule_activate_request"
+            "Activating rule",
+            rule_id=str(rule_id),
+            user_id=str(current_user.id),
+            event="rule_activate_request",
         )
+
+        # First, check if rule exists and belongs to current user
+        existing_rule = await repository.get_rule_by_id(rule_id)
+        if not existing_rule:
+            logger.warning(
+                "Rule not found for activation",
+                rule_id=str(rule_id),
+                event="rule_not_found_for_activate",
+            )
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=f"Rule with ID {rule_id} not found",
+            )
+
+        if existing_rule.created_by_user_id != current_user.id:
+            logger.warning(
+                "Access denied to activate rule",
+                rule_id=str(rule_id),
+                user_id=str(current_user.id),
+                rule_owner_id=str(existing_rule.created_by_user_id),
+                event="rule_activate_access_denied",
+            )
+            raise HTTPException(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail="You don't have access to activate this rule",
+            )
 
         activated_rule = await repository.activate_rule(rule_id)
 
@@ -656,11 +794,14 @@ async def activate_rule(
     responses={
         HTTPStatus.OK: {"description": "Rule deactivated successfully"},
         HTTPStatus.NOT_FOUND: {"description": "Rule not found"},
+        HTTPStatus.FORBIDDEN: {"description": "Access denied to this rule"},
         HTTPStatus.INTERNAL_SERVER_ERROR: {"description": "Database or cache error"},
     },
 )
 async def deactivate_rule(
-    rule_id: UUID, repository: RuleRepository = Depends(get_rule_repository)
+    current_user: CurrentUser,
+    rule_id: UUID,
+    repository: RuleRepository = Depends(get_rule_repository),
 ) -> RuleResponse:
     """
     Deactivate a fraud detection rule.
@@ -668,6 +809,7 @@ async def deactivate_rule(
     Disables the rule and removes it from the Redis cache.
 
     Args:
+        current_user: Current authenticated user
         rule_id: UUID of the rule to deactivate
         repository: Injected rule repository
 
@@ -679,8 +821,37 @@ async def deactivate_rule(
     """
     try:
         logger.info(
-            "Deactivating rule", rule_id=str(rule_id), event="rule_deactivate_request"
+            "Deactivating rule",
+            rule_id=str(rule_id),
+            user_id=str(current_user.id),
+            event="rule_deactivate_request",
         )
+
+        # First, check if rule exists and belongs to current user
+        existing_rule = await repository.get_rule_by_id(rule_id)
+        if not existing_rule:
+            logger.warning(
+                "Rule not found for deactivation",
+                rule_id=str(rule_id),
+                event="rule_not_found_for_deactivate",
+            )
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail=f"Rule with ID {rule_id} not found",
+            )
+
+        if existing_rule.created_by_user_id != current_user.id:
+            logger.warning(
+                "Access denied to deactivate rule",
+                rule_id=str(rule_id),
+                user_id=str(current_user.id),
+                rule_owner_id=str(existing_rule.created_by_user_id),
+                event="rule_deactivate_access_denied",
+            )
+            raise HTTPException(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail="You don't have access to deactivate this rule",
+            )
 
         deactivated_rule = await repository.deactivate_rule(rule_id)
 

@@ -271,6 +271,7 @@ const Rules: React.FC = () => {
         const thresholdKeys = [
           "max_amount",
           "min_amount",
+          "target",
           "operator",
           "time_window",
           "allowed_hours_start",
@@ -480,6 +481,7 @@ const Rules: React.FC = () => {
         const thresholdKeys = [
           "max_amount",
           "min_amount",
+          "target",
           "operator",
           "time_window",
           "allowed_hours_start",
@@ -847,9 +849,10 @@ const Rules: React.FC = () => {
                         <th style={{ padding: "12px 8px", textAlign: "left" }}>ID</th>
                         <th style={{ padding: "12px 8px", textAlign: "left" }}>Name</th>
 
-                        <th style={{ padding: "12px 8px", textAlign: "left" }}>Max Amount</th>
-                        <th style={{ padding: "12px 8px", textAlign: "left" }}>Min Amount</th>
                         <th style={{ padding: "12px 8px", textAlign: "left" }}>Operator</th>
+                        <th style={{ padding: "12px 8px", textAlign: "left" }}>Target</th>
+                        <th style={{ padding: "12px 8px", textAlign: "left" }}>Min Amount</th>
+                        <th style={{ padding: "12px 8px", textAlign: "left" }}>Max Amount</th>
                         <th style={{ padding: "12px 8px", textAlign: "left" }}>Time Window</th>
                         <th style={{ padding: "12px 8px", textAlign: "left" }}>
                           Allowed Hours Start
@@ -1016,11 +1019,12 @@ const Rules: React.FC = () => {
                           <td style={{ padding: "12px 8px", fontWeight: "bold" }}>{rule.name}</td>
 
                           {/* ALL possible parameter columns - show "-" for missing values */}
-                          <td style={{ padding: "12px 8px" }}>{rule.params.max_amount || "-"}</td>
-                          <td style={{ padding: "12px 8px" }}>{rule.params.min_amount || "-"}</td>
                           <td style={{ padding: "12px 8px" }}>
                             {formatOperator(rule.params.operator)}
                           </td>
+                          <td style={{ padding: "12px 8px" }}>{rule.params.target || "-"}</td>
+                          <td style={{ padding: "12px 8px" }}>{rule.params.min_amount || "-"}</td>
+                          <td style={{ padding: "12px 8px" }}>{rule.params.max_amount || "-"}</td>
                           <td style={{ padding: "12px 8px" }}>{rule.params.time_window || "-"}</td>
                           <td style={{ padding: "12px 8px" }}>
                             {rule.params.allowed_hours_start || "-"}
@@ -1338,43 +1342,24 @@ const Rules: React.FC = () => {
                 </Form.Item>
                 {newRuleType === "threshold" && (
                   <>
-                    <Form.Item label="Max Amount">
-                      <Input
-                        type="number"
-                        value={newRuleParams.max_amount || ""}
-                        onChange={(e: any) =>
-                          setNewRuleParams((prev) => ({
-                            ...prev,
-                            max_amount: parseFloat(e.target.value)
-                          }))
-                        }
-                        onWheel={preventNumberInputScroll}
-                        placeholder="Maximum amount"
-                      />
-                    </Form.Item>
-                    <Form.Item label="Min Amount">
-                      <Input
-                        type="number"
-                        value={newRuleParams.min_amount || ""}
-                        onChange={(e: any) =>
-                          setNewRuleParams((prev) => ({
-                            ...prev,
-                            min_amount: parseFloat(e.target.value)
-                          }))
-                        }
-                        onWheel={preventNumberInputScroll}
-                        placeholder="Minimum amount"
-                      />
-                    </Form.Item>
                     <Form.Item label="Operator">
                       <Select
                         value={newRuleParams.operator}
-                        onChange={(value: any) =>
-                          setNewRuleParams((prev) => ({
-                            ...prev,
-                            operator: value
-                          }))
-                        }
+                        onChange={(value: any) => {
+                          setNewRuleParams((prev) => {
+                            const updated: Record<string, any> = { ...prev, operator: value }
+                            // Clear opposite fields when switching operator types
+                            if (value === "between" || value === "not_between") {
+                              // Switching to between - clear target
+                              delete updated.target
+                            } else {
+                              // Switching to regular operator - clear min/max
+                              delete updated.min_amount
+                              delete updated.max_amount
+                            }
+                            return updated
+                          })
+                        }}
                         style={{ width: "100%" }}
                         allowClear
                       >
@@ -1388,6 +1373,54 @@ const Rules: React.FC = () => {
                         <Select.Option value="not_between">Not Between</Select.Option>
                       </Select>
                     </Form.Item>
+                    {newRuleParams.operator === "between" ||
+                    newRuleParams.operator === "not_between" ? (
+                      <>
+                        <Form.Item label="Min Amount">
+                          <Input
+                            type="number"
+                            value={newRuleParams.min_amount || ""}
+                            onChange={(e: any) =>
+                              setNewRuleParams((prev) => ({
+                                ...prev,
+                                min_amount: parseFloat(e.target.value)
+                              }))
+                            }
+                            onWheel={preventNumberInputScroll}
+                            placeholder="Minimum amount"
+                          />
+                        </Form.Item>
+                        <Form.Item label="Max Amount">
+                          <Input
+                            type="number"
+                            value={newRuleParams.max_amount || ""}
+                            onChange={(e: any) =>
+                              setNewRuleParams((prev) => ({
+                                ...prev,
+                                max_amount: parseFloat(e.target.value)
+                              }))
+                            }
+                            onWheel={preventNumberInputScroll}
+                            placeholder="Maximum amount"
+                          />
+                        </Form.Item>
+                      </>
+                    ) : (
+                      <Form.Item label="Target Amount">
+                        <Input
+                          type="number"
+                          value={newRuleParams.target || ""}
+                          onChange={(e: any) =>
+                            setNewRuleParams((prev) => ({
+                              ...prev,
+                              target: parseFloat(e.target.value)
+                            }))
+                          }
+                          onWheel={preventNumberInputScroll}
+                          placeholder="Target amount for comparison"
+                        />
+                      </Form.Item>
+                    )}
                     <Form.Item label="Time Window">
                       <Select
                         value={newRuleParams.time_window}
@@ -1943,43 +1976,24 @@ const Rules: React.FC = () => {
 
                 {ruleToEdit.type === "threshold" && (
                   <>
-                    <Form.Item label="Max Amount">
-                      <Input
-                        type="number"
-                        value={editRuleParams.max_amount || ""}
-                        onChange={(e: any) =>
-                          setEditRuleParams({
-                            ...editRuleParams,
-                            max_amount: parseFloat(e.target.value)
-                          })
-                        }
-                        onWheel={preventNumberInputScroll}
-                        placeholder="Maximum amount"
-                      />
-                    </Form.Item>
-                    <Form.Item label="Min Amount">
-                      <Input
-                        type="number"
-                        value={editRuleParams.min_amount || ""}
-                        onChange={(e: any) =>
-                          setEditRuleParams({
-                            ...editRuleParams,
-                            min_amount: parseFloat(e.target.value)
-                          })
-                        }
-                        onWheel={preventNumberInputScroll}
-                        placeholder="Minimum amount"
-                      />
-                    </Form.Item>
                     <Form.Item label="Operator">
                       <Select
                         value={editRuleParams.operator || ""}
-                        onChange={(value: any) =>
-                          setEditRuleParams({
-                            ...editRuleParams,
-                            operator: value
+                        onChange={(value: any) => {
+                          setEditRuleParams((prev) => {
+                            const updated: Record<string, any> = { ...prev, operator: value }
+                            // Clear opposite fields when switching operator types
+                            if (value === "between" || value === "not_between") {
+                              // Switching to between - clear target
+                              delete updated.target
+                            } else {
+                              // Switching to regular operator - clear min/max
+                              delete updated.min_amount
+                              delete updated.max_amount
+                            }
+                            return updated
                           })
-                        }
+                        }}
                         style={{ width: "100%" }}
                       >
                         <Select.Option value="gt">&gt;</Select.Option>
@@ -1992,6 +2006,54 @@ const Rules: React.FC = () => {
                         <Select.Option value="not_between">Not Between</Select.Option>
                       </Select>
                     </Form.Item>
+                    {editRuleParams.operator === "between" ||
+                    editRuleParams.operator === "not_between" ? (
+                      <>
+                        <Form.Item label="Min Amount">
+                          <Input
+                            type="number"
+                            value={editRuleParams.min_amount || ""}
+                            onChange={(e: any) =>
+                              setEditRuleParams({
+                                ...editRuleParams,
+                                min_amount: parseFloat(e.target.value)
+                              })
+                            }
+                            onWheel={preventNumberInputScroll}
+                            placeholder="Minimum amount"
+                          />
+                        </Form.Item>
+                        <Form.Item label="Max Amount">
+                          <Input
+                            type="number"
+                            value={editRuleParams.max_amount || ""}
+                            onChange={(e: any) =>
+                              setEditRuleParams({
+                                ...editRuleParams,
+                                max_amount: parseFloat(e.target.value)
+                              })
+                            }
+                            onWheel={preventNumberInputScroll}
+                            placeholder="Maximum amount"
+                          />
+                        </Form.Item>
+                      </>
+                    ) : (
+                      <Form.Item label="Target Amount">
+                        <Input
+                          type="number"
+                          value={editRuleParams.target || ""}
+                          onChange={(e: any) =>
+                            setEditRuleParams({
+                              ...editRuleParams,
+                              target: parseFloat(e.target.value)
+                            })
+                          }
+                          onWheel={preventNumberInputScroll}
+                          placeholder="Target amount for comparison"
+                        />
+                      </Form.Item>
+                    )}
                     <Form.Item label="Time Window">
                       <Select
                         value={editRuleParams.time_window || ""}
