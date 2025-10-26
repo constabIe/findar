@@ -4,6 +4,28 @@ import axios from "axios"
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1"
 
+interface NotificationTemplate {
+  show_transaction_id: boolean
+  show_amount: boolean
+  show_timestamp: boolean
+  show_from_account: boolean
+  show_to_account: boolean
+  show_triggered_rules: boolean
+  show_fraud_probability: boolean
+  show_location: boolean
+  show_device_info: boolean
+}
+
+interface NotificationTemplateWithId extends NotificationTemplate {
+  id: string
+  channel: "email" | "telegram"
+}
+
+interface TemplatesResponse {
+  email_template: NotificationTemplateWithId
+  telegram_template: NotificationTemplateWithId
+}
+
 interface NotificationSettings {
   channel: "email" | "telegram"
   show_transaction_id: boolean
@@ -26,6 +48,32 @@ const Notifications: React.FC = () => {
   const [channel, setChannel] = useState<"email" | "telegram">("email")
   const [emailEnabled, setEmailEnabled] = useState(true)
   const [telegramEnabled, setTelegramEnabled] = useState(true)
+  
+  // Separate templates for email and telegram
+  const [emailTemplate, setEmailTemplate] = useState<NotificationTemplate>({
+    show_transaction_id: true,
+    show_amount: true,
+    show_timestamp: true,
+    show_from_account: true,
+    show_to_account: true,
+    show_triggered_rules: true,
+    show_fraud_probability: true,
+    show_location: true,
+    show_device_info: true
+  })
+  
+  const [telegramTemplate, setTelegramTemplate] = useState<NotificationTemplate>({
+    show_transaction_id: true,
+    show_amount: true,
+    show_timestamp: true,
+    show_from_account: true,
+    show_to_account: true,
+    show_triggered_rules: true,
+    show_fraud_probability: true,
+    show_location: true,
+    show_device_info: true
+  })
+  
   const [settings, setSettings] = useState<NotificationSettings>({
     channel: "email",
     show_transaction_id: true,
@@ -46,7 +94,45 @@ const Notifications: React.FC = () => {
   useEffect(() => {
     loadSettings()
     loadChannelSettings()
+    loadTemplates()
   }, [])
+
+  const loadTemplates = async () => {
+    try {
+      const token = localStorage.getItem("admiral_global_admin_session_token")
+      if (!token) {
+        return
+      }
+
+      const response = await axios.get<TemplatesResponse>(`${API_URL}/users/notifications/templates`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+
+      // Update email template
+      if (response.data.email_template) {
+        const { id, channel, ...emailTemplateData } = response.data.email_template
+        setEmailTemplate(emailTemplateData)
+      }
+
+      // Update telegram template
+      if (response.data.telegram_template) {
+        const { id, channel, ...telegramTemplateData } = response.data.telegram_template
+        setTelegramTemplate(telegramTemplateData)
+      }
+
+      // Sync current settings with active channel's template
+      if (channel === "email") {
+        setSettings(prev => ({ ...prev, ...emailTemplate }))
+      } else {
+        setSettings(prev => ({ ...prev, ...telegramTemplate }))
+      }
+    } catch (err: any) {
+      console.error("Error loading templates:", err)
+      // Don't show error to user on initial load, use defaults
+    }
+  }
 
   const loadChannelSettings = async () => {
     try {
@@ -125,7 +211,10 @@ const Notifications: React.FC = () => {
       setChannel(newChannel)
       setEmailEnabled(channelData.email_enabled)
       setTelegramEnabled(channelData.telegram_enabled)
-      setSettings((prev) => ({ ...prev, channel: newChannel }))
+      
+      // Switch to the appropriate template
+      const template = newChannel === "email" ? emailTemplate : telegramTemplate
+      setSettings((prev) => ({ ...prev, channel: newChannel, ...template }))
 
       // Reload settings from server to confirm
       await loadChannelSettings()
@@ -138,11 +227,69 @@ const Notifications: React.FC = () => {
     }
   }
 
-  const handleToggle = (field: keyof Omit<NotificationSettings, "channel">) => {
-    setSettings((prev) => ({
-      ...prev,
-      [field]: !prev[field]
-    }))
+  const handleToggle = async (field: keyof Omit<NotificationSettings, "channel">) => {
+    const token = localStorage.getItem("admiral_global_admin_session_token")
+    if (!token) {
+      setError("No authentication token found. Please login again.")
+      return
+    }
+
+    // Calculate new value outside try block for error handling
+    const newValue = !settings[field]
+    
+    try {
+      // Update local state first for immediate UI feedback
+      setSettings((prev) => ({
+        ...prev,
+        [field]: newValue
+      }))
+
+      // Prepare template data
+      const templateData: NotificationTemplate = {
+        show_transaction_id: field === "show_transaction_id" ? newValue : settings.show_transaction_id,
+        show_amount: field === "show_amount" ? newValue : settings.show_amount,
+        show_timestamp: field === "show_timestamp" ? newValue : settings.show_timestamp,
+        show_from_account: field === "show_from_account" ? newValue : settings.show_from_account,
+        show_to_account: field === "show_to_account" ? newValue : settings.show_to_account,
+        show_triggered_rules: field === "show_triggered_rules" ? newValue : settings.show_triggered_rules,
+        show_fraud_probability: field === "show_fraud_probability" ? newValue : settings.show_fraud_probability,
+        show_location: field === "show_location" ? newValue : settings.show_location,
+        show_device_info: field === "show_device_info" ? newValue : settings.show_device_info
+      }
+
+      // Send POST request to the appropriate endpoint based on active channel
+      const endpoint = channel === "email" 
+        ? `${API_URL}/users/notifications/templates/email`
+        : `${API_URL}/users/notifications/templates/telegram`
+
+      await axios.post(endpoint, templateData, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+
+      // Update the appropriate template state
+      if (channel === "email") {
+        setEmailTemplate(templateData)
+      } else {
+        setTelegramTemplate(templateData)
+      }
+
+      // Reload templates to confirm
+      await loadTemplates()
+
+      setSuccessMessage(`${channel.charAt(0).toUpperCase() + channel.slice(1)} template updated successfully!`)
+      setTimeout(() => setSuccessMessage(""), 2000)
+    } catch (err: any) {
+      // Revert the change on error
+      setSettings((prev) => ({
+        ...prev,
+        [field]: !newValue
+      }))
+      setError(err.response?.data?.detail || "Failed to update template.")
+      console.error("Error updating template:", err)
+      setTimeout(() => setError(""), 3000)
+    }
   }
 
   const handleSave = async () => {
@@ -158,15 +305,8 @@ const Notifications: React.FC = () => {
         return
       }
 
-      // Save settings to API
-      // Implement API call here
-      await axios.post(`${API_URL}/notifications/settings`, settings, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
-
-      setSuccessMessage("Notification settings saved successfully!")
+      // Templates are already saved on each toggle, but keep this for consistency
+      setSuccessMessage("All notification settings are saved!")
       setTimeout(() => setSuccessMessage(""), 3000)
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to save notification settings.")
