@@ -232,3 +232,6 @@ logs/
 
 #Bruno
 Findar/
+
+.dockerignore
+tests/
