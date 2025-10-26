@@ -21,6 +21,7 @@ from .schemas import (
     UserCreate,
     UserLogin,
     UserResponse,
+    UserTelegramIdUpdate,
     UserTelegramUpdate,
 )
 from .utils import create_access_token, hash_password, verify_password
@@ -72,6 +73,30 @@ async def register_user(
             hashed_password=hashed_password,
             telegram_alias=user_data.telegram_alias,
         )
+
+        # Create default notification templates for the new user
+        try:
+            (
+                email_template_id,
+                telegram_template_id,
+            ) = await repo.create_default_templates_for_user(user.id)
+
+            # Link templates to user
+            await repo.link_templates_to_user(
+                user.id, email_template_id, telegram_template_id
+            )
+
+            logger.info(
+                f"Default notification templates created for user {user.id}: "
+                f"email={email_template_id}, telegram={telegram_template_id}"
+            )
+        except Exception as template_error:
+            logger.error(
+                f"Failed to create default templates for user {user.id}: {template_error}",
+                exc_info=True,
+            )
+            # Don't fail registration if template creation fails
+            # User can still use the system, admin can fix templates later
 
         logger.info(f"User registered successfully: {user.id} ({user.email})")
 
@@ -246,4 +271,68 @@ async def update_current_user_telegram(
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail="Failed to update Telegram alias",
+        )
+
+
+@router.patch(
+    "/me/telegram-id",
+    response_model=UserResponse,
+    status_code=HTTPStatus.OK,
+    summary="Update Telegram ID",
+    description="Update the Telegram ID for the currently authenticated user (called when user starts bot)",
+)
+async def update_current_user_telegram_id(
+    telegram_id_update: UserTelegramIdUpdate,
+    current_user: CurrentUser,
+    repo=Depends(get_user_repository),
+) -> UserResponse:
+    """
+    Update current user's Telegram ID.
+
+    This endpoint is typically called when a user starts the Telegram bot
+    for the first time, allowing the bot to link the telegram_id with the user account.
+
+    Args:
+        telegram_id_update: Telegram ID data (numeric ID from bot)
+        current_user: Current authenticated user (from JWT token)
+        repo: User repository
+
+    Returns:
+        UserResponse: Updated user information
+
+    Raises:
+        HTTPException 404: If user not found
+        HTTPException 500: If database error occurs
+    """
+    logger.info(
+        f"Telegram ID update attempt for user {current_user.id} ({current_user.email}): "
+        f"telegram_id={telegram_id_update.telegram_id}"
+    )
+
+    try:
+        # Update telegram ID
+        updated_user = await repo.update_user_telegram_id(
+            user_id=current_user.id,
+            telegram_id=telegram_id_update.telegram_id,
+        )
+
+        if not updated_user:
+            logger.error(f"User not found: {current_user.id}")
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail="User not found",
+            )
+
+        logger.info(
+            f"Telegram ID updated successfully for user {updated_user.id}: "
+            f"telegram_id={updated_user.telegram_id}"
+        )
+
+        return UserResponse.model_validate(updated_user)
+
+    except Exception as e:
+        logger.error(f"Telegram ID update error: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail="Failed to update Telegram ID",
         )

@@ -15,6 +15,13 @@ Responsibilities:
 - Integration with reporting metrics
 """
 
+from src.storage.models import (
+    NotificationChannelConfig,
+    NotificationDelivery,
+    NotificationDeliveryAttempt,
+    NotificationTemplate,
+)
+
 from .enums import (
     DeliveryErrorType,
     NotificationChannel,
@@ -22,17 +29,13 @@ from .enums import (
     NotificationStatus,
     TemplateType,
 )
-from .models import (
-    NotificationChannelConfig,
-    NotificationDelivery,
-    NotificationDeliveryAttempt,
-    NotificationTemplate,
-)
 from .repository import NotificationRepository
 from .routes import router
 from .schemas import (
     NotificationChannelConfigCreate,
     NotificationChannelConfigResponse,
+    NotificationChannelsResponse,
+    NotificationChannelsUpdate,
     NotificationDeliveryCreate,
     NotificationDeliveryListResponse,
     NotificationDeliveryResponse,
@@ -43,6 +46,9 @@ from .schemas import (
     NotificationTemplateListResponse,
     NotificationTemplateResponse,
     NotificationTemplateUpdate,
+    TemplateFieldsUpdate,
+    UserNotificationTemplateResponse,
+    UserNotificationTemplatesResponse,
 )
 from .senders import BaseSender, EmailSender, TelegramSender
 from .service import NotificationService
@@ -72,6 +78,11 @@ __all__ = [
     "NotificationSendRequest",
     "NotificationSendResponse",
     "NotificationStatsResponse",
+    "TemplateFieldsUpdate",
+    "UserNotificationTemplateResponse",
+    "UserNotificationTemplatesResponse",
+    "NotificationChannelsResponse",
+    "NotificationChannelsUpdate",
     # Senders
     "BaseSender",
     "EmailSender",

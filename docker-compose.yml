@@ -51,6 +51,23 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  bot:
+    build:
+      context: .
+      target: bot
+    container_name: bot
+    env_file:
+      - .env
+    networks:
+      - postgres
+      - monitoring
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+    restart: unless-stopped
+
   frontend-builder:
     container_name: frontend-builder
     build:
@@ -81,7 +98,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
     deploy:
       resources:
         limits:
@@ -99,8 +115,8 @@ services:
     ports:
       - "${REDIS_PORT}:${REDIS_PORT}"
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
-      interval: 30s
+      test: ["CMD", "redis-cli", "-a", "ping"]
+      interval: 10s
       timeout: 10s
       retries: 5
     deploy:

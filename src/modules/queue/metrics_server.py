@@ -31,7 +31,9 @@ class MetricsServer:
 
     def metrics_app(self, environ, start_response):
         """WSGI application to serve Prometheus metrics."""
-        if environ["PATH_INFO"] == "/metrics":
+        # Support both /metrics and /metrics/ (with trailing slash)
+        path = environ["PATH_INFO"].rstrip("/")
+        if path == "/metrics":
             output = generate_latest(REGISTRY)
             status = "200 OK"
             headers = [("Content-Type", "text/plain; charset=utf-8")]

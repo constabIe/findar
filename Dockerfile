@@ -53,3 +53,7 @@ CMD ["uv", "run", "-m", "src.api", "--host", "${HOST}", "--port", "${APP_PORT}"]
 # -------------- CELERY --------------
 FROM base AS celery
 CMD ["uv", "run", "celery", "-A", "src.modules.queue.celery_config:celery_app", "worker", "--loglevel=info", "--queues=transactions,rule_executions,celery", "--pool=solo"]
+
+# -------------- TG BOT --------------
+FROM base AS bot
+CMD ["uv", "run", "-m", "src.bot"]
