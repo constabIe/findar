@@ -1,0 +1,21 @@
+# Server
+[server]
+protocol = http
+http_port = 3000
+root_url = %(protocol)s://%(domain)s:%(http_port)s/grafana/
+serve_from_sub_path = true
+
+# Security
+[security]
+admin_user = ${GF_SECURITY_ADMIN_USER}
+admin_password = ${GF_SECURITY_ADMIN_PASSWORD}
+allow_embedding = ${GF_SECURITY_ALLOW_EMBEDDING}
+
+# Users
+[users]
+allow_sign_up = ${GF_USERS_ALLOW_SIGN_UP}
+
+# Auth
+[auth.anonymous]
+enabled = ${GF_AUTH_ANONYMOUS_ENABLED}
+org_role = ${GF_AUTH_ANONYMOUS_ORG_ROLE}
