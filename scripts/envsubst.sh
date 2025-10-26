@@ -149,4 +149,4 @@ for template in "${TEMPLATES[@]}"; do
   envsubst "$SUBST_LIST" < "$template" > "$output_path"
 done
 
-echo -e "${GREEN}[OK]${RESET} Templates rendered successfully → $OUTPUT_DIR"
+echo -e "${GREEN}[OK]${RESET}    Templates rendered successfully → $OUTPUT_DIR"
