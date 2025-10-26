@@ -114,7 +114,7 @@ services:
     command: >
       redis-server /usr/local/etc/redis/redis.conf --requirepass ${REDIS_PASSWORD}
     ports:
-      - "${REDIS_PORT}:${REDIS_PORT}"
+      - "${REDIS_PORT}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "ping"]
       interval: 30s
@@ -200,7 +200,7 @@ services:
     image: grafana/loki:3.5.7
     container_name: loki
     volumes:
-      - .localfiles/docker/loki.yml:/etc/loki/loki.yml
+      - ./docker/loki.yml:/etc/loki/loki.yml
       - loki_data:/loki
     command: -config.file=/etc/loki/loki.yml
     ports:
@@ -216,7 +216,7 @@ services:
       - .localfiles/docker/promtail.yml:/etc/promtail/promtail.yml
     command: -config.file=/etc/promtail/promtail.yml
     ports:
-      - ${PROMTAIL_PORT}:${PROMTAIL_PORT}
+      - ${PROMTAIL_PORT}:9080
     restart: unless-stopped
     depends_on:
       - loki

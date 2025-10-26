@@ -1,7 +1,7 @@
 auth_enabled: false
 
 server:
-  http_listen_port: ${LOKI_PORT}
+  http_listen_port: 3100
   grpc_listen_port: 9096
   log_level: info
   grpc_server_max_concurrent_streams: 1000
@@ -50,7 +50,7 @@ schema_config:
 pattern_ingester:
   enabled: true
   metric_aggregation:
-    loki_address: loki:${LOKI_PORT} # заменено с localhost → имя контейнера
+    loki_address: loki:3100
 
 frontend:
   encoding: protobuf
