@@ -53,26 +53,23 @@ uv run scripts/test.py
 
 1. Инициализируйте переменные окружения:
 
-   
-   cp .env.example .env
-   cd ./src/static/admiral && cp .env.example .env
-   
+   cp .env.example .env cd ./src/static/admiral && cp .env.example .env
+
 2. Инициализируйте конфигурации сервисов:
 
-   
-   chmod a+x ./scripts/envsubst.sh
-   ./scripts/envsubst.sh docker
-   
+   chmod a+x ./scripts/envsubst.sh ./scripts/envsubst.sh docker
+
 3. Соберите контейнеры:
 
    docker compose build
-   
+
 4. Запустите проект:
-   
+
    docker compose up -d
-   
+
 После запуска следующие сервисы будут доступны:
 
 - Админ-панель: [http://localhost](http://localhost)
-- Grafana: [http://metrics.localhost](http://metrics.localhost) или [http://localhost:4000](http://localhost:4000)
+- Grafana: [http://metrics.localhost](http://metrics.localhost) или
+  [http://localhost:4000](http://localhost:4000)
 - API: [http://api.localhost](http://api.localhost)
