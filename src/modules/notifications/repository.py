@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import UUID
 
-from sqlalchemy import and_, desc, func, select, update
+from sqlalchemy import and_, desc, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select as sqlmodel_select
 
@@ -21,17 +21,17 @@ from src.modules.notifications.enums import (
     NotificationStatus,
     TemplateType,
 )
-from src.storage.models import (
-    NotificationChannelConfig,
-    NotificationDelivery,
-    NotificationDeliveryAttempt,
-    NotificationTemplate,
-)
 from src.modules.notifications.schemas import (
     NotificationChannelConfigCreate,
     NotificationDeliveryCreate,
     NotificationTemplateCreate,
     NotificationTemplateUpdate,
+)
+from src.storage.models import (
+    NotificationChannelConfig,
+    NotificationDelivery,
+    NotificationDeliveryAttempt,
+    NotificationTemplate,
 )
 
 

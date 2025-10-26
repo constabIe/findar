@@ -223,7 +223,9 @@ class RuleExecution(SQLModel, table=True):
 
     # Context and debugging
     context: Dict[str, Any] = Field(
-        default_factory=dict, sa_column=Column(PGJSON), description="Rule execution context"
+        default_factory=dict,
+        sa_column=Column(PGJSON),
+        description="Rule execution context",
     )
     error_message: Optional[str] = Field(
         default=None, description="Error message if execution failed"
@@ -727,6 +729,3 @@ class NotificationDeliveryAttempt(SQLModel, table=True):
         Index("idx_attempt_started", "started_at"),
         Index("idx_attempt_success", "success"),
     )
-
-
-

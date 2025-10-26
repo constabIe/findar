@@ -15,18 +15,19 @@ Responsibilities:
 - Integration with reporting metrics
 """
 
+from src.storage.models import (
+    NotificationChannelConfig,
+    NotificationDelivery,
+    NotificationDeliveryAttempt,
+    NotificationTemplate,
+)
+
 from .enums import (
     DeliveryErrorType,
     NotificationChannel,
     NotificationPriority,
     NotificationStatus,
     TemplateType,
-)
-from src.storage.models import (
-    NotificationChannelConfig,
-    NotificationDelivery,
-    NotificationDeliveryAttempt,
-    NotificationTemplate,
 )
 from .repository import NotificationRepository
 from .routes import router

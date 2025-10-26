@@ -7,8 +7,8 @@ This centralized location prevents circular imports between models and modules.
 
 from enum import Enum
 
-
 # ==================== Rule Engine Enums ====================
+
 
 class RuleType(str, Enum):
     """Types of fraud detection rules."""
@@ -115,6 +115,7 @@ class CacheStatus(str, Enum):
 
 # ==================== Queue Enums ====================
 
+
 class TaskStatus(str, Enum):
     """
     Status of a queue task processing.
@@ -152,6 +153,7 @@ class ErrorType(str, Enum):
 
 
 # ==================== Notification Enums ====================
+
 
 class NotificationChannel(str, Enum):
     """Available notification delivery channels."""

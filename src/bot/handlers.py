@@ -31,7 +31,7 @@ async def cmd_start(message: Message) -> None:
 
     telegram_id = message.from_user.id
     username = message.from_user.username
-    
+
     print("HEREEE", username)
 
     logger.info(
@@ -54,7 +54,9 @@ async def cmd_start(message: Message) -> None:
                 # User found in DB - update telegram_id if needed
                 if user.telegram_id != telegram_id:
                     # Update telegram_id
-                    updated_user = await user_repo.update_user_telegram_id(user.id, telegram_id)
+                    updated_user = await user_repo.update_user_telegram_id(
+                        user.id, telegram_id
+                    )
                     if updated_user:
                         await message.answer(
                             f"✅ Привет, {username}!\n\n"

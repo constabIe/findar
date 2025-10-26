@@ -37,5 +37,5 @@ DbSessionDep = Annotated[AsyncSession, Depends(get_db_session)]
 AsyncRedisDep = Annotated[redis.Redis, Depends(get_async_redis_dependency)]
 
 
-# Direct dependency for sync Redis - no wrapper needed  
+# Direct dependency for sync Redis - no wrapper needed
 SyncRedisDep = Annotated[SyncRedis, Depends(get_sync_redis_dependency)]

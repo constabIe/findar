@@ -12,7 +12,6 @@ Notes:
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import UUID
@@ -31,9 +30,6 @@ from src.modules.notifications.enums import (
     NotificationChannel,
     NotificationStatus,
 )
-from src.storage.models import (
-    NotificationTemplate,
-)
 from src.modules.notifications.repository import NotificationRepository
 from src.modules.notifications.schemas import NotificationDeliveryCreate
 from src.modules.notifications.senders import EmailSender, TelegramSender
@@ -42,6 +38,9 @@ from src.modules.reporting.metrics import (
     observe_notification_time,
 )
 from src.modules.users.repository import UserRepository
+from src.storage.models import (
+    NotificationTemplate,
+)
 from src.storage.models import Rule as RuleModel
 
 logger = get_logger("notifications")
@@ -358,10 +357,10 @@ class NotificationService:
                 delivery_id=str(delivery.id),
                 component="notifications",
             )
-            
+
             # Send immediately instead of background task
             await self._send_notification_async(delivery.id)
-            
+
             logger.info(
                 "✅ DELIVERY: Send completed",
                 delivery_id=str(delivery.id),
@@ -500,34 +499,34 @@ class NotificationService:
         """
         try:
             safe = template_string.replace("{{", "{").replace("}}", "}")
-            
+
             # Split into lines to handle each separately
-            lines = safe.split('\n')
+            lines = safe.split("\n")
             rendered_lines = []
-            
+
             for line in lines:
                 try:
                     # Try to format the line
                     rendered_line = line.format(**variables)
-                    
+
                     # Check if line still contains unresolved placeholders
                     # (happens when variable is not in variables dict)
-                    if '{' in rendered_line and '}' in rendered_line:
+                    if "{" in rendered_line and "}" in rendered_line:
                         # Skip lines with unresolved placeholders
                         continue
-                    
+
                     rendered_lines.append(rendered_line)
                 except KeyError:
                     # Skip lines with missing variables
                     logger.debug(
                         "Skipping line with missing variable",
                         component="notifications",
-                        line=line[:50]  # Log first 50 chars
+                        line=line[:50],  # Log first 50 chars
                     )
                     continue
-            
-            return '\n'.join(rendered_lines)
-            
+
+            return "\n".join(rendered_lines)
+
         except Exception:
             logger.exception(
                 "Unexpected template rendering error", component="notifications"
@@ -539,19 +538,19 @@ class NotificationService:
         Perform actual send for a delivery, persist attempt and update status.
 
         Fault-tolerant: any exception is recorded and converted into a recorded failed attempt.
-        
+
         Note: Creates its own database session to avoid conflicts with the parent session.
         """
         # Import here to avoid circular dependencies
         from src.storage.sql import get_async_session_maker
-        
+
         try:
             # Create a new session for this async task
             session_maker = get_async_session_maker()
             async with session_maker() as session:
                 # Create a new repository with the new session
                 repo = NotificationRepository(session)
-                
+
                 delivery = await repo.get_delivery(delivery_id)
                 if not delivery:
                     logger.warning(
@@ -621,7 +620,8 @@ class NotificationService:
                     await repo.increment_delivery_attempt(delivery_id)
                 except Exception:
                     logger.exception(
-                        "Failed to persist delivery attempt", delivery_id=str(delivery_id)
+                        "Failed to persist delivery attempt",
+                        delivery_id=str(delivery_id),
                     )
 
                 # update status based on result and attempts

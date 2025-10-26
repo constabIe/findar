@@ -635,7 +635,6 @@ async def _send_notifications(
             from src.storage.dependencies import get_db_session
             from src.storage.sql import get_async_session_maker
 
-
             # Get database session for notifications
             session_maker = get_async_session_maker()
             async with session_maker() as db_session:
