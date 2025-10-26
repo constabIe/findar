@@ -41,6 +41,11 @@ class ThresholdRuleParams(BaseModel):
     min_amount: Optional[float] = Field(
         None, description="Minimum transaction amount allowed"
     )
+    # Single target value for comparison operators (>, <, ==, !=, >=, <=)
+    # Use this field when rule uses a single comparison operator.
+    target: Optional[float] = Field(
+        None, description="Single target value for comparison operators"
+    )
 
     # Comparison operator for numeric thresholds
     operator: ThresholdOperator = Field(

@@ -472,6 +472,7 @@ async def evaluate_threshold_rule(
         transaction_amount=amount,
         transaction_amount_type=type(amount).__name__,
         rule_max_amount=params.max_amount,
+        rule_target=params.target,
         rule_max_amount_type=type(params.max_amount).__name__
         if params.max_amount
         else None,
@@ -485,63 +486,82 @@ async def evaluate_threshold_rule(
     risk_level = RiskLevel.LOW
 
     # Check amount thresholds with operator support
-    if params.max_amount is not None or params.min_amount is not None:
+    # Use `target` for single-value comparisons; fall back to min/max when needed
+    if (
+        params.target is not None
+        or params.max_amount is not None
+        or params.min_amount is not None
+    ):
         from .enums import ThresholdOperator
 
         amount_matched = False
 
         # Apply operator logic
         if params.operator == ThresholdOperator.GREATER_THAN:
-            # amount > max_amount
-            if params.max_amount is not None and amount > params.max_amount:
+            # amount > target (preferred) or > max/min as fallback
+            target_val = (
+                params.target
+                if params.target is not None
+                else (params.max_amount if params.max_amount is not None else params.min_amount)
+            )
+            if target_val is not None and amount > target_val:
                 amount_matched = True
-                match_reason = f"Amount {amount} > {params.max_amount}"
+                match_reason = f"Amount {amount} > {target_val}"
 
         elif params.operator == ThresholdOperator.GREATER_EQUAL:
-            # amount >= max_amount
-            if params.max_amount is not None and amount >= params.max_amount:
+            # amount >= target (preferred) or >= max/min as fallback
+            target_val = (
+                params.target
+                if params.target is not None
+                else (params.max_amount if params.max_amount is not None else params.min_amount)
+            )
+            if target_val is not None and amount >= target_val:
                 amount_matched = True
-                match_reason = f"Amount {amount} >= {params.max_amount}"
+                match_reason = f"Amount {amount} >= {target_val}"
 
         elif params.operator == ThresholdOperator.LESS_THAN:
-            # amount < min_amount (for detecting suspiciously small transactions)
-            if params.min_amount is not None and amount < params.min_amount:
+            # amount < target (preferred) or < min/max as fallback
+            target_val = (
+                params.target
+                if params.target is not None
+                else (params.min_amount if params.min_amount is not None else params.max_amount)
+            )
+            if target_val is not None and amount < target_val:
                 amount_matched = True
-                match_reason = f"Amount {amount} < {params.min_amount}"
-            elif params.max_amount is not None and amount < params.max_amount:
-                amount_matched = True
-                match_reason = f"Amount {amount} < {params.max_amount}"
+                match_reason = f"Amount {amount} < {target_val}"
 
         elif params.operator == ThresholdOperator.LESS_EQUAL:
-            # amount <= min_amount
-            if params.min_amount is not None and amount <= params.min_amount:
+            # amount <= target (preferred) or <= min/max as fallback
+            target_val = (
+                params.target
+                if params.target is not None
+                else (params.min_amount if params.min_amount is not None else params.max_amount)
+            )
+            if target_val is not None and amount <= target_val:
                 amount_matched = True
-                match_reason = f"Amount {amount} <= {params.min_amount}"
-            elif params.max_amount is not None and amount <= params.max_amount:
-                amount_matched = True
-                match_reason = f"Amount {amount} <= {params.max_amount}"
+                match_reason = f"Amount {amount} <= {target_val}"
 
         elif params.operator == ThresholdOperator.EQUAL:
-            # amount == target
-            target = (
-                params.max_amount
-                if params.max_amount is not None
-                else params.min_amount
+            # amount == target (preferred) or fallback
+            target_val = (
+                params.target
+                if params.target is not None
+                else (params.max_amount if params.max_amount is not None else params.min_amount)
             )
-            if target is not None and amount == target:
+            if target_val is not None and amount == target_val:
                 amount_matched = True
-                match_reason = f"Amount {amount} == {target}"
+                match_reason = f"Amount {amount} == {target_val}"
 
         elif params.operator == ThresholdOperator.NOT_EQUAL:
-            # amount != target
-            target = (
-                params.max_amount
-                if params.max_amount is not None
-                else params.min_amount
+            # amount != target (preferred) or fallback
+            target_val = (
+                params.target
+                if params.target is not None
+                else (params.max_amount if params.max_amount is not None else params.min_amount)
             )
-            if target is not None and amount != target:
+            if target_val is not None and amount != target_val:
                 amount_matched = True
-                match_reason = f"Amount {amount} != {target}"
+                match_reason = f"Amount {amount} != {target_val}"
 
         elif params.operator == ThresholdOperator.BETWEEN:
             # min_amount <= amount <= max_amount
