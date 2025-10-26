@@ -17,8 +17,15 @@ interface NotificationSettings {
   show_device_info: boolean
 }
 
+interface ChannelSettings {
+  email_enabled: boolean
+  telegram_enabled: boolean
+}
+
 const Notifications: React.FC = () => {
   const [channel, setChannel] = useState<"email" | "telegram">("email")
+  const [emailEnabled, setEmailEnabled] = useState(true)
+  const [telegramEnabled, setTelegramEnabled] = useState(true)
   const [settings, setSettings] = useState<NotificationSettings>({
     channel: "email",
     show_transaction_id: true,
@@ -38,7 +45,37 @@ const Notifications: React.FC = () => {
 
   useEffect(() => {
     loadSettings()
+    loadChannelSettings()
   }, [])
+
+  const loadChannelSettings = async () => {
+    try {
+      const token = localStorage.getItem("admiral_global_admin_session_token")
+      if (!token) {
+        setError("No authentication token found. Please login again.")
+        return
+      }
+
+      const response = await axios.get<ChannelSettings>(`${API_URL}/users/notifications/channels`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+
+      setEmailEnabled(response.data.email_enabled)
+      setTelegramEnabled(response.data.telegram_enabled)
+
+      // Set active channel based on what's enabled
+      if (response.data.email_enabled) {
+        setChannel("email")
+      } else if (response.data.telegram_enabled) {
+        setChannel("telegram")
+      }
+    } catch (err: any) {
+      console.error("Error loading channel settings:", err)
+      // Don't show error to user on initial load, use defaults
+    }
+  }
 
   const loadSettings = async () => {
     try {
@@ -64,9 +101,41 @@ const Notifications: React.FC = () => {
     }
   }
 
-  const handleChannelChange = (newChannel: "email" | "telegram") => {
-    setChannel(newChannel)
-    setSettings((prev) => ({ ...prev, channel: newChannel }))
+  const handleChannelChange = async (newChannel: "email" | "telegram") => {
+    try {
+      const token = localStorage.getItem("admiral_global_admin_session_token")
+      if (!token) {
+        setError("No authentication token found. Please login again.")
+        return
+      }
+
+      // Update channel settings on server
+      const channelData: ChannelSettings = {
+        email_enabled: newChannel === "email",
+        telegram_enabled: newChannel === "telegram"
+      }
+
+      await axios.post(`${API_URL}/users/notifications/channels`, channelData, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+
+      // Update local state
+      setChannel(newChannel)
+      setEmailEnabled(channelData.email_enabled)
+      setTelegramEnabled(channelData.telegram_enabled)
+      setSettings((prev) => ({ ...prev, channel: newChannel }))
+
+      // Reload settings from server to confirm
+      await loadChannelSettings()
+      
+      setSuccessMessage(`Switched to ${newChannel} notifications successfully!`)
+      setTimeout(() => setSuccessMessage(""), 3000)
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Failed to update notification channel.")
+      console.error("Error updating channel:", err)
+    }
   }
 
   const handleToggle = (field: keyof Omit<NotificationSettings, "channel">) => {
@@ -255,18 +324,18 @@ const Notifications: React.FC = () => {
               </h3>
               <div className="channel-selector">
                 <button
-                  className={`channel-button ${channel === "email" ? "active" : ""}`}
+                  className={`channel-button ${emailEnabled ? "active" : ""}`}
                   onClick={() => handleChannelChange("email")}
                   disabled={saving}
                 >
-                  Email
+                  Email {emailEnabled && "✓"}
                 </button>
                 <button
-                  className={`channel-button ${channel === "telegram" ? "active" : ""}`}
+                  className={`channel-button ${telegramEnabled ? "active" : ""}`}
                   onClick={() => handleChannelChange("telegram")}
                   disabled={saving}
                 >
-                  Telegram
+                  Telegram {telegramEnabled && "✓"}
                 </button>
               </div>
             </div>
