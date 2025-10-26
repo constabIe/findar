@@ -19,5 +19,3 @@ allow_sign_up = ${GF_USERS_ALLOW_SIGN_UP}
 [auth.anonymous]
 enabled = ${GF_AUTH_ANONYMOUS_ENABLED}
 org_role = ${GF_AUTH_ANONYMOUS_ORG_ROLE}
-
-
