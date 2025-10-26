@@ -222,7 +222,6 @@ __marimo__/
 .vscode
 .idea
 
-
 #github
 .github/instructions
 
@@ -237,4 +236,4 @@ findar_API
 
 node_modules
 
-.local/*
+.localfiles

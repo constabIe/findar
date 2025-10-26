@@ -7,6 +7,7 @@ default:
 
 # Initialize environment variables
 env:
+  ./scripts/envsubst.sh docker 
   cp .env.example .env
   cd ./src/static/admiral && cp .env.example .env
 

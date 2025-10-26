@@ -48,7 +48,7 @@ CMD ["uv", "run", "alembic", "upgrade", "head"]
 
 # --------------- API ----------------
 FROM base AS api
-CMD ["uv", "run", "-m", "src.api", "--host", "${HOST}", "--port", "${APP_PORT}"]
+CMD ["uv", "run", "-m", "src.api"]
 
 # -------------- CELERY --------------
 FROM base AS celery

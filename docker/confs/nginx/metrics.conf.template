@@ -1,0 +1,30 @@
+server {
+    listen 80;
+    server_name ${METRICS_DOMAIN};
+
+    # -----------------------
+    # GRAFANA (metrics.domain/grafana)
+    # -----------------------
+    location /grafana/ {
+        proxy_pass http://grafana:${GF_PORT}/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect off;
+    }
+
+    # -----------------------
+    # NODE EXPORTER (metrics.domain/nodeexporter)
+    # -----------------------
+    location /nodeexporter/ {
+        proxy_pass http://node-exporter:${NE_PORT}/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect off;
+    }
+}

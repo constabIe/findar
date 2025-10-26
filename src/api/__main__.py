@@ -18,7 +18,7 @@ def main():
     uvicorn.run(
         "src.api.app:app",
         host="0.0.0.0",
-        port=int(os.getenv("APP_PORT", -1)),
+        port=int(os.getenv("API_PORT", -1)),
         reload=True,
         log_level="info",
     )

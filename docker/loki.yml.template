@@ -1,9 +1,9 @@
 auth_enabled: false
 
 server:
-  http_listen_port: 3100 # основной HTTP API порт
-  grpc_listen_port: 9096 # gRPC для внутреннего общения (можно не трогать)
-  log_level: info # уровень логов (debug → info)
+  http_listen_port: ${LOKI_PORT}
+  grpc_listen_port: 9096 
+  log_level: info 
   grpc_server_max_concurrent_streams: 1000
 
 common:
@@ -18,12 +18,10 @@ common:
     kvstore:
       store: inmemory
 
-# ⚙️ single-node режим (без кластеризации)
 target: all
 memberlist:
   join_members: []
 
-# 🔹 кэширование и оптимизация запросов
 query_range:
   parallelise_shardable_queries: true
   cache_results: true
@@ -33,14 +31,12 @@ query_range:
         enabled: true
         max_size_mb: 100
 
-# 🔹 ограничения и агрегации
 limits_config:
   allow_structured_metadata: false
   metric_aggregation_enabled: true
   ingestion_rate_mb: 8
   ingestion_burst_size_mb: 16
 
-# 🔹 конфигурация схемы хранения
 schema_config:
   configs:
     - from: 2020-10-24
@@ -51,19 +47,13 @@ schema_config:
         prefix: index_
         period: 24h
 
-# 🔹 для паттерн-аналитики (можно выключить)
 pattern_ingester:
   enabled: true
   metric_aggregation:
-    loki_address: loki:3100 # заменено с localhost → имя контейнера
-
-# 🔹 правило для Alertmanager
-ruler:
-  alertmanager_url: http://alertmanager:9093
+    loki_address: loki:${LOKI_PORT} # заменено с localhost → имя контейнера
 
 frontend:
   encoding: protobuf
 
-# 🔹 отключаем телеметрию Grafana Labs
 analytics:
   reporting_enabled: false
