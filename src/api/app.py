@@ -44,9 +44,7 @@ def create_app() -> FastAPI:
         router as user_notifications_router,
     )
 
-    app.include_router(
-        user_notifications_router, prefix="/api/v1", tags=["User Notifications"]
-    )
+    app.include_router(user_notifications_router, prefix="/api/v1")
 
     # TODO: Register additional API routers as they are implemented
     # from src.api.routes import transactions, statistics
@@ -61,10 +59,9 @@ def create_app() -> FastAPI:
 
     app.include_router(reporting_router, prefix="/api/v1", tags=["Reporting"])
 
-    # Register notifications router
-    from src.modules.notifications.routes import router as notifications_router
-
-    app.include_router(notifications_router, prefix="/api/v1", tags=["Notifications"])
+    # Administrative notifications router is disabled - using user-level notifications only
+    # from src.modules.notifications.routes import router as notifications_router
+    # app.include_router(notifications_router, prefix="/api/v1", tags=["Notifications"])
 
     # Mount Prometheus metrics endpoint
     metrics_app = make_asgi_app()
