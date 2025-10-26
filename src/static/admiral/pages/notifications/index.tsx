@@ -97,7 +97,7 @@ const Notifications: React.FC = () => {
       await loadTemplates(activeChannel)
       setLoading(false)
     }
-    
+
     initializeSettings()
   }, [])
 
@@ -124,7 +124,7 @@ const Notifications: React.FC = () => {
       if (response.data.email_template) {
         const { id, channel: ch, ...emailTemplateData } = response.data.email_template
         setEmailTemplate(emailTemplateData)
-        
+
         // If email is the active channel, update settings immediately
         if (activeChannel === "email") {
           setSettings((prev) => ({ ...prev, ...emailTemplateData }))
@@ -135,7 +135,7 @@ const Notifications: React.FC = () => {
       if (response.data.telegram_template) {
         const { id, channel: ch, ...telegramTemplateData } = response.data.telegram_template
         setTelegramTemplate(telegramTemplateData)
-        
+
         // If telegram is the active channel, update settings immediately
         if (activeChannel === "telegram") {
           setSettings((prev) => ({ ...prev, ...telegramTemplateData }))
@@ -173,7 +173,7 @@ const Notifications: React.FC = () => {
         activeChannel = "telegram"
         setChannel("telegram")
       }
-      
+
       return activeChannel
     } catch (err: any) {
       console.error("Error loading channel settings:", err)
@@ -231,7 +231,7 @@ const Notifications: React.FC = () => {
 
     // Get current template based on active channel
     const currentTemplate = channel === "email" ? emailTemplate : telegramTemplate
-    
+
     // Calculate new value
     const newValue = !currentTemplate[field]
 
@@ -296,11 +296,7 @@ const Notifications: React.FC = () => {
       >
         <label style={{ color: "var(--color-typo-primary)", fontSize: "14px" }}>{label}</label>
         <label className="toggle-switch">
-          <input
-            type="checkbox"
-            checked={settings[field]}
-            onChange={() => handleToggle(field)}
-          />
+          <input type="checkbox" checked={settings[field]} onChange={() => handleToggle(field)} />
           <span className="toggle-slider"></span>
         </label>
       </div>

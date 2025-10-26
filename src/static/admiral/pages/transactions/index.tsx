@@ -457,9 +457,9 @@ const Transactions: React.FC = () => {
                               transaction.status.toUpperCase() === "FLAGGED" ? "bold" : "normal",
                             backgroundColor:
                               transaction.status.toLowerCase() === "accepted"
-                                ? "#c3e6cb"  // Light green for accepted
+                                ? "#c3e6cb" // Light green for accepted
                                 : transaction.status.toLowerCase() === "rejected"
-                                  ? "#f5c6cb"  // Light red for rejected
+                                  ? "#f5c6cb" // Light red for rejected
                                   : transaction.status.toUpperCase() === "COMPLETED" ||
                                       transaction.status.toUpperCase() === "APPROVED"
                                     ? "#d4edda"
@@ -470,9 +470,9 @@ const Transactions: React.FC = () => {
                                         : "#f8d7da",
                             color:
                               transaction.status.toLowerCase() === "accepted"
-                                ? "#155724"  // Dark green for accepted
+                                ? "#155724" // Dark green for accepted
                                 : transaction.status.toLowerCase() === "rejected"
-                                  ? "#721c24"  // Dark red for rejected
+                                  ? "#721c24" // Dark red for rejected
                                   : transaction.status.toUpperCase() === "COMPLETED" ||
                                       transaction.status.toUpperCase() === "APPROVED"
                                     ? "#155724"
