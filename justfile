@@ -4,45 +4,13 @@
 default:
   @just --list
 
+
 # Initialize environment variables
-env: 
-  cp .example.secrets.toml .secrets.toml
-  cp docker/.env.example .env
-  
-# Apply migrations
-migrate: env
-  uv run alembic upgrade head
+env:
+  cp .env.example .env
+  cd ./src/static/admiral && cp .env.example .env
 
-# Start application
-run: env 
-  uv sync
-  uv run -m src.api
-
-# docker compose build 
-build *args: env
-  docker compose build {{args}}
-
-# docker compose up
-up *args: env
-  docker compose up {{args}} -d
-
-# docker compose restart
-restart *args: env
-  docker compose restart {{args}}
-
-# docker compose down
-down *args:
-  docker compose down {{args}}
-
-# docker compose kill
-kill *args:
-  docker compose kill {{args}}
-
-# docker ps
-ps:
-  docker ps
-  
-# Confirm auto lint action  
+# Confirm auto lint action
 confirm-lint:
   git add .
   git commit -m "chore: linting"

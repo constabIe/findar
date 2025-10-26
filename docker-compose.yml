@@ -1,18 +1,79 @@
 services:
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    container_name: cadvisor
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:rw
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
+  api:
+    build:
+      context: .
+      target: api
+    container_name: api
     ports:
-      - "${CADVISOR_PORT}:${CADVISOR_PORT}"
+      - "${APP_PORT}:${APP_PORT}"
+    env_file:
+      - .env
     networks:
+      - postgres
       - monitoring
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrations:
+        condition: service_started
     restart: unless-stopped
+
+  migrations:
+    build:
+      context: .
+      target: migrations
+    container_name: migrations
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - postgres
+    restart: "no"
+
+  celery:
+    build:
+      context: .
+      target: celery
+    container_name: celery
+    env_file:
+      - .env
+    networks:
+      - postgres
+      - monitoring
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  bot:
+    build:
+      context: .
+      target: bot
+    container_name: bot
+    env_file:
+      - .env
+    networks:
+      - postgres
+      - monitoring
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend-builder:
+    container_name: frontend-builder
+    build:
+      context: ./src/static/admiral
+    volumes:
+      - frontend_dist:/app/dist
 
   postgres:
     container_name: db
@@ -25,12 +86,10 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       PGDATA: /var/lib/postgresql/data/pgdata
-    command:
-      - "postgres"
-      - "-c"
-      - "config_file=/etc/postgresql.conf"
+    command: >
+      postgres -c config_file=/etc/postgresql.conf
     ports:
-      - ${POSTGRES_PORT}:${POSTGRES_PORT}
+      - ${POSTGRES_PORT}:5432
     networks:
       - postgres
     restart: unless-stopped
@@ -39,32 +98,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
     deploy:
       resources:
         limits:
           cpus: "1"
-          memory: 10G
-
-  pgadmin:
-    image: dpage/pgadmin4:9.9
-    container_name: pgadmin
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-      PGADMIN_CONFIG_SERVER_MODE: "False" # To allow running in desktop mode
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 1G
-    ports:
-      - "${PGADMIN_PORT}:80"
-    networks:
-      - postgres
-    restart: unless-stopped
+          memory: 20G
 
   redis:
     image: redis/redis-stack:7.4.0-v7
@@ -77,24 +115,23 @@ services:
     ports:
       - "${REDIS_PORT}:${REDIS_PORT}"
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
-      interval: 30s
+      test: ["CMD", "redis-cli", "-a", "ping"]
+      interval: 10s
       timeout: 10s
       retries: 5
     deploy:
       resources:
         limits:
-          cpus: "0.50"
-          memory: 512M
-        reservations:
-          cpus: "0.25"
-          memory: 256M
+          cpus: "2"
+          memory: "2G"
     restart: unless-stopped
     tty: true
     stdin_open: true
+    networks:
+      - postgres
 
   node-exporter:
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:v1.10.0
     container_name: node-exporter
     volumes:
       - /proc:/host/proc:ro
@@ -105,7 +142,7 @@ services:
       - "--path.sysfs=/host/sys"
       - "--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($|/)"
     ports:
-      - "${NE_PORT}:${NE_PORT}"
+      - "${NE_PORT}:9100"
     networks:
       - monitoring
     restart: unless-stopped
@@ -114,7 +151,7 @@ services:
     image: prom/prometheus:v3.7.1
     container_name: prometheus
     volumes:
-      - ./monitoring/prometheus:/etc/prometheus
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -123,14 +160,15 @@ services:
       - "--web.console.templates=/usr/share/prometheus/consoles"
       - "--web.enable-lifecycle"
     ports:
-      - "${PROMETHEUS_PORT}:${PROMETHEUS_PORT}"
+      - "${PROMETHEUS_PORT}:9090"
     networks:
       - monitoring
     restart: unless-stopped
     depends_on:
-      - cadvisor
-      - node-exporter
-      - alertmanager
+      postgres:
+        condition: service_healthy
+      node-exporter:
+        condition: service_started
 
   grafana:
     image: grafana/grafana:12.2.0
@@ -143,47 +181,64 @@ services:
       - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER}
       - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_AUTH_ANONYMOUS_ENABLED=true
     ports:
-      - "${GF_PORT}:${GF_PORT}"
+      - "${GF_PORT}:3000"
     networks:
       - monitoring
       - postgres
     restart: unless-stopped
+    depends_on:
+      prometheus:
+        condition: service_started
+      postgres:
+        condition: service_healthy
 
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:3.5.7
     container_name: loki
     volumes:
       - ./docker/loki-config.yaml:/etc/loki/loki-config.yaml
       - loki_data:/loki
     command: -config.file=/etc/loki/loki-config.yaml
     ports:
-      - "${LOKI_PORT}:${LOKI_PORT}"
+      - "${LOKI_PORT}:3100"
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_started
 
   promtail:
-    image: grafana/promtail:latest
+    image: grafana/promtail:3.5.7
     container_name: promtail
     volumes:
       - ./docker/promtail-config.yaml:/etc/promtail/promtail-config.yaml
-      # - /var/log:/var/log   # если логируем хостовые логи
     command: -config.file=/etc/promtail/promtail-config.yaml
     restart: unless-stopped
     depends_on:
       - loki
 
-  alertmanager:
-    image: prom/alertmanager:v0.28.1
-    container_name: alertmanager
-    volumes:
-      - ./monitoring/alertmanager:/etc/alertmanager
-    command:
-      - "--config.file=/etc/alertmanager/config.yml"
-      - "--storage.path=/alertmanager"
+  nginx-proxy:
+    image: nginx:1.29.2-alpine
+    container_name: nginx-proxy
     ports:
-      - "${AM_PORT}:${AM_PORT}"
+      - "80:80"
+      - "443:443"
+    volumes:
+      - frontend_dist:/usr/share/nginx/html:ro
+      - ./docker/confs/nginx:/etc/nginx/conf.d:ro
+
+      # - ./nginx/certs:/etc/nginx/certs:ro
     networks:
+      - postgres
       - monitoring
+    depends_on:
+      - api
+      - frontend-builder
+      - node-exporter
+      - grafana
     restart: unless-stopped
 
 volumes:
@@ -193,6 +248,7 @@ volumes:
   grafana_data:
   redis_data:
   loki_data:
+  frontend_dist:
 
 networks:
   postgres:

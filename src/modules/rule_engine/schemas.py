@@ -19,11 +19,9 @@ from .enums import (
     RuleType,
     ThresholdOperator,
     TimeWindow,
-    TransactionType,
 )
 
 
-# Now there can problem with multiple parameters usage (e.g. just one rule was set)
 class ThresholdRuleParams(BaseModel):
     """
     Parameters for threshold-based fraud detection rules.
@@ -44,31 +42,20 @@ class ThresholdRuleParams(BaseModel):
         None, description="Minimum transaction amount allowed"
     )
 
-    # Frequency thresholds (within time window)
-    max_transactions_per_account: Optional[int] = Field(
-        None, description="Max transactions from same account"
-    )
-    max_transactions_to_account: Optional[int] = Field(
-        None, description="Max transactions to same account"
-    )
-    max_transaction_types: Optional[int] = Field(
-        None, description="Max different transaction types per account"
+    # Comparison operator for numeric thresholds
+    operator: ThresholdOperator = Field(
+        ThresholdOperator.GREATER_THAN, description="Comparison operator"
     )
 
     # Time-based thresholds
-    time_window: TimeWindow = Field(
-        TimeWindow.HOUR, description="Time window for frequency checks"
+    time_window: Optional[TimeWindow] = Field(
+        None, description="Time window for frequency checks"
     )
     allowed_hours_start: Optional[int] = Field(
         None, ge=0, le=23, description="Start of allowed transaction hours (0-23)"
     )
     allowed_hours_end: Optional[int] = Field(
         None, ge=0, le=23, description="End of allowed transaction hours (0-23)"
-    )
-
-    # Velocity thresholds
-    max_velocity_amount: Optional[float] = Field(
-        None, description="Maximum total amount in time window"
     )
 
     # Geographic thresholds
@@ -84,15 +71,32 @@ class ThresholdRuleParams(BaseModel):
         None, description="Max unique IPs per account in time window"
     )
 
-    # Comparison operator for numeric thresholds
-    operator: ThresholdOperator = Field(
-        ThresholdOperator.GREATER_THAN, description="Comparison operator"
+    # Velocity thresholds
+    max_velocity_amount: Optional[float] = Field(
+        None,
+        description="Maximum total amount in time window (limit of sum transfer in period)",
+    )
+
+    # Frequency thresholds (within time window)
+    max_transaction_types: Optional[int] = Field(
+        None, description="Max different transaction types per account"
+    )
+    max_transactions_per_account: Optional[int] = Field(
+        None, description="Max transactions from same account"
+    )
+    max_transactions_to_account: Optional[int] = Field(
+        None, description="Max transactions to same account"
+    )
+    max_transactions_per_ip: Optional[int] = Field(
+        None, description="Max transactions from same IP address"
     )
 
     @field_validator("allowed_hours_end")
-    def validate_time_range(cls, v, values):
+    @classmethod
+    def validate_time_range(cls, v, info):
         """Validate that end hour is after start hour."""
-        start = values.get("allowed_hours_start")
+        # In Pydantic v2, use info.data to access other field values
+        start = info.data.get("allowed_hours_start")
         if start is not None and v is not None and v <= start:
             raise ValueError(
                 "allowed_hours_end must be greater than allowed_hours_start"
@@ -104,73 +108,42 @@ class PatternRuleParams(BaseModel):
     """
     Parameters for pattern-based fraud detection rules.
 
-    Pattern rules detect series of transactions that match suspicious patterns,
-    such as rapid small transactions (structuring/smurfing) or unusual sequences.
+    Pattern rules analyze the dynamics of transactions to detect suspicious patterns,
+    such as rapid small transactions (structuring/smurfing), unusual sequences,
+    or patterns of behavior across multiple transactions.
     """
 
-    # Pattern definition
-    min_transactions: int = Field(
-        3, ge=1, description="Minimum number of transactions in pattern"
-    )
-    max_transactions: Optional[int] = Field(
-        None, description="Maximum number of transactions in pattern"
-    )
-    time_window: TimeWindow = Field(
-        TimeWindow.HOUR, description="Time window for pattern detection"
+    # Required: Time window for pattern detection
+    period: TimeWindow = Field(
+        description="Duration of the time window for pattern analysis (required)"
     )
 
-    # Amount patterns
-    max_individual_amount: Optional[float] = Field(
-        None, description="Maximum amount per transaction in pattern"
-    )
-    min_individual_amount: Optional[float] = Field(
-        None, description="Minimum amount per transaction in pattern"
-    )
-    max_total_amount: Optional[float] = Field(
-        None, description="Maximum total amount for all transactions"
+    # Transaction count in pattern
+    count: Optional[int] = Field(
+        None, ge=1, description="Number of transactions in the period"
     )
 
-    # Sequence patterns
-    require_sequential: bool = Field(
-        False, description="Whether transactions must be sequential in time"
-    )
-    max_time_between_transactions: Optional[int] = Field(
-        None, description="Max seconds between consecutive transactions"
+    # Amount constraints
+    amount_ceiling: Optional[float] = Field(
+        None, description="Maximum sum of all transactions in the period"
     )
 
-    # Account patterns
-    same_source_account: bool = Field(
-        True, description="All transactions from same source account"
+    # Recipient patterns
+    same_recipient: bool = Field(
+        False, description="All transactions must be to the same recipient"
     )
-    same_destination_account: bool = Field(
-        False, description="All transactions to same destination account"
-    )
-    different_destination_accounts: bool = Field(
-        False, description="All transactions to different accounts"
+    unique_recipients: Optional[int] = Field(
+        None, description="Maximum number of unique recipients in the period"
     )
 
-    # Transaction type patterns
-    allowed_types: Optional[List[TransactionType]] = Field(
-        None, description="Allowed transaction types in pattern"
-    )
-    require_same_type: bool = Field(
-        False, description="All transactions must be same type"
+    # Device patterns
+    same_device: bool = Field(
+        False, description="All transactions must be from the same device"
     )
 
-    # Geographic patterns
-    same_location: bool = Field(
-        False, description="All transactions from same location"
-    )
-    different_locations: bool = Field(
-        False, description="All transactions from different locations"
-    )
-
-    # Structuring detection (classic money laundering pattern)
-    detect_structuring: bool = Field(
-        False, description="Detect structuring patterns (many small amounts)"
-    )
-    structuring_threshold: Optional[float] = Field(
-        9999.0, description="Amount threshold for structuring detection"
+    # Velocity limit
+    velocity_limit: Optional[float] = Field(
+        None, description="Maximum sum of transactions from one device in the period"
     )
 
 
@@ -179,50 +152,33 @@ class CompositeRuleParams(BaseModel):
     Parameters for composite rules that combine multiple rules with logical operators.
 
     Composite rules allow complex logic by combining other rules with AND, OR, NOT operations.
+
+    Note: For NOT operator, the logic is applied to all rules using OR:
+    NOT(rule1 OR rule2 OR ...) - returns True if NONE of the rules match.
+
+    Rules are referenced by their unique names (not UUIDs).
     """
 
-    # Rule references
-    rule_ids: List[int] = Field(min_items=1, description="List of rule IDs to combine")  # type: ignore
-
-    # Logical structure
+    # Logical operator
     operator: CompositeOperator = Field(
-        CompositeOperator.AND, description="Primary logical operator"
-    )
-    expression: Optional[str] = Field(
-        None,
-        description="Complex boolean expression (e.g., '(rule1 AND rule2) OR NOT rule3')",
+        CompositeOperator.AND, description="Logical operator (AND/OR/NOT)"
     )
 
-    # Execution settings
-    short_circuit: bool = Field(
-        True,
-        description="Stop evaluation on first match (for OR) or first non-match (for AND)",
-    )
-    require_all_success: bool = Field(
-        False, description="Require all referenced rules to execute successfully"
-    )
+    # Rule references (must be rule names)
+    rules: List[str] = Field(min_length=1, description="List of rule names to combine")
 
-    # Scoring
-    weight_mode: str = Field(
-        "equal",
-        description="How to weight individual rule results (equal, priority, custom)",
-    )
-    custom_weights: Optional[Dict[int, float]] = Field(
-        None, description="Custom weights for each rule (rule_id -> weight)"
-    )
-    min_weighted_score: Optional[float] = Field(
-        None, description="Minimum weighted score for match"
-    )
+    @field_validator("rules")
+    @classmethod
+    def validate_rules_list(cls, v):
+        """Validate that rules list is not empty and all items are non-empty strings."""
+        if not v or len(v) == 0:
+            raise ValueError("Rules list cannot be empty")
 
-    @field_validator("expression")
-    def validate_expression(cls, v, values):
-        """Validate boolean expression contains only referenced rule IDs."""
-        if v is not None:
-            rule_ids = values.get("rule_ids", [])
-            # Basic validation - could be enhanced with actual parsing
-            for rule_id in rule_ids:
-                if f"rule{rule_id}" not in v:
-                    raise ValueError(f"Expression must reference rule{rule_id}")
+        # Check that all items are non-empty strings
+        for rule_name in v:
+            if not rule_name or not isinstance(rule_name, str) or not rule_name.strip():
+                raise ValueError("All rule names must be non-empty strings")
+
         return v
 
 
@@ -231,43 +187,43 @@ class MLRuleParams(BaseModel):
     Parameters for machine learning-based fraud detection rules.
 
     ML rules use trained models to assess transaction risk with confidence scores.
-    For now, this will be mocked until the ML model module is implemented.
+    The model is accessed via an endpoint URL or uploaded as a file.
     """
 
     # Model configuration
-    model_name: str = Field(
-        "fraud_detection_model", description="Name of ML model to use"
-    )
-    model_version: Optional[str] = Field(None, description="Specific model version")
-
-    # Feature configuration
-    features: List[str] = Field(
-        default_factory=list, description="List of features to extract from transaction"
-    )
-    feature_preprocessing: Dict[str, Any] = Field(
-        default_factory=dict, description="Feature preprocessing parameters"
+    model_version: str = Field(
+        description="Version of the ML model to use (e.g., 'v1.0.0', 'latest')"
     )
 
-    # Scoring thresholds
-    confidence_threshold: float = Field(
-        0.5, ge=0.0, le=1.0, description="Minimum confidence score for positive match"
+    # Scoring threshold
+    threshold: float = Field(
+        0.5,
+        ge=0.0,
+        le=1.0,
+        description="Minimum confidence score for positive match (0.0-1.0)",
     )
 
-    # Model execution
-    timeout_ms: int = Field(
-        5000, gt=0, description="Model execution timeout in milliseconds"
-    )
-    fallback_behavior: str = Field(
-        "allow", description="Behavior when model fails (allow/deny/skip)"
+    # Endpoint configuration
+    endpoint_url: str = Field(description="URL of the ML model inference endpoint")
+
+    # Model file path (optional, alternative to endpoint)
+    model_file_path: str | None = Field(
+        default=None,
+        description="Path to uploaded ML model file (alternative to endpoint_url)",
     )
 
-    # Mock configuration (temporary)
-    mock_mode: bool = Field(
-        True, description="Use mock predictions instead of real model"
-    )
-    mock_confidence_range: tuple[float, float] = Field(
-        (0.1, 0.9), description="Range for mock confidence scores"
-    )
+    @field_validator("endpoint_url")
+    @classmethod
+    def validate_endpoint_url(cls, v):
+        """Validate that endpoint URL is not empty and has valid format."""
+        if not v or not v.strip():
+            raise ValueError("Endpoint URL cannot be empty")
+
+        # Basic URL validation
+        if not (v.startswith("http://") or v.startswith("https://")):
+            raise ValueError("Endpoint URL must start with http:// or https://")
+
+        return v.strip()
 
 
 class RuleEvaluationRequest(BaseModel):
@@ -392,14 +348,18 @@ class RuleCreateRequest(BaseModel):
     enabled: bool = Field(True, description="Whether rule is enabled")
     priority: int = Field(0, description="Rule priority")
     critical: bool = Field(False, description="Whether rule is critical")
-    description: Optional[str] = Field(None, max_length=1000, description="Rule description")
+    description: Optional[str] = Field(
+        None, max_length=1000, description="Rule description"
+    )
 
-    @field_validator('params', mode='after')
+    @field_validator("params", mode="after")
     def validate_params_match_type(cls, params, info):
         """Validate that params match the rule type."""
-        rule_type = info.data.get('type')
+        rule_type = info.data.get("type")
 
-        if rule_type == RuleType.THRESHOLD and not isinstance(params, ThresholdRuleParams):
+        if rule_type == RuleType.THRESHOLD and not isinstance(
+            params, ThresholdRuleParams
+        ):
             raise ValueError("Threshold rules must use ThresholdRuleParams")
         elif rule_type == RuleType.PATTERN and not isinstance(
             params, PatternRuleParams
@@ -427,7 +387,9 @@ class RuleUpdateRequest(BaseModel):
     enabled: Optional[bool] = Field(None, description="Whether rule is enabled")
     priority: Optional[int] = Field(None, description="Rule priority")
     critical: Optional[bool] = Field(None, description="Whether rule is critical")
-    description: Optional[str] = Field(None, max_length=1000, description="Rule description")
+    description: Optional[str] = Field(
+        None, max_length=1000, description="Rule description"
+    )
 
 
 class RuleResponse(BaseModel):
@@ -442,6 +404,11 @@ class RuleResponse(BaseModel):
     critical: bool = Field(description="Whether rule is critical")
     description: Optional[str] = Field(description="Rule description")
 
+    # User tracking
+    created_by_user_id: Optional[UUID] = Field(
+        None, description="ID of user who created this rule"
+    )
+
     # Statistics
     execution_count: int = Field(description="Total executions")
     match_count: int = Field(description="Total matches")
@@ -450,6 +417,7 @@ class RuleResponse(BaseModel):
     # Timestamps
     created_at: datetime = Field(description="Creation timestamp")
     updated_at: datetime = Field(description="Last update timestamp")
+
     # last_executed_at: Optional[datetime] = Field(
     #     None, description="Last execution timestamp"
     # )
@@ -479,13 +447,17 @@ class CacheStatusResponse(BaseModel):
     hit_count: int = Field(description="Number of cache hits")
     cache_version: str = Field(description="Cached version")
 
+
 class CacheStatisticsResponse(BaseModel):
     """Schema for overall cache statistics."""
 
     active_rules_count: int = Field(description="Number of active rules in cache")
-    rule_types_count: int = Field(description="Number of different rule type sets in cache")
+    rule_types_count: int = Field(
+        description="Number of different rule type sets in cache"
+    )
     priority_index_size: int = Field(description="Size of priority index")
     timestamp: str = Field(description="Timestamp when statistics were retrieved")
+
 
 class HotReloadRequest(BaseModel):
     """Schema for hot reload requests."""
