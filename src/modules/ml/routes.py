@@ -2,16 +2,14 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.config import settings
 from src.modules.ml.schemas import (
     MLActionResponse,
-    MLModelCreateLocal,
     MLModelCreateRemote,
     MLModelListResponse,
     MLModelResponse,
@@ -26,7 +24,9 @@ async def get_ml_service(db: AsyncSession = Depends(get_db_session)) -> MLModelS
     return MLModelService(db)
 
 
-@router.post("/upload", response_model=MLModelResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/upload", response_model=MLModelResponse, status_code=status.HTTP_201_CREATED
+)
 async def upload_model(
     file: UploadFile = File(...),
     meta: str | None = None,  # optional JSON string - parsed by client code if needed
@@ -57,7 +57,9 @@ async def upload_model(
     return MLModelResponse(**created.model_dump())
 
 
-@router.post("/register", response_model=MLModelResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register", response_model=MLModelResponse, status_code=status.HTTP_201_CREATED
+)
 async def register_remote_model(
     payload: MLModelCreateRemote, service: MLModelService = Depends(get_ml_service)
 ) -> MLModelResponse:
@@ -66,13 +68,19 @@ async def register_remote_model(
 
 
 @router.get("/models", response_model=MLModelListResponse)
-async def list_models(limit: int = 100, offset: int = 0, service: MLModelService = Depends(get_ml_service)) -> MLModelListResponse:
+async def list_models(
+    limit: int = 100, offset: int = 0, service: MLModelService = Depends(get_ml_service)
+) -> MLModelListResponse:
     models = await service.list_models(limit=limit, offset=offset)
-    return MLModelListResponse(models=[MLModelResponse(**m.model_dump()) for m in models], total=len(models))
+    return MLModelListResponse(
+        models=[MLModelResponse(**m.model_dump()) for m in models], total=len(models)
+    )
 
 
 @router.get("/models/{model_id}", response_model=MLModelResponse)
-async def get_model(model_id: UUID, service: MLModelService = Depends(get_ml_service)) -> MLModelResponse:
+async def get_model(
+    model_id: UUID, service: MLModelService = Depends(get_ml_service)
+) -> MLModelResponse:
     m = await service.get_model(model_id)
     if not m:
         raise HTTPException(status_code=404, detail="Model not found")
@@ -80,7 +88,9 @@ async def get_model(model_id: UUID, service: MLModelService = Depends(get_ml_ser
 
 
 @router.post("/{model_id}/activate", response_model=MLActionResponse)
-async def activate_model(model_id: UUID, service: MLModelService = Depends(get_ml_service)) -> MLActionResponse:
+async def activate_model(
+    model_id: UUID, service: MLModelService = Depends(get_ml_service)
+) -> MLActionResponse:
     res = await service.activate(model_id)
     if not res:
         raise HTTPException(status_code=404, detail="Model not found")
@@ -88,7 +98,9 @@ async def activate_model(model_id: UUID, service: MLModelService = Depends(get_m
 
 
 @router.post("/{model_id}/deactivate", response_model=MLActionResponse)
-async def deactivate_model(model_id: UUID, service: MLModelService = Depends(get_ml_service)) -> MLActionResponse:
+async def deactivate_model(
+    model_id: UUID, service: MLModelService = Depends(get_ml_service)
+) -> MLActionResponse:
     res = await service.deactivate(model_id)
     if not res:
         raise HTTPException(status_code=404, detail="Model not found")
@@ -96,7 +108,9 @@ async def deactivate_model(model_id: UUID, service: MLModelService = Depends(get
 
 
 @router.delete("/models/{model_id}", response_model=MLActionResponse)
-async def delete_model(model_id: UUID, service: MLModelService = Depends(get_ml_service)) -> MLActionResponse:
+async def delete_model(
+    model_id: UUID, service: MLModelService = Depends(get_ml_service)
+) -> MLActionResponse:
     ok = await service.delete(model_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Model not found")
@@ -104,11 +118,17 @@ async def delete_model(model_id: UUID, service: MLModelService = Depends(get_ml_
 
 
 @router.post("/models/{model_id}/test", response_model=MLActionResponse)
-async def test_model(model_id: UUID, payload: Optional[Dict[str, Any]] = None, service: MLModelService = Depends(get_ml_service)) -> MLActionResponse:
+async def test_model(
+    model_id: UUID,
+    payload: Optional[Dict[str, Any]] = None,
+    service: MLModelService = Depends(get_ml_service),
+) -> MLActionResponse:
     try:
         res = await service.test_model(model_id, payload)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Model not found")
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
-    return MLActionResponse(success=res.get("ok", False), message=str(res.get("details")))
+    return MLActionResponse(
+        success=res.get("ok", False), message=str(res.get("details"))
+    )

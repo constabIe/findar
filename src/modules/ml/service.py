@@ -1,12 +1,11 @@
 import hashlib
-import os
+import pickle
 import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 from uuid import UUID, uuid4
 
 import httpx
-import pickle
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.logging import get_logger
@@ -14,8 +13,6 @@ from src.modules.ml.metrics import (
     ml_model_inference_seconds,
     ml_model_load_seconds,
     ml_model_test_latency_seconds,
-    ml_models_active,
-    ml_models_failed,
     ml_models_total,
 )
 from src.modules.ml.repository import MLModelRepository
@@ -32,7 +29,9 @@ class MLModelService:
         self.repo = MLModelRepository(session)
         self.MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
-    async def register_local(self, uploaded_path: Path, meta: Dict[str, Any]) -> MLModel:
+    async def register_local(
+        self, uploaded_path: Path, meta: Dict[str, Any]
+    ) -> MLModel:
         # compute hash and size
         h = hashlib.sha256()
         with uploaded_path.open("rb") as fh:
@@ -106,7 +105,9 @@ class MLModelService:
             self._recompute_gauges()
         return ok
 
-    async def test_model(self, model_id: UUID, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def test_model(
+        self, model_id: UUID, payload: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         start = time.time()
         model = await self.get_model(model_id)
         if not model:
@@ -161,7 +162,10 @@ class MLModelService:
                         ping_url = model.endpoint
                         r = await client.get(ping_url)
                         if r.status_code < 400:
-                            result = {"ok": True, "details": "remote endpoint reachable"}
+                            result = {
+                                "ok": True,
+                                "details": "remote endpoint reachable",
+                            }
                         else:
                             result = {"ok": False, "details": f"status:{r.status_code}"}
                     except Exception as exc:

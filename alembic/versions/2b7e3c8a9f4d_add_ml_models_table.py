@@ -31,7 +31,9 @@ def upgrade() -> None:
         sa.Column("endpoint", sa.Text(), nullable=True),
         sa.Column("threshold_ml", sa.Float(), nullable=True),
         sa.Column("features", postgresql.JSON(astext_type=sa.Text()), nullable=True),
-        sa.Column("status", sa.String(length=20), nullable=False, server_default="validated"),
+        sa.Column(
+            "status", sa.String(length=20), nullable=False, server_default="validated"
+        ),
         sa.Column("hash", sa.String(length=64), nullable=True),
         sa.Column("size_mb", sa.Float(), nullable=True),
         sa.Column("description", sa.Text(), nullable=True),

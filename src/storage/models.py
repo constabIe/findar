@@ -741,21 +741,43 @@ class MLModel(SQLModel, table=True):
     __tablename__ = "ml_models"  # type: ignore
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    name: str = Field(sa_column=Column(String(255), index=True), description="Model name")
+    name: str = Field(
+        sa_column=Column(String(255), index=True), description="Model name"
+    )
     version: str = Field(sa_column=Column(String(50)), description="Model version")
     model_type: str = Field(sa_column=Column(String(20)), description="local|remote")
 
     # Local model file path (relative to project root) or remote endpoint
-    file_path: Optional[str] = Field(default=None, description="Local file path for model")
-    endpoint: Optional[str] = Field(default=None, description="Remote model endpoint URL")
+    file_path: Optional[str] = Field(
+        default=None, description="Local file path for model"
+    )
+    endpoint: Optional[str] = Field(
+        default=None, description="Remote model endpoint URL"
+    )
 
-    threshold_ml: Optional[float] = Field(default=0.5, description="Probability threshold for binary classification")
-    features: Optional[Dict[str, Any]] = Field(default_factory=dict, sa_column=Column(PGJSON), description="List/dict of expected features")
+    threshold_ml: Optional[float] = Field(
+        default=0.5, description="Probability threshold for binary classification"
+    )
+    features: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        sa_column=Column(PGJSON),
+        description="List/dict of expected features",
+    )
 
-    status: str = Field(default="validated", description="validated|active|deprecated|failed")
+    status: str = Field(
+        default="validated", description="validated|active|deprecated|failed"
+    )
     hash: Optional[str] = Field(default=None, description="SHA256 hash of model file")
-    size_mb: Optional[float] = Field(default=None, description="Size of model file in MB")
-    description: Optional[str] = Field(default=None, description="Optional model description")
+    size_mb: Optional[float] = Field(
+        default=None, description="Size of model file in MB"
+    )
+    description: Optional[str] = Field(
+        default=None, description="Optional model description"
+    )
 
-    created_by: Optional[UUID] = Field(default=None, foreign_key="users.id", description="Uploader user id")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
+    created_by: Optional[UUID] = Field(
+        default=None, foreign_key="users.id", description="Uploader user id"
+    )
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow, description="Creation timestamp"
+    )
