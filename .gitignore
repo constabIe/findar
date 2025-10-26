@@ -237,5 +237,7 @@ findar_API
 node_modules
 
 .local/*
+#chore
 .dockerignore
 tests/
+.env.bak
