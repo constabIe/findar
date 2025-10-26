@@ -32,7 +32,9 @@ const CustomMenu = () => {
   }, [])
 
   const handleLogout = () => {
-    // Demo mode - redirect to login page
+    // Clear authentication token
+    localStorage.removeItem("admiral_global_admin_session_token")
+    // Redirect to login page
     window.location.href = "/login"
   }
 

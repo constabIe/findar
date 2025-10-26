@@ -14,6 +14,15 @@ const Routes = createRoutesFrom(import.meta.globEager("../pages/**/*"))
 
 function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    // Check authentication status
+    const token = localStorage.getItem("admiral_global_admin_session_token")
+    setIsAuthenticated(!!token)
+    setIsLoading(false)
+  }, [])
 
   useEffect(() => {
     const handleLocationChange = () => {
@@ -24,13 +33,34 @@ function App() {
     return () => window.removeEventListener("popstate", handleLocationChange)
   }, [])
 
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>Loading...</div>
+  }
+
   // Render auth pages without Admin layout
   if (currentPath === "/login") {
+    // If already authenticated, redirect to home
+    if (isAuthenticated) {
+      window.location.href = "/"
+      return null
+    }
     return <Login />
   }
 
   if (currentPath === "/signup") {
+    // If already authenticated, redirect to home
+    if (isAuthenticated) {
+      window.location.href = "/"
+      return null
+    }
     return <SignUp />
+  }
+
+  // Protected routes - require authentication
+  if (!isAuthenticated) {
+    window.location.href = "/login"
+    return null
   }
 
   return (

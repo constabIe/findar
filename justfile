@@ -7,8 +7,7 @@ default:
 
 # Initialize environment variables
 env:
-  cp .env.example .env
-  cd ./src/static/admiral && cp .env.example .env
+  
 
 # Confirm auto lint action
 confirm-lint:
@@ -18,3 +17,5 @@ confirm-lint:
 # Delete files ignored by git
 clean:
   git clean -Xdf
+cp .env.example .env
+  cd ./src/static/admiral && cp .env.example .env
