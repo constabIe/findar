@@ -226,7 +226,9 @@ class RuleRepository:
                 select(Rule).where(
                     (Rule.enabled == True) if enabled_only else True,  # type: ignore
                     (Rule.type == rule_type) if rule_type else True,  # type: ignore
-                    (Rule.created_by_user_id == created_by_user_id) if created_by_user_id else True,  # type: ignore
+                    (Rule.created_by_user_id == created_by_user_id)
+                    if created_by_user_id
+                    else True,  # type: ignore
                 )
             )
             total = len(count_result.scalars().all())
